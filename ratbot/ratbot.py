@@ -125,8 +125,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
 
   def cmd_join(self, c, params, sender_nick, from_channel):
     if len(params) > 0:
-      chan = params[0]
-      self.send("JOIN :%s\r\n" % (chan))
+      c.join(params[0])
     else:
       self.reply(c, sender_nick, from_channel, "Failed - Please specify a channel to join")
 
@@ -139,7 +138,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
     else:
       self.reply(c,sender_nick, from_channel, "Failed - Where do you want me to part from?")
     if chan is not None:
-      self.send("PART :%s\r\n" % (chan,))
+      c.part(chan)
 
   def cmd_help(self, c, params, sender_nick, from_channel):
     self.reply(c,sender_nick, None, "Commands:")

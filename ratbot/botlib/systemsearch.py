@@ -5,7 +5,7 @@ import os
 from functools import reduce
 from fuzzywuzzy import fuzz
 
-DEBUG = True
+DEBUG = False
 
 SYSTEMS_URL = "http://www.edsm.net/api-v1/systems"
 SPHERE_URL = "http://www.edsm.net/api-v1/sphere-systems"
