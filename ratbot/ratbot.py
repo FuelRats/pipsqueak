@@ -104,7 +104,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
       self.do_command(c, e, e.arguments[0][1:])
     a = e.arguments[0].split(":", 1)
-    if len(a) > 1 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
+    self.botlogger.debug("Split up: %s" % a)
+    if len(a) > 1 and len(a[0]) > 0 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
       self.do_command(c, e, a[1].strip())
 
   def do_command(self, c, e, cmd):
