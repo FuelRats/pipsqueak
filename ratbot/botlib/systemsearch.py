@@ -64,7 +64,6 @@ class Systemsearch:
     self.sysname = sysname
     self.origin_systems = None
     self.close_systems = None
-    self.closest_system = None
 
   def do_search(self):
     self.origin_systems = multifind(self.sysname, '-x' in self.args)
@@ -110,7 +109,7 @@ class Systemsearch:
     if DEBUG:
       print('SSearch DEBUG Closest system: ', closest)
 
-    self.closest_system = closest
+    self.origin_systems[0][0]['closest'] = closest
 
 if __name__ == '__main__':
   DEBUG = True

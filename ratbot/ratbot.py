@@ -10,6 +10,8 @@
 
 # stdlib imports
 import logging
+import logging.handlers
+from datetime import datetime, timedelta
 # 3Plib imports
 import irc.bot
 import irc.strings
@@ -18,18 +20,6 @@ from irc.client import ip_numstr_to_quad, ip_quad_to_numstr, Connection
 from botlib import processing
 from botlib.systemsearch import Systemsearch
 import botlib.systemsearch
-
-
-#sysloghandler = logging.SysLogHandler(address='/dev/log')
-stderrhandler = logging.StreamHandler()
-stderrhandler.setFormatter(logging.Formatter('ratbot %(levelname)s: %(message)s'))
-
-botlogger = logging.getLogger('RatBotLogger')
-botlogger.addHandler(stderrhandler)
-
-#logging.getLogger().addHandler(stderrhandler)
-#logging.basicConfig(format='moepbot %(levelname)s: %(message)s', level=logging.DEBUG, handlers=[sysloghandler])
-#logging.basicConfig(format='ratbot %(levelname)s: %(message)s', level=logging.DEBUG, handlers=[stderrhandler])
 
 class QConnection(Connection):
   socket = None
@@ -54,12 +44,28 @@ class RatBotResetError(RatBotError):
   pass
 
 class TestBot(irc.bot.SingleServerIRCBot):
-  def __init__(self, channel, nickname, server, port=6667):
+  def __init__(self, channels, nickname, server, port=6667, debug=False):
     irc.bot.SingleServerIRCBot.__init__(self, [(server, port)], nickname, nickname)
-    botlogger.debug('started bot')
-    self.channel = channel
+    self.debug = debug
+
+    self.botlogger = logging.getLogger('RatBotLogger')
+    sysloghandler = logging.handlers.SysLogHandler('/dev/log')
+    sysloghandler.setFormatter(logging.Formatter('ratbot %(levelname)s: %(message)s'))
+    self.botlogger.addHandler(sysloghandler)
+
+    if debug:
+      self.botlogger.setLevel(logging.DEBUG)
+      stderrhandler = logging.StreamHandler()
+      stderrhandler.setFormatter(logging.Formatter('ratbot %(levelname)s: %(message)s'))
+      self.botlogger.addHandler(stderrhandler)
+    else:
+      self.botlogger.setLevel(logging.INFO)
+
+    self.botlogger.info('Ratbot started')
+    self._channels = channels
     self.processes = {}
     self.processes_by_qout = {}
+    self.cooldown = {}
     self.cmd_handlers = {
         # bot management
         'die': [ 'Kills the bot.', [], self.cmd_die ],
@@ -85,15 +91,17 @@ class TestBot(irc.bot.SingleServerIRCBot):
     c.nick(c.get_nickname() + "_")
 
   def on_welcome(self, c, e):
-    c.join(self.channel)
+    for channel in self._channels:
+      self.botlogger.debug('Joining %s' % channel)
+      c.join(channel)
 
   def on_privmsg(self, c, e):
     self.do_command(c, e, e.arguments[0])
 
   def on_pubmsg(self, c, e):
-    botlogger.debug('Pubmsg arguments: {}'.format(e.arguments))
+    self.botlogger.debug('Pubmsg arguments: {}'.format(e.arguments))
     if e.arguments[0].startswith('!'):
-      botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
+      self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
       self.do_command(c, e, e.arguments[0][1:])
     a = e.arguments[0].split(":", 1)
     if len(a) > 1 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
@@ -113,14 +121,14 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.cmd_handlers[cmd][2](c, args, nick, e.target)
   
   def cmd_die(self, c, params, sender_nick, from_channel):
-    botlogger.info("Killed by " + sender_nick)
+    self.botlogger.info("Killed by " + sender_nick)
     if len(params) > 0:
       self.die(" ".join(params))
     else:
       self.die("Killed by !die")
 
   def cmd_reset(self, c, params, sender_nick, from_channel):
-    botlogger.info("Reset by " + sender_nick)
+    self.botlogger.info("Reset by " + sender_nick)
     raise RatBotResetError("Killed by reset command, see you soon")
 
   def cmd_join(self, c, params, sender_nick, from_channel):
@@ -169,15 +177,13 @@ class TestBot(irc.bot.SingleServerIRCBot):
               plen = 1
             for rec in tp.origin_systems[:plen]:
               self.reply(c,sender_nick, from_channel,
-                  "Found system \002%s\017 (\003%sMatching %d%%\017) at %s" % (
+                  "Found system \002%s\017 (\003%sMatching %d%%\017) at %s, %s" % (
                     rec[0]['name'],
                     4 if rec[1] < 80 else 7 if rec[1] < 95 else 3,
                     rec[1],
-                    "(no coordinates)" if not 'coords' in rec[0] else "[{0[x]:.0f} : {0[y]:.0f} : {0[z]:.0f}]".format(rec[0]['coords'])
+                    "(no coordinates)" if not 'coords' in rec[0] else "[{0[x]:.0f} : {0[y]:.0f} : {0[z]:.0f}]".format(rec[0]['coords']),
+                    "(no close system searched)" if '-f' in tp.args else ("(no close system)" if not 'closest' in rec[0] else "{:.1f}Ly from \002{}\017".format(rec[0]['closest']['real_distance'], rec[0]['closest']['name']))
                     ))
-          if tp.closest_system:
-            self.reply(c,sender_nick, from_channel,
-                "Closest system is \002{}\017 for {:.1f}Ly".format(tp.closest_system['name'], tp.closest_system['real_distance']))
       return proc
     except (IndexError, ValueError, KeyError):
       self.reply(c,sender_nick, from_channel, "Failed - Please pass a valid pid instead of {}".format(params[0]))
@@ -190,21 +196,28 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.reply(c,sender_nick, from_channel, "Not implemented yet, sorry")
 
   def cmd_search(self, c, params, sender_nick, from_channel):
-    botlogger.debug('Calling search')
+    self.botlogger.debug('Calling search')
     try:
-      proc = processing.ProcessManager(params, sender_nick=sender_nick, from_channel=from_channel)
-      botlogger.info("Received command: "+" ".join(params))
-      self.processes[proc.pid]=proc
-      self.processes_by_qout[proc.out_queue._reader]=proc
-      #self.select_on.append(proc.out_queue._reader)
-      qconn = QConnection(c, self, proc)
-      self.reactor.connections.append(qconn)
+      jp = " ".join(params)
+      if jp in self.cooldown:
+        delta = datetime.now() - self.cooldown[jp]
+        if delta < timedelta(seconds=180):
+          self.reply(c, sender_nick, from_channel, "I'm afraid I can't do that Dave. This search was just started {}s ago".format(delta.seconds))
+      else:
+        self.cooldown[jp] = datetime.now()
+        proc = processing.ProcessManager(params, sender_nick=sender_nick, from_channel=from_channel)
+        self.botlogger.info("Received command: "+" ".join(params))
+        self.processes[proc.pid]=proc
+        self.processes_by_qout[proc.out_queue._reader]=proc
+        #self.select_on.append(proc.out_queue._reader)
+        qconn = QConnection(c, self, proc)
+        self.reactor.connections.append(qconn)
 
-      self.reply(c,sender_nick, from_channel, proc.start_result)
-      return proc
+        self.reply(c,sender_nick, from_channel, proc.start_result)
+        return proc
     except:
       self.reply(c,sender_nick, from_channel, "Failed to start process")
-      botlogger.exception("Failed to start process")
+      self.botlogger.exception("Failed to start process")
       return None
   
   def cmd_fact(self, c, params, sender_nick, from_channel):
@@ -231,7 +244,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.send("PONG %s" % chunk)
 
   def reply(self, c, nick,channel,msg):
-    botlogger.debug("reply nick: %s, channel: %s" % (nick, channel))
+    self.botlogger.debug("reply nick: %s, channel: %s" % (nick, channel))
     to = channel if channel else nick
     if to == None:
       raise RatBotError('No recipient for privmsg')
@@ -246,14 +259,14 @@ class TestBot(irc.bot.SingleServerIRCBot):
       if elapsed < self.delay:
         time.sleep(self.delay - elapsed)
 
-    botlogger.debug(">> " + str(msg.replace("\r\n",'\\r\\n').encode()))
+    self.botlogger.debug(">> " + str(msg.replace("\r\n",'\\r\\n').encode()))
     self.socket.send(msg.encode())
     self.lastmsgtime = time.time()
 
 def main():
   import sys
-  if len(sys.argv) != 4:
-    print("Usage: testbot <server[:port]> <channel> <nickname>")
+  if len(sys.argv) < 4:
+    print("Usage: testbot <server[:port]> <channel> <nickname> [debug]")
     sys.exit(1)
 
   s = sys.argv[1].split(":", 1)
@@ -266,10 +279,11 @@ def main():
       sys.exit(1)
   else:
     port = 6667
-  channel = sys.argv[2]
+  channels = sys.argv[2].split(",")
   nickname = sys.argv[3]
+  debug = len(sys.argv) >= 5
 
-  bot = TestBot(channel, nickname, server, port)
+  bot = TestBot(channels, nickname, server, port, debug)
   bot.start()
 
 if __name__ == "__main__":
