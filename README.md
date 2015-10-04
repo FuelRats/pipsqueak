@@ -20,11 +20,11 @@ Command | Parameters | Explanation
 
 A system search (via `!search`) performs the following operations:
 
-1) The search term is compared to all system names known to EDSM that have similar length to the search term, unless option `-x` is given, then **all** systems are compared.
-2) If option `-f` is given, then the three best matches are simply printed
-3) If option `-f` is not given, the best match is selected for close system search **if** coordinates are known
-4) All systems in a given radius (depending on the `-l[l[l]]` option being present or not) from the best-matching system are queried from EDSM
-5) The closest simple named system (where simple-named is determined as "has at most one space in its name") is selected from the results
+1. The search term is compared to all system names known to EDSM that have similar length to the search term, unless option `-x` is given, then **all** systems are compared.
+2. If option `-f` is given, then the three best matches are simply printed
+3. If option `-f` is not given, the best match is selected for close system search **if** coordinates are known
+4. All systems in a given radius (depending on the `-l[l[l]]` option being present or not) from the best-matching system are queried from EDSM
+5. The closest simple named system (where simple-named is determined as "has at most one space in its name") is selected from the results
 
 EDSM has 100k systems in it but only has coordinates for 50k of them. In a 500Ly sphere around Sol there are 300 million systems. This means the bot has some unsolvable problems:
 
