@@ -1,6 +1,18 @@
 # pipsqueak
 ED Fuel rats IRC bot
 
+## Install
+
+Requires Python, tested only with python3
+
+    pip install virtualenv
+    git clone https://github.com/duk3luk3/pipsqueak.git
+    cd pipsqueak
+    virtualenv .
+    pip install -r requirements.txt
+    cd ratbot
+    ./ratbot.py <server[:port]> 'channel1,channel2,...,channeln' <nick> [debug]
+
 ## Commands
 
 Command | Parameters | Explanation
