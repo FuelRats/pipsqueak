@@ -21,22 +21,22 @@ def multifind(name, full_length=False):
   if DEBUG:
     print('SSearch DEBUG multifind ', name)
   l = len(name)
-  best = [(None,0),(None,-1),(None,-2)]
+  best = [None,None,None]
   for candidate in sysnames:
     cname = candidate['name'].lower()
     cl = len(cname)
     if full_length or (cl > 0.85*l and cl < 1.15*l):
-      r = fuzz.ratio(name, cname)
-      if r > best[0][1]:
+      candidate['ratio'] = fuzz.ratio(name, cname)
+      if best[0] is None or candidate['ratio'] > best[0]['ratio']:
         best[2] = best[1]
         best[1] = best[0]
-        best[0] = (candidate, r)
-      elif r > best[1][1]:
+        best[0] = candidate
+      elif best[1] is None or candidate['ratio'] > best[1]['ratio']:
         best[2] = best[1]
-        best[1] = (candidate, r)
-      elif r > best[2][1]:
-        best[2] = (candidate, r)
-  return best
+        best[1] = candidate
+      elif best[2] is None or candidate['ratio'] > best[2]['ratio']:
+        best[2] = candidate
+  return list(filter(lambda x: x is not None, best))
 
 def dist_square(a,b):
   x = a['x'] - b['x']
@@ -65,11 +65,14 @@ class Systemsearch:
     self.origin_systems = None
     self.close_systems = None
 
+  def __str__(self):
+    return "Systemsearch for {}, options {}, found origin systems {}, found close systems {}".format(self.sysname, self.args, self.origin_systems, self.close_systems)
+
   def do_search(self):
     self.origin_systems = multifind(self.sysname, '-x' in self.args)
     if DEBUG:
       print('SSearch DEBUG Origin systems found: ', self.origin_systems)
-    if '-f' in self.args:
+    if '-f' in self.args or len(self.origin_systems) < 1:
       return
 
     radius = 10
@@ -80,10 +83,10 @@ class Systemsearch:
     elif '-lll' in self.args:
       radius = 50
 
-    if not 'coords' in self.origin_systems[0][0]:
+    if not 'coords' in self.origin_systems[0]:
       return
 
-    sphereparams = {'sysname': self.origin_systems[0][0]['name'], 'radius': radius, 'coords': 1}
+    sphereparams = {'sysname': self.origin_systems[0]['name'], 'radius': radius, 'coords': 1}
     sphererq = requests.get(SPHERE_URL, sphereparams)
     sphererq.raise_for_status()
 
@@ -92,8 +95,8 @@ class Systemsearch:
     except:
       raise Exception("Failed to parse EDSM sphere result searching for %s: %s " % (self.origin_systems[0][0]['name'], (sphererq.text if sphererq.text != '' else '(Empty)')))
 
-    origin_name = self.origin_systems[0][0]['name'].lower()
-    origin_coords = self.origin_systems[0][0]['coords']
+    origin_name = self.origin_systems[0]['name'].lower()
+    origin_coords = self.origin_systems[0]['coords']
     for system in self.close_systems:
       if system['name'].lower() == origin_name:
         system['distance'] = 999
@@ -109,7 +112,7 @@ class Systemsearch:
     if DEBUG:
       print('SSearch DEBUG Closest system: ', closest)
 
-    self.origin_systems[0][0]['closest'] = closest
+    self.origin_systems[0]['closest'] = closest
 
 if __name__ == '__main__':
   DEBUG = True

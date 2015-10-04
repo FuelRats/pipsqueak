@@ -171,7 +171,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
           self.reply(c,sender_nick, from_channel,
               "\0034Unexpected Error\017: {}".format(tp))
         if isinstance(tp, Systemsearch):
-          if tp.origin_systems:
+          if len(tp.origin_systems) > 0:
             if '-f' in tp.args:
               plen = len(tp.origin_systems)
             else:
@@ -179,12 +179,14 @@ class TestBot(irc.bot.SingleServerIRCBot):
             for rec in tp.origin_systems[:plen]:
               self.reply(c,sender_nick, from_channel,
                   "Found system \002%s\017 (\003%sMatching %d%%\017) at %s, %s" % (
-                    rec[0]['name'],
-                    4 if rec[1] < 80 else 7 if rec[1] < 95 else 3,
-                    rec[1],
-                    "(no coordinates)" if not 'coords' in rec[0] else "[{0[x]:.0f} : {0[y]:.0f} : {0[z]:.0f}]".format(rec[0]['coords']),
-                    "(no close system searched)" if '-f' in tp.args else ("(no close system)" if not 'closest' in rec[0] else "{:.1f}Ly from \002{}\017".format(rec[0]['closest']['real_distance'], rec[0]['closest']['name']))
+                    rec['name'],
+                    4 if rec['ratio'] < 80 else 7 if rec['ratio'] < 95 else 3,
+                    rec['ratio'],
+                    "(no coordinates)" if not 'coords' in rec else "[{0[x]:.0f} : {0[y]:.0f} : {0[z]:.0f}]".format(rec['coords']),
+                    "(no close system searched)" if '-f' in tp.args else ("(no close system)" if not 'closest' in rec else "{:.1f}Ly from \002{}\017".format(rec['closest']['real_distance'], rec['closest']['name']))
                     ))
+          else:
+            self.reply(c, sender_nick, from_channel, "No systems found")
       return proc
     except (IndexError, ValueError, KeyError):
       self.reply(c,sender_nick, from_channel, "Failed - Please pass a valid pid instead of {}".format(params[0]))
