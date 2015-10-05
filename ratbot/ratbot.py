@@ -68,23 +68,23 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.cooldown = {}
     self.cmd_handlers = {
         # bot management
-        'die': [ 'Kills the bot.', [], self.cmd_die ],
-        'reset': [ 'This command resets the bot', [], self.cmd_reset ],
+        'die': [ 'Kills the bot.', [], self.cmd_die, True ],
+        'reset': [ 'This command resets the bot', [], self.cmd_reset, False ],
         'join': [ 'Makes the bot join a channel', ['channel name'],
-          self.cmd_join ],
+          self.cmd_join, True ],
         'part': [ 'Makes the bot part a channel',
-          ['channel name (current channel if parameter not present and command issued from a channel)'], self.cmd_part ],
-        'help': [ 'Prints help message listing commands', [], self.cmd_help ],
+          ['channel name (current channel if parameter not present and command issued from a channel)'], self.cmd_part, True ],
+        'help': [ 'Prints help message listing commands', [], self.cmd_help, False ],
         # process control
 #        'signal': [ 'Creates a new case', ['Client name', 'Client system', 'Client OX status (Empty for fine)'], self.cmd_signal],
         'search': [ 'Search for a simply-named system',
           ['-x Extended Search: Do not restrict search by system name length',
            '-f Fuzzy Search: Return just the three best-matching system names for search term',
            '-l / -ll / -lll Large radius: Search for close systems in 20 / 30 / 50Ly radius instead of 10', 'System'],
-          self.cmd_search],
+          self.cmd_search, False],
         'fact': [ 'Recites a fact',
           ['Name of fact, empty prints all available facts' ],
-          self.cmd_fact ],
+          self.cmd_fact, False ],
         }
 
   def on_nicknameinuse(self, c, e):
@@ -116,17 +116,18 @@ class TestBot(irc.bot.SingleServerIRCBot):
     cmd = split[0]
     args = split[1:]
 
-    if cmd == "disconnect":
-      self.disconnect()
-    elif cmd in self.cmd_handlers:
-      self.cmd_handlers[cmd][2](c, args, nick, e.target)
+    if cmd in self.cmd_handlers:
+      if (not self.cmd_handlers[cmd][3]) or ((e.target in self.channels) and (nick in list(self.channels[e.target].opers()) + list(self.channels[e.target].voiced()) + list(self.channels[e.target].owners()) + list(self.channels[e.target].halfops()))):
+        self.cmd_handlers[cmd][2](c, args, nick, e.target)
+      else:
+        self.reply(c, nick, e.target, "Privileged operation")
   
   def cmd_die(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Killed by " + sender_nick)
     if len(params) > 0:
-      self.die(" ".join(params))
+      raise RatBotKilledError(" ".join(params))
     else:
-      self.die("Killed by !die")
+      raise RatBotKilledError("Killed by !die")
 
   def cmd_reset(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Reset by " + sender_nick)
@@ -231,6 +232,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
         'xfr': 'To add the rats to your friends list press the XBOX button once, then press the RB button once, select the friends tile and press A to enter your friends list. Now press Y and search for the rat\'s name.',
         'xwing': 'To add the rats to your wing hold the X button and press up on the D-pad, press RB once, then select the name of a rat and select [Invite to wing]',
         'xbeacon': 'To light your wing beacon hold X and press RIGHT on the D-pad. Press the LB button once then select beacon and set it from OFF to WING',
+        'prep': 'Please drop from super cruise, come to a complete stop and disable all modules EXCEPT life support'
         }
     if len(params) > 0:
       if params[0] in facts.keys():
@@ -286,8 +288,18 @@ def main():
   nickname = sys.argv[3]
   debug = len(sys.argv) >= 5
 
-  bot = TestBot(channels, nickname, server, port, debug)
-  bot.start()
+  bot = None
+  while True:
+    try:
+      bot = TestBot(channels, nickname, server, port, debug)
+      bot.start()
+    except (RatBotKilledError, KeyboardInterrupt) as e:
+      bot.disconnect("".join(e.args))
+      raise
+    except:
+      logging.exception("Thrown")
+      bot.disconnect("Thrown")
+      continue
 
 if __name__ == "__main__":
   main()
