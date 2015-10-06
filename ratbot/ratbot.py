@@ -85,6 +85,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
         'fact': [ 'Recites a fact',
           ['Name of fact, empty prints all available facts' ],
           self.cmd_fact, False ],
+        'masters': ['Lists masters', [], self.cmd_masters, False ]
         }
 
   def on_nicknameinuse(self, c, e):
@@ -117,10 +118,15 @@ class TestBot(irc.bot.SingleServerIRCBot):
     args = split[1:]
 
     if cmd in self.cmd_handlers:
-      if (not self.cmd_handlers[cmd][3]) or ((e.target in self.channels) and (nick in list(self.channels[e.target].opers()) + list(self.channels[e.target].voiced()) + list(self.channels[e.target].owners()) + list(self.channels[e.target].halfops()))):
+      chan = self.channels[e.target] if e.target in self.channels else None
+      privers = list(chan.opers()) + list(chan.voiced()) + list(chan.owners()) + list(chan.halfops()) if chan is not None else []
+      self.botlogger.debug("Privers: {}".format(", ".join(privers)))
+      self.botlogger.debug("{} is {}in privers".format(nick, "" if nick in privers else "not "))
+
+      if ((self.cmd_handlers[cmd][3]) == False) or (nick in privers):
         self.cmd_handlers[cmd][2](c, args, nick, e.target)
       else:
-        self.reply(c, nick, e.target, "Privileged operation")
+        self.reply(c, nick, e.target, "Privileged operation - can only be called from a channel by someone having ~@%+ flag")
   
   def cmd_die(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Killed by " + sender_nick)
@@ -159,6 +165,16 @@ class TestBot(irc.bot.SingleServerIRCBot):
         ))
       for switch in attribs[1]:
         self.reply(c,sender_nick, None, "    " + switch)
+
+  def cmd_masters(self, c, params, sender_nick, from_channel):
+# list(self.channels[e.target].opers()) + list(self.channels[e.target].voiced()) + list(self.channels[e.target].owners()) + list(self.channels[e.target].halfops()))
+    if from_channel is None:
+      self.reply(c, sender_nick, None, "Call this from a channel")
+    else:
+      self.reply(c,sender_nick, None, "Current masters in {}:".format(from_channel))
+      chan = self.channels[from_channel]
+      for t,l in [('Owners', chan.owners()), ('Opers', chan.opers()), ('Hops', chan.halfops()), ('Voicers', chan.voiced())]:
+        self.reply(c, sender_nick, None, "{}: {}".format(t, ", ".join(l)))
 
   def cmd_readout(self, c, params, sender_nick, from_channel):
     try:
