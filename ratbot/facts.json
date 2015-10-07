@@ -1,0 +1,11 @@
+{
+    "xbeacon": "To light your wing beacon hold X and press RIGHT on the D-pad. Press the LB button once then select beacon and set it from OFF to WING",
+    "pcwing": "To send a wing request, go to the comms panel (\u0002Default key 2\u000f), \u0002hit ESC\u000f to get out of the chat box, and move to the second panel (\u0002Default key E\u000f). Then select the CMDR you want to invite to your wing and select \u0002Invite to wing\u000f.",
+    "pcbeacon": "To drop a wing beacon, go to the right-side panel (\u0002Default key 4\u000f), navigate to the functions screen (\u0002Default key Q\u000f), select \u0002BEACON\u000f and set it to \u0002WING\u000f",
+    "xwing": "To add the rats to your wing hold the X button and press up on the D-pad, press RB once, then select the name of a rat and select [Invite to wing]",
+    "pcfr": "To send a friend request, go to the menu (\u0002Hit ESC\u000f), click \u0002friends and private groups\u000f, and click \u0002ADD FRIEND\u000f",
+    "prep": "Please drop from super cruise, come to a complete stop and disable all modules EXCEPT life support",
+    "xfr": "To add the rats to your friends list press the XBOX button once, then press the RB button once, select the friends tile and press A to enter your friends list. Now press Y and search for the rat\"s name.",
+    "xquit": "Please log out of the game immediately by pressing \u0002START\u000f and selecting \u0002Save and Exit to Main Menu\u000f!",
+    "pcquit": "Please log out of the game immediately by pressing \u0002ESC\u000f and selecting \u0002Save and Exit to Main Menu\u000f!"
+}
