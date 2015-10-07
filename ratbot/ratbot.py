@@ -11,6 +11,7 @@
 # stdlib imports
 import logging
 import logging.handlers
+import json
 from datetime import datetime, timedelta
 # 3Plib imports
 import irc.bot
@@ -20,6 +21,8 @@ from irc.client import ip_numstr_to_quad, ip_quad_to_numstr, Connection
 from botlib import processing
 from botlib.systemsearch import Systemsearch
 import botlib.systemsearch
+
+FACTS = json.load(open('facts.json'))
 
 class QConnection(Connection):
   socket = None
@@ -110,7 +113,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.do_command(c, e, a[1].strip())
 
   def do_command(self, c, e, cmd):
-    nick = e.source.nick
+    nick = irc.strings.IRCFoldedCase(e.source.nick)
     c = self.connection
 
     split = cmd.split()
@@ -241,24 +244,15 @@ class TestBot(irc.bot.SingleServerIRCBot):
       return None
   
   def cmd_fact(self, c, params, sender_nick, from_channel):
-    facts = {
-        'pcfr': 'To send a friend request, go to the menu (\002Hit ESC\017), click \002friends and private groups\017, and click \002ADD FRIEND\017',
-        'pcwing': 'To send a wing request, go to the comms panel (\002Default key 2\017), \002hit ESC\017 to get out of the chat box, and move to the second panel (\002Default key E\017). Then select the CMDR you want to invite to your wing and select \002Invite to wing\017.',
-        'pcbeacon': 'To drop a wing beacon, go to the right-side panel (\002Default key 4\017), navigate to the functions screen (\002Default key Q\017), select \002BEACON\017 and set it to \002WING\017',
-        'xfr': 'To add the rats to your friends list press the XBOX button once, then press the RB button once, select the friends tile and press A to enter your friends list. Now press Y and search for the rat\'s name.',
-        'xwing': 'To add the rats to your wing hold the X button and press up on the D-pad, press RB once, then select the name of a rat and select [Invite to wing]',
-        'xbeacon': 'To light your wing beacon hold X and press RIGHT on the D-pad. Press the LB button once then select beacon and set it from OFF to WING',
-        'prep': 'Please drop from super cruise, come to a complete stop and disable all modules EXCEPT life support'
-        }
     if len(params) > 0:
-      if params[0] in facts.keys():
-        self.reply(c,sender_nick, from_channel, facts[params[0]])
+      if params[0] in FACTS.keys():
+        self.reply(c,sender_nick, from_channel, FACTS[params[0]])
       else:
         self.reply(c,sender_nick, from_channel, 'No fact called ' + params[0])
     else:
-      self.reply(c, sender_nick, None, 'Available facts:')
-      for k in sorted(facts.keys()):
-        self.reply(c, sender_nick, None, k + ' -> ' + facts[k])
+      self.reply(c, sender_nick, None, 'Available FACTS:')
+      for k in sorted(FACTS.keys()):
+        self.reply(c, sender_nick, None, k + ' -> ' + FACTS[k])
 
   def handle_PING(self, msg):
     chunk = msg[5:]
@@ -267,7 +261,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
   def reply(self, c, nick,channel,msg):
     self.botlogger.debug("reply nick: %s, channel: %s" % (nick, channel))
     to = channel if channel else nick
-    if to == None:
+    if to is None:
       raise RatBotError('No recipient for privmsg')
 
     c.privmsg(to, msg)
