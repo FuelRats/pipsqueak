@@ -66,6 +66,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
 
     self.botlogger.info('Ratbot started')
     self._channels = channels
+    self.chanlog = {}
+    self.grabbed = {}
     self.processes = {}
     self.processes_by_qout = {}
     self.cooldown = {}
@@ -88,6 +90,18 @@ class TestBot(irc.bot.SingleServerIRCBot):
         'fact': [ 'Recites a fact',
           ['Name of fact, empty prints all available facts' ],
           self.cmd_fact, False ],
+        'grab': [ 'Grabs last message from nick',
+          ['Nick to grab'],
+          self.cmd_grab, False ],
+        'quote': [ 'Recites grabbed messages from a nick',
+          ['Previously grabbed nick'],
+          self.cmd_quote, False ],
+        'clear': [ 'Clears grab list completely',
+          [],
+          self.cmd_clear, False ],
+        'inject': [ 'Injects custom text into grab list',
+          ['Nick to inject for', 'Message'],
+          self.cmd_inject, False ],
         'masters': ['Lists masters', [], self.cmd_masters, False ]
         }
 
@@ -103,6 +117,10 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.do_command(c, e, e.arguments[0])
 
   def on_pubmsg(self, c, e):
+    if not e.target in self.chanlog:
+      self.chanlog[e.target] = {}
+    self.chanlog[e.target][e.source.nick] = e.arguments[0]
+
     self.botlogger.debug('Pubmsg arguments: {}'.format(e.arguments))
     if e.arguments[0].startswith('!'):
       self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
@@ -138,6 +156,48 @@ class TestBot(irc.bot.SingleServerIRCBot):
     else:
       raise RatBotKilledError("Killed by !die")
 
+  def cmd_grab(self, c, params, sender_nick, from_channel):
+    if from_channel is None:
+      self.reply(c, sender_nick, from_channel, "This command only works in a channel")
+    elif len(params) < 1:
+      self.reply(c, sender_nick, from_channel, "Sorry, I need a nick to grab")
+    else:
+      grabnick = params[0]
+      line = self.chanlog.get(from_channel, {}).get(grabnick, None)
+      if line is None:
+        self.reply(c, sender_nick, from_channel, "Sorry, couldn't find a grabbable line, did you misspell the nick?")
+      else:
+        if not grabnick in self.grabbed:
+          self.grabbed[grabnick] = [line]
+        else:
+          self.grabbed[grabnick].append(line)
+        self.reply(c, sender_nick, from_channel, "Grabbed '{}' from {} ({} grabbed lines now)".format(line, grabnick, len(self.grabbed[grabnick])))
+
+  def cmd_quote(self, c, params, sender_nick, from_channel):
+    if len(params) < 1:
+      self.reply(c, sender_nick, from_channel, "Sorry, I need a nick to grab")
+    else:
+      grabnick = params[0]
+      lines = self.grabbed.get(grabnick, None)
+      if lines is None:
+        self.reply(c, sender_nick, from_channel, "Sorry, couldn't find grabbed lines, did you misspell the nick?")
+      else:
+        for line in lines:
+          self.reply(c, sender_nick, from_channel, "<{}> {}".format(grabnick, line))
+
+  def cmd_clear(self, c, params, sender_nick, from_channel):
+    self.grabbed = {}
+
+  def cmd_inject(self, c, params, sender_nick, from_channel):
+    if len(params) < 2:
+      self.reply(c, sender_nick, from_channel, "Sorry, I need a nick and some text.")
+    else:
+      grabnick = params[0]
+      grabtext = " ".join(params[1:])
+      if not grabnick in self.grabbed:
+        self.grabbed[grabnick] = []
+      self.grabbed[grabnick].append("{} [INJECTED BY {}]".format(grabtext, sender_nick))
+
   def cmd_reset(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Reset by " + sender_nick)
     raise RatBotResetError("Killed by reset command, see you soon")
@@ -162,9 +222,10 @@ class TestBot(irc.bot.SingleServerIRCBot):
   def cmd_help(self, c, params, sender_nick, from_channel):
     self.reply(c,sender_nick, None, "Commands:")
     for cmd, attribs in self.cmd_handlers.items():
-      self.reply(c,sender_nick, None, "  {0:10}: {1}; Params:".format(
+      self.reply(c,sender_nick, None, "  {0:10}: {1}{2}".format(
         cmd,
         attribs[0],
+        " (Privileged)" if attribs[3] else ""
         ))
       for switch in attribs[1]:
         self.reply(c,sender_nick, None, "    " + switch)
