@@ -96,9 +96,12 @@ class TestBot(irc.bot.SingleServerIRCBot):
         'quote': [ 'Recites grabbed messages from a nick',
           ['Previously grabbed nick'],
           self.cmd_quote, False ],
-        'clear': [ 'Clears grab list completely',
-          [],
+        'clear': [ 'Clears grab list',
+          ['Nick'],
           self.cmd_clear, False ],
+        'list': [ 'Lists grabs',
+          [],
+          self.cmd_list, False ],
         'inject': [ 'Injects custom text into grab list',
           ['Nick to inject for', 'Message'],
           self.cmd_inject, False ],
@@ -186,7 +189,20 @@ class TestBot(irc.bot.SingleServerIRCBot):
           self.reply(c, sender_nick, from_channel, "<{}> {}".format(grabnick, line))
 
   def cmd_clear(self, c, params, sender_nick, from_channel):
-    self.grabbed = {}
+    if len(params) > 0:
+      if params[0] in self.grabbed:
+        del self.grabbed[params[0]]
+        self.reply(c, sender_nick, from_channel, "Cleared {}".format(params[0]))
+      else:
+        self.reply(c, sender_nick, from_channel, "Can't find {} on the board".format(params[0]))
+    else:
+      self.reply(c, sender_nick, from_channel, "Need a nick to clear")
+
+  def cmd_list(self, c, params, sender_nick, from_channel):
+    if len(self.grabbed) > 0:
+      self.reply(c, sender_nick, from_channel, "On the board: {}".format(", ".join(self.grabbed.keys())))
+    else:
+      self.reply(c, sender_nick, from_channel, "Board is clear")
 
   def cmd_inject(self, c, params, sender_nick, from_channel):
     if len(params) < 2:
