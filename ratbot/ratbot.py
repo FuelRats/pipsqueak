@@ -149,6 +149,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
         self.cmd_handlers[cmd][2](c, args, nick, e.target)
       else:
         self.reply(c, nick, e.target, "Privileged operation - can only be called from a channel by someone having ~@%+ flag")
+    elif cmd in FACTS:
+      self.cmd_handlers['fact'][2](c, [cmd], nick, e.target)
   
   def cmd_die(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Killed by " + sender_nick)
