@@ -123,7 +123,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.chanlog[e.target] = {}
     self.chanlog[e.target][e.source.nick] = e.arguments[0]
 
-    self.botlogger.debug('Pubmsg arguments: {}'.format(e.arguments))
+    #self.botlogger.debug('Pubmsg arguments: {}'.format(e.arguments))
     if e.arguments[0].startswith('!'):
       self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
       self.do_command(c, e, e.arguments[0][1:])
