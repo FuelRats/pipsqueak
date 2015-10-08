@@ -52,9 +52,6 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.debug = debug
 
     self.botlogger = logging.getLogger('RatBotLogger')
-    sysloghandler = logging.handlers.SysLogHandler('/dev/log')
-    sysloghandler.setFormatter(logging.Formatter('ratbot %(levelname)s: %(message)s'))
-    self.botlogger.addHandler(sysloghandler)
 
     if debug:
       self.botlogger.setLevel(logging.DEBUG)
@@ -129,7 +126,6 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
       self.do_command(c, e, e.arguments[0][1:])
     a = e.arguments[0].split(":", 1)
-    self.botlogger.debug("Split up: %s" % a)
     if len(a) > 1 and len(a[0]) > 0 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
       self.do_command(c, e, a[1].strip())
 
@@ -144,8 +140,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
     if cmd in self.cmd_handlers:
       chan = self.channels[e.target] if e.target in self.channels else None
       privers = list(chan.opers()) + list(chan.voiced()) + list(chan.owners()) + list(chan.halfops()) if chan is not None else []
-      self.botlogger.debug("Privers: {}".format(", ".join(privers)))
-      self.botlogger.debug("{} is {}in privers".format(nick, "" if nick in privers else "not "))
+      #self.botlogger.debug("Privers: {}".format(", ".join(privers)))
+      #self.botlogger.debug("{} is {}in privers".format(nick, "" if nick in privers else "not "))
 
       if ((self.cmd_handlers[cmd][3]) == False) or (nick in privers):
         self.cmd_handlers[cmd][2](c, args, nick, e.target)
@@ -296,7 +292,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.reply(c,sender_nick, from_channel, "Not implemented yet, sorry")
 
   def cmd_search(self, c, params, sender_nick, from_channel):
-    self.botlogger.debug('Calling search')
+    #self.botlogger.debug('Calling search')
     try:
       jp = " ".join(params)
       if jp in self.cooldown:
@@ -336,7 +332,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.send("PONG %s" % chunk)
 
   def reply(self, c, nick,channel,msg):
-    self.botlogger.debug("reply nick: %s, channel: %s" % (nick, channel))
+    #self.botlogger.debug("reply nick: %s, channel: %s" % (nick, channel))
     to = channel if channel else nick
     if to is None:
       raise RatBotError('No recipient for privmsg')
@@ -374,6 +370,11 @@ def main():
   channels = sys.argv[2].split(",")
   nickname = sys.argv[3]
   debug = len(sys.argv) >= 5
+
+  botlogger = logging.getLogger('RatBotLogger')
+  sysloghandler = logging.handlers.SysLogHandler('/dev/log')
+  sysloghandler.setFormatter(logging.Formatter('ratbot %(levelname)s: %(message)s'))
+  botlogger.addHandler(sysloghandler)
 
   bot = None
   while True:
