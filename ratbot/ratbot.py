@@ -24,6 +24,8 @@ import botlib.systemsearch
 
 FACTS = json.load(open('facts.json'))
 
+logging.getLogger().setLevel(logging.INFO)
+
 class QConnection(Connection):
   socket = None
 
