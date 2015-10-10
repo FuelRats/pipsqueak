@@ -27,6 +27,12 @@ Command | Parameters | Explanation
         | -x         | Extended name matching: Disables limiting the initial search to systems whose names are close in length to the search term
 	| -f         | Performs only the initial search and prints the three best matches
 	| -l/ll/lll  | Searches for close systems in 20 / 30/ 50Ly radius instead of the default 10Ly
+`!grab` | Nick       | Grabs last message from a nick
+`!inject` | Nick, message | Injects a custom message into a nick's grab list
+`!quote` | Nick      | Recites all grabbed messages from a nick
+`!clear` | Nick      | Clears grab list for a nick
+`!list`  |           | Lists all nicks in the grab list
+`!masters` |         | Lists all nicks that are currently authorized to perform privileged commands (die, join, part)
 
 ## System search explained
 
@@ -51,12 +57,14 @@ This means that the user always has to have a close look at the results printed.
 Mecha includes a tool to keep track of the current board of rescues. It does this using a "grab" feature:
 
 * `!grab <nick>` adds the most recent line from `<nick>` to the grab buffer for that nick
+* `!inject <nick> <message>` adds a custom messages to `<nick>`'s grab buffer
 * `!quote <nick>` prints all grabbed lines from `<nick>`
 * `!list` lists all nicks that have grab buffers
 * `!clear <nick>` deletes the grab buffer for a nick
 
 Every message that starts with "ratsignal" is automatically grabbed.
 
-When a new client comes in and raises the ratsignal, they will be grabbed. Then after you've handled the client, use `!clear <nick>` to remove them. And then you can use `!list` to see if there are any clients on the queue.
+When a new client comes in and raises the ratsignal, they will be grabbed. Then after you've handled the client, use `!clear <nick>` to remove them. And then you can use `!list` to see if there are any clients on the queue.  
+Important information about the client that can't be captured from a single message can be added using `!inject`.
 
 The board is not saved between restarts.
