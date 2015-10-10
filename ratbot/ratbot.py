@@ -71,6 +71,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.processes = {}
     self.processes_by_qout = {}
     self.cooldown = {}
+    self.silenced = False
     self.cmd_handlers = {
         # bot management
         'die': [ 'Kills the bot.', [], self.cmd_die, True, 0 ],
@@ -105,7 +106,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
         'inject': [ 'Injects custom text into grab list',
           ['Nick to inject for', 'Message'],
           self.cmd_inject, False, 11 ],
-        'masters': ['Lists masters', [], self.cmd_masters, False, 12 ]
+        'masters': ['Lists masters', [], self.cmd_masters, False, 12 ],
+        'silence': ['Toggles verbosity', [], self.cmd_silence, False, 13]
         }
 
   def on_nicknameinuse(self, c, e):
@@ -128,7 +130,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
     if e.arguments[0].startswith('!'):
       self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
       self.do_command(c, e, e.arguments[0][1:])
-    elif e.arguments[0].lower().startswith('ratsignal'):
+    elif e.arguments[0].lower().startswith('ratsignal') and not self.silenced:
       self.do_command(c, e, 'grab ' + e.source.nick)
     else:
       a = e.arguments[0].split(":", 1)
@@ -163,6 +165,10 @@ class TestBot(irc.bot.SingleServerIRCBot):
     else:
       raise RatBotKilledError("Killed by !die")
 
+  def cmd_silence(self, c, params, sender_nick, from_channel):
+    self.silenced = not self.silenced
+    self.reply(c, sender_nick, from_channel, "I will make less noise now." if self.silenced else "Making more noise now!")
+
   ratsignalre = re.compile("ratsignal", re.I)
   def cmd_grab(self, c, params, sender_nick, from_channel):
     if from_channel is None:
@@ -181,7 +187,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
           self.grabbed[grabnick] = [line]
         else:
           self.grabbed[grabnick].append(line)
-        self.reply(c, sender_nick, from_channel, "Grabbed '{}' from {} ({} grabbed lines now)".format(line, grabnick, len(self.grabbed[grabnick])))
+        if not self.silenced:
+          self.reply(c, sender_nick, from_channel, "Grabbed '{}' from {} ({} grabbed lines now)".format(line, grabnick, len(self.grabbed[grabnick])))
 
   def cmd_quote(self, c, params, sender_nick, from_channel):
     if len(params) < 1:
