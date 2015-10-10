@@ -72,39 +72,39 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.cooldown = {}
     self.cmd_handlers = {
         # bot management
-        'die': [ 'Kills the bot.', [], self.cmd_die, True ],
-        'reset': [ 'This command resets the bot', [], self.cmd_reset, False ],
+        'die': [ 'Kills the bot.', [], self.cmd_die, True, 0 ],
+        'reset': [ 'This command resets the bot', [], self.cmd_reset, False, 1 ],
         'join': [ 'Makes the bot join a channel', ['channel name'],
-          self.cmd_join, True ],
+          self.cmd_join, True, 2 ],
         'part': [ 'Makes the bot part a channel',
-          ['channel name (current channel if parameter not present and command issued from a channel)'], self.cmd_part, True ],
-        'help': [ 'Prints help message listing commands', [], self.cmd_help, False ],
+          ['channel name (current channel if parameter not present and command issued from a channel)'], self.cmd_part, True, 3 ],
+        'help': [ 'Prints help message listing commands', [], self.cmd_help, False, 4 ],
         # process control
 #        'signal': [ 'Creates a new case', ['Client name', 'Client system', 'Client OX status (Empty for fine)'], self.cmd_signal],
         'search': [ 'Search for a simply-named system',
           ['-x Extended Search: Do not restrict search by system name length',
            '-f Fuzzy Search: Return just the three best-matching system names for search term',
            '-l / -ll / -lll Large radius: Search for close systems in 20 / 30 / 50Ly radius instead of 10', 'System'],
-          self.cmd_search, False],
+          self.cmd_search, False, 5],
         'fact': [ 'Recites a fact',
-          ['Name of fact, empty prints all available facts' ],
-          self.cmd_fact, False ],
+          ['Name of fact, empty prints all available facts'],
+          self.cmd_fact, False, 6 ],
         'grab': [ 'Grabs last message from nick',
           ['Nick to grab'],
-          self.cmd_grab, False ],
+          self.cmd_grab, False, 7 ],
         'quote': [ 'Recites grabbed messages from a nick',
           ['Previously grabbed nick'],
-          self.cmd_quote, False ],
+          self.cmd_quote, False, 8 ],
         'clear': [ 'Clears grab list',
           ['Nick'],
-          self.cmd_clear, False ],
+          self.cmd_clear, False, 9 ],
         'list': [ 'Lists grabs',
           [],
-          self.cmd_list, False ],
+          self.cmd_list, False, 10 ],
         'inject': [ 'Injects custom text into grab list',
           ['Nick to inject for', 'Message'],
-          self.cmd_inject, False ],
-        'masters': ['Lists masters', [], self.cmd_masters, False ]
+          self.cmd_inject, False, 11 ],
+        'masters': ['Lists masters', [], self.cmd_masters, False, 12 ]
         }
 
   def on_nicknameinuse(self, c, e):
@@ -127,9 +127,12 @@ class TestBot(irc.bot.SingleServerIRCBot):
     if e.arguments[0].startswith('!'):
       self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
       self.do_command(c, e, e.arguments[0][1:])
-    a = e.arguments[0].split(":", 1)
-    if len(a) > 1 and len(a[0]) > 0 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
-      self.do_command(c, e, a[1].strip())
+    elif e.arguments[0].lower().startswith('ratsignal'):
+      self.do_command(c, e, 'grab ' + e.source.nick)
+    else:
+      a = e.arguments[0].split(":", 1)
+      if len(a) > 1 and len(a[0]) > 0 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
+        self.do_command(c, e, a[1].strip())
 
   def do_command(self, c, e, cmd):
     nick = irc.strings.IRCFoldedCase(e.source.nick)
@@ -151,7 +154,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
         self.reply(c, nick, e.target, "Privileged operation - can only be called from a channel by someone having ~@%+ flag")
     elif cmd in FACTS:
       self.cmd_handlers['fact'][2](c, [cmd], nick, e.target)
-  
+
   def cmd_die(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Killed by " + sender_nick)
     if len(params) > 0:
@@ -178,7 +181,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
 
   def cmd_quote(self, c, params, sender_nick, from_channel):
     if len(params) < 1:
-      self.reply(c, sender_nick, from_channel, "Sorry, I need a nick to grab")
+      self.reply(c, sender_nick, from_channel, "Sorry, I need a nick to quote")
     else:
       grabnick = params[0]
       lines = self.grabbed.get(grabnick, None)
@@ -192,7 +195,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
     if len(params) > 0:
       if params[0] in self.grabbed:
         del self.grabbed[params[0]]
-        self.reply(c, sender_nick, from_channel, "Cleared {}".format(params[0]))
+        self.reply(c, sender_nick, from_channel, "Cleared {}, {}".format(params[0], "Board is clear!" if len(self.grabbed) < 0 else "{} left on the board".format(len(self.grabbed))))
       else:
         self.reply(c, sender_nick, from_channel, "Can't find {} on the board".format(params[0]))
     else:
@@ -236,8 +239,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
       c.part(chan)
 
   def cmd_help(self, c, params, sender_nick, from_channel):
+    ##self.botlogger.debug(json.dumps(self.cmd_handlers, indent=2, default=lambda o: 'INVALID'))
     self.reply(c,sender_nick, None, "Commands:")
-    for cmd, attribs in self.cmd_handlers.items():
+    for cmd, attribs in sorted(self.cmd_handlers.items(), key=lambda k: k[1][4]):
       self.reply(c,sender_nick, None, "  {0:10}: {1}{2}".format(
         cmd,
         attribs[0],

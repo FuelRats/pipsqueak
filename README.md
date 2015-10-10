@@ -45,3 +45,18 @@ EDSM has 100k systems in it but only has coordinates for 50k of them. In a 500Ly
 * It can sometimes only print "no coordinates" because the system is in the database but doesn't have coordinates
 
 This means that the user always has to have a close look at the results printed. The "match quality" that is printed is supposed to aid in that.
+
+## Board management
+
+Mecha includes a tool to keep track of the current board of rescues. It does this using a "grab" feature:
+
+* `!grab <nick>` adds the most recent line from `<nick>` to the grab buffer for that nick
+* `!quote <nick>` prints all grabbed lines from `<nick>`
+* `!list` lists all nicks that have grab buffers
+* `!clear <nick>` deletes the grab buffer for a nick
+
+Every message that starts with "ratsignal" is automatically grabbed.
+
+When a new client comes in and raises the ratsignal, they will be grabbed. Then after you've handled the client, use `!clear <nick>` to remove them. And then you can use `!list` to see if there are any clients on the queue.
+
+The board is not saved between restarts.
