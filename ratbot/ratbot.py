@@ -13,6 +13,7 @@ import logging
 import logging.handlers
 import json
 from datetime import datetime, timedelta
+import re
 # 3Plib imports
 import irc.bot
 import irc.strings
@@ -162,6 +163,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
     else:
       raise RatBotKilledError("Killed by !die")
 
+  ratsignalre = re.compile("ratsignal", re.I)
   def cmd_grab(self, c, params, sender_nick, from_channel):
     if from_channel is None:
       self.reply(c, sender_nick, from_channel, "This command only works in a channel")
@@ -173,6 +175,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
       if line is None:
         self.reply(c, sender_nick, from_channel, "Sorry, couldn't find a grabbable line, did you misspell the nick?")
       else:
+        line = self.ratsignalre.sub("R@signal", line)
+        
         if not grabnick in self.grabbed:
           self.grabbed[grabnick] = [line]
         else:
