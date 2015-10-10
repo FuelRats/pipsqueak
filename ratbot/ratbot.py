@@ -89,7 +89,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
            '-l / -ll / -lll Large radius: Search for close systems in 20 / 30 / 50Ly radius instead of 10', 'System'],
           self.cmd_search, False, 5],
         'fact': [ 'Recites a fact',
-          ['Name of fact, empty prints all available facts'],
+          ['Name of fact, empty prints all available facts', 'Nick to address fact to'],
           self.cmd_fact, False, 6 ],
         'grab': [ 'Grabs last message from nick',
           ['Nick to grab'],
@@ -156,7 +156,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
       else:
         self.reply(c, nick, e.target, "Privileged operation - can only be called from a channel by someone having ~@%+ flag")
     elif cmd in FACTS:
-      self.cmd_handlers['fact'][2](c, [cmd], nick, e.target)
+      self.cmd_handlers['fact'][2](c, [cmd] + args, nick, e.target)
 
   def cmd_die(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Killed by " + sender_nick)
@@ -338,7 +338,10 @@ class TestBot(irc.bot.SingleServerIRCBot):
   def cmd_fact(self, c, params, sender_nick, from_channel):
     if len(params) > 0:
       if params[0] in FACTS.keys():
-        self.reply(c,sender_nick, from_channel, FACTS[params[0]])
+        if len(params) > 1:
+          self.reply(c,sender_nick, from_channel, "{}: {}".format(", ".join(params[1:]), FACTS[params[0]]))
+        else:
+          self.reply(c,sender_nick, from_channel, FACTS[params[0]])
       else:
         self.reply(c,sender_nick, from_channel, 'No fact called ' + params[0])
     else:
