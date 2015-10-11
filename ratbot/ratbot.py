@@ -223,10 +223,12 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.reply(c, sender_nick, from_channel, "Sorry, I need a nick and some text.")
     else:
       grabnick = params[0]
-      grabtext = " ".join(params[1:])
+      grabtext = self.ratsignalre.sub("R@signal"," ".join(params[1:]))
       if not grabnick in self.grabbed:
         self.grabbed[grabnick] = []
       self.grabbed[grabnick].append("{} [INJECTED BY {}]".format(grabtext, sender_nick))
+      if not self.silenced:
+        self.reply(c, sender_nick, from_channel, "Added line for {}".format(grabnick))
 
   def cmd_reset(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Reset by " + sender_nick)
