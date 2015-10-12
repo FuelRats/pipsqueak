@@ -22,7 +22,7 @@ Command | Parameters | Explanation
 `!join` | Channel    | Makes the bot join a channel
 `!part` | [Channel]  | Makes the bot part from a channel (or current if none given)
 `!help` |            | Privmsg's a command list similar to this one
-`!fact` | [Fact key] | Recites a saved fact, privmsgs's list of known facts if no key given
+`!fact` | [Fact key] | Recites a saved fact, privmsg's list of known facts if no key given
 `!search` | System   | Searches for the given system in EDSM's system list and then finds coordinates and a close simple-named system
         | -x         | Extended name matching: Disables limiting the initial search to systems whose names are close in length to the search term
 	| -f         | Performs only the initial search and prints the three best matches
@@ -64,8 +64,9 @@ Mecha includes a tool to keep track of the current board of rescues. It does thi
 
 * `!grab <nick>` adds the most recent line from `<nick>` to the grab buffer for that nick
 * `!inject <nick> <message>` adds a custom messages to `<nick>`'s grab buffer
+* `!sub <nick> <index> [<message>]` replaces the message at <index> with a new one or deletes the message
 * `!quote <nick>` prints all grabbed lines from `<nick>`
-* `!list` lists all nicks that have grab buffers
+* `!list [-i]` lists all nicks that have grab buffers, with `-i` also inactive cases
 * `!clear <nick>` deletes the grab buffer for a nick
 
 Every message that starts with "ratsignal" is automatically grabbed.
@@ -74,3 +75,11 @@ When a new client comes in and raises the ratsignal, they will be grabbed. Then 
 Important information about the client that can't be captured from a single message can be added using `!inject`.
 
 The board is not saved between restarts.
+
+In addition, you can also track rats assigned to a case using
+
+* `!assign <client nick> [rats]` - if no rat names are given, it assigns the person calling `!assign`.
+
+And cases can also be marked inactive using
+
+* `!active <client nick>` toggles the active flag on and off
