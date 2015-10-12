@@ -17,11 +17,14 @@ import re
 # 3Plib imports
 import irc.bot
 import irc.strings
-from irc.client import ip_numstr_to_quad, ip_quad_to_numstr, Connection
+from irc.buffer import LenientDecodingLineBuffer
+from irc.client import ip_numstr_to_quad, ip_quad_to_numstr, Connection, ServerConnection
 # custom imports
 from botlib import processing
 from botlib.systemsearch import Systemsearch
 import botlib.systemsearch
+
+ServerConnection.buffer_class = LenientDecodingLineBuffer
 
 FACTS = json.load(open('facts.json'))
 
