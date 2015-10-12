@@ -50,6 +50,10 @@ class RatBotResetError(RatBotError):
   pass
 
 class TestBot(irc.bot.SingleServerIRCBot):
+  """
+  Constructor
+  Sets up irc bot and instance fields
+  """
   def __init__(self, channels, nickname, server, port=6667, debug=False):
     irc.bot.SingleServerIRCBot.__init__(self, [(server, port)], nickname, nickname)
     self.debug = debug
@@ -81,16 +85,17 @@ class TestBot(irc.bot.SingleServerIRCBot):
         'part': [ 'Makes the bot part a channel',
           ['channel name (current channel if parameter not present and command issued from a channel)'], self.cmd_part, True, 3 ],
         'help': [ 'Prints help message listing commands', [], self.cmd_help, False, 4 ],
-        # process control
-#        'signal': [ 'Creates a new case', ['Client name', 'Client system', 'Client OX status (Empty for fine)'], self.cmd_signal],
+        # search
         'search': [ 'Search for a simply-named system',
           ['-x Extended Search: Do not restrict search by system name length',
            '-f Fuzzy Search: Return just the three best-matching system names for search term',
            '-l / -ll / -lll Large radius: Search for close systems in 20 / 30 / 50Ly radius instead of 10', 'System'],
           self.cmd_search, False, 5],
+        # facts
         'fact': [ 'Recites a fact',
           ['Name of fact, empty prints all available facts', 'Nick to address fact to'],
           self.cmd_fact, False, 6 ],
+        # board
         'grab': [ 'Grabs last message from nick',
           ['Nick to grab'],
           self.cmd_grab, False, 7 ],
@@ -106,10 +111,14 @@ class TestBot(irc.bot.SingleServerIRCBot):
         'inject': [ 'Injects custom text into grab list',
           ['Nick to inject for', 'Message'],
           self.cmd_inject, False, 11 ],
+        # misc
         'masters': ['Lists masters', [], self.cmd_masters, False, 12 ],
         'silence': ['Toggles verbosity', [], self.cmd_silence, False, 13]
         }
 
+  """
+  IRC event handlers
+  """
   def on_nicknameinuse(self, c, e):
     c.nick(c.get_nickname() + "_")
 
@@ -118,6 +127,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.botlogger.debug('Joining %s' % channel)
       c.join(channel)
 
+  """
+  IRC message handlers
+  """
   def on_privmsg(self, c, e):
     self.do_command(c, e, e.arguments[0])
 
@@ -137,6 +149,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
       if len(a) > 1 and len(a[0]) > 0 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
         self.do_command(c, e, a[1].strip())
 
+  """
+  Command parsing
+  """
   def do_command(self, c, e, cmd):
     nick = irc.strings.IRCFoldedCase(e.source.nick)
     c = self.connection
@@ -158,6 +173,13 @@ class TestBot(irc.bot.SingleServerIRCBot):
     elif cmd in FACTS:
       self.cmd_handlers['fact'][2](c, [cmd] + args, nick, e.target)
 
+  """
+  Command handlers
+  """
+
+  """
+  System commands
+  """
   def cmd_die(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Killed by " + sender_nick)
     if len(params) > 0:
@@ -165,10 +187,70 @@ class TestBot(irc.bot.SingleServerIRCBot):
     else:
       raise RatBotKilledError("Killed by !die")
 
-  def cmd_silence(self, c, params, sender_nick, from_channel):
-    self.silenced = not self.silenced
-    self.reply(c, sender_nick, from_channel, "I will make less noise now." if self.silenced else "Making more noise now!")
+  def cmd_reset(self, c, params, sender_nick, from_channel):
+    self.botlogger.info("Reset by " + sender_nick)
+    raise RatBotResetError("Killed by reset command, see you soon")
 
+  def cmd_join(self, c, params, sender_nick, from_channel):
+    if len(params) > 0:
+      c.join(params[0])
+    else:
+      self.reply(c, sender_nick, from_channel, "Failed - Please specify a channel to join")
+
+  def cmd_part(self, c, params, sender_nick, from_channel):
+    chan = None
+    if len(params) > 0:
+      chan = params[0]
+    elif from_channel != None:
+      chan = from_channel
+    else:
+      self.reply(c,sender_nick, from_channel, "Failed - Where do you want me to part from?")
+    if chan is not None:
+      c.part(chan)
+
+  def cmd_help(self, c, params, sender_nick, from_channel):
+    ##self.botlogger.debug(json.dumps(self.cmd_handlers, indent=2, default=lambda o: 'INVALID'))
+    self.reply(c,sender_nick, None, "Commands:")
+    for cmd, attribs in sorted(self.cmd_handlers.items(), key=lambda k: k[1][4]):
+      self.reply(c,sender_nick, None, "  {0:10}: {1}{2}".format(
+        cmd,
+        attribs[0],
+        " (Privileged)" if attribs[3] else ""
+        ))
+      for switch in attribs[1]:
+        self.reply(c,sender_nick, None, "    " + switch)
+
+  """
+  Search
+  """
+  def cmd_search(self, c, params, sender_nick, from_channel):
+    #self.botlogger.debug('Calling search')
+    try:
+      jp = " ".join(params)
+      if jp in self.cooldown:
+        delta = datetime.now() - self.cooldown[jp]
+        if delta < timedelta(seconds=180):
+          self.reply(c, sender_nick, from_channel, "I'm afraid I can't do that Dave. This search was just started {}s ago".format(delta.seconds))
+      else:
+        self.cooldown[jp] = datetime.now()
+        proc = processing.ProcessManager(params, sender_nick=sender_nick, from_channel=from_channel)
+        self.botlogger.info("Received command: "+" ".join(params))
+        self.processes[proc.pid]=proc
+        self.processes_by_qout[proc.out_queue._reader]=proc
+        #self.select_on.append(proc.out_queue._reader)
+        qconn = QConnection(c, self, proc)
+        self.reactor.connections.append(qconn)
+
+        self.reply(c,sender_nick, from_channel, proc.start_result)
+        return proc
+    except:
+      self.reply(c,sender_nick, from_channel, "Failed to start process")
+      self.botlogger.exception("Failed to start process")
+      return None
+
+  """
+  Board
+  """
   ratsignalre = re.compile("ratsignal", re.I)
   def cmd_grab(self, c, params, sender_nick, from_channel):
     if from_channel is None:
@@ -230,38 +312,12 @@ class TestBot(irc.bot.SingleServerIRCBot):
       if not self.silenced:
         self.reply(c, sender_nick, from_channel, "Added line for {}".format(grabnick))
 
-  def cmd_reset(self, c, params, sender_nick, from_channel):
-    self.botlogger.info("Reset by " + sender_nick)
-    raise RatBotResetError("Killed by reset command, see you soon")
-
-  def cmd_join(self, c, params, sender_nick, from_channel):
-    if len(params) > 0:
-      c.join(params[0])
-    else:
-      self.reply(c, sender_nick, from_channel, "Failed - Please specify a channel to join")
-
-  def cmd_part(self, c, params, sender_nick, from_channel):
-    chan = None
-    if len(params) > 0:
-      chan = params[0]
-    elif from_channel != None:
-      chan = from_channel
-    else:
-      self.reply(c,sender_nick, from_channel, "Failed - Where do you want me to part from?")
-    if chan is not None:
-      c.part(chan)
-
-  def cmd_help(self, c, params, sender_nick, from_channel):
-    ##self.botlogger.debug(json.dumps(self.cmd_handlers, indent=2, default=lambda o: 'INVALID'))
-    self.reply(c,sender_nick, None, "Commands:")
-    for cmd, attribs in sorted(self.cmd_handlers.items(), key=lambda k: k[1][4]):
-      self.reply(c,sender_nick, None, "  {0:10}: {1}{2}".format(
-        cmd,
-        attribs[0],
-        " (Privileged)" if attribs[3] else ""
-        ))
-      for switch in attribs[1]:
-        self.reply(c,sender_nick, None, "    " + switch)
+  """
+  Misc
+  """
+  def cmd_silence(self, c, params, sender_nick, from_channel):
+    self.silenced = not self.silenced
+    self.reply(c, sender_nick, from_channel, "I will make less noise now." if self.silenced else "Making more noise now!")
 
   def cmd_masters(self, c, params, sender_nick, from_channel):
 # list(self.channels[e.target].opers()) + list(self.channels[e.target].voiced()) + list(self.channels[e.target].owners()) + list(self.channels[e.target].halfops()))
@@ -273,6 +329,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
       for t,l in [('Owners', chan.owners()), ('Opers', chan.opers()), ('Hops', chan.halfops()), ('Voicers', chan.voiced())]:
         self.reply(c, sender_nick, None, "{}: {}".format(t, ", ".join(l)))
 
+  """
+  Readout
+  """
   def cmd_readout(self, c, params, sender_nick, from_channel):
     try:
       pid = int(params[0])
@@ -312,31 +371,6 @@ class TestBot(irc.bot.SingleServerIRCBot):
   def cmd_signal(self, c, params, sender_nick, from_channel):
     self.reply(c,sender_nick, from_channel, "Not implemented yet, sorry")
 
-  def cmd_search(self, c, params, sender_nick, from_channel):
-    #self.botlogger.debug('Calling search')
-    try:
-      jp = " ".join(params)
-      if jp in self.cooldown:
-        delta = datetime.now() - self.cooldown[jp]
-        if delta < timedelta(seconds=180):
-          self.reply(c, sender_nick, from_channel, "I'm afraid I can't do that Dave. This search was just started {}s ago".format(delta.seconds))
-      else:
-        self.cooldown[jp] = datetime.now()
-        proc = processing.ProcessManager(params, sender_nick=sender_nick, from_channel=from_channel)
-        self.botlogger.info("Received command: "+" ".join(params))
-        self.processes[proc.pid]=proc
-        self.processes_by_qout[proc.out_queue._reader]=proc
-        #self.select_on.append(proc.out_queue._reader)
-        qconn = QConnection(c, self, proc)
-        self.reactor.connections.append(qconn)
-
-        self.reply(c,sender_nick, from_channel, proc.start_result)
-        return proc
-    except:
-      self.reply(c,sender_nick, from_channel, "Failed to start process")
-      self.botlogger.exception("Failed to start process")
-      return None
-  
   def cmd_fact(self, c, params, sender_nick, from_channel):
     if len(params) > 0:
       if params[0] in FACTS.keys():
@@ -360,9 +394,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
     to = channel if channel else nick
     if to is None:
       raise RatBotError('No recipient for privmsg')
-
     c.privmsg(to, msg)
-
 
   def send(self, msg):
     now = time.time()
@@ -370,7 +402,6 @@ class TestBot(irc.bot.SingleServerIRCBot):
       elapsed = now - self.lastmsgtime
       if elapsed < self.delay:
         time.sleep(self.delay - elapsed)
-
     self.botlogger.debug(">> " + str(msg.replace("\r\n",'\\r\\n').encode()))
     self.socket.send(msg.encode())
     self.lastmsgtime = time.time()
