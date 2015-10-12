@@ -155,7 +155,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
   def on_pubmsg(self, c, e):
     if not e.target in self.chanlog:
       self.chanlog[e.target.lower()] = {}
-    self.chanlog[e.target.lower()][e.source.nick] = e.arguments[0]
+    self.chanlog[e.target][e.source.nick.lower()] = e.arguments[0]
 
     #self.botlogger.debug('Pubmsg arguments: {}'.format(e.arguments))
     if e.arguments[0].startswith('!'):
