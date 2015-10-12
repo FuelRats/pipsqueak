@@ -29,10 +29,16 @@ Command | Parameters | Explanation
 	| -l/ll/lll  | Searches for close systems in 20 / 30/ 50Ly radius instead of the default 10Ly
 `!grab` | Nick       | Grabs last message from a nick
 `!inject` | Nick, message | Injects a custom message into a nick's grab list
+`!sub`    | Nick, index, [message] | substitutes or deletes (if no message given) a grabbed message
 `!quote` | Nick      | Recites all grabbed messages from a nick
 `!clear` | Nick      | Clears grab list for a nick
+`!active`| Nick      | Toggles active/inactive state of a client
+`!assign`| Client_nick [Nicks]   | Assigns given rats to a case or yourself
 `!list`  |           | Lists all nicks in the grab list
+         | -i        | List inactive clients
 `!masters` |         | Lists all nicks that are currently authorized to perform privileged commands (die, join, part)
+`!silence` |         | Disables many feedback messages as well as automatic grabbing of ratsignals
+
 
 ## System search explained
 
