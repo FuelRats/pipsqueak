@@ -9,6 +9,7 @@ Requires Python, tested only with python3
     git clone https://github.com/duk3luk3/pipsqueak.git
     cd pipsqueak
     virtualenv .
+    source bin/activate
     pip install -r requirements.txt
     cd ratbot
     ./ratbot.py <server[:port]> 'channel1,channel2,...,channeln' <nick> [debug]

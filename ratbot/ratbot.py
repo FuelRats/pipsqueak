@@ -14,6 +14,8 @@ import logging.handlers
 import json
 from datetime import datetime, timedelta
 import re
+import os
+from contextlib import contextmanager
 # 3Plib imports
 import irc.bot
 import irc.strings
@@ -36,6 +38,43 @@ class Case:
     self.active = active
     self.rats = []
     self.buffer = [msg] if msg is not None else []
+
+  def serialize(self):
+    return [ self.client, self.active, self.rats, self.buffer ]
+
+  def deserialize(v):
+    c = Case(v[0], v[1])
+    c.rats = v[2]
+    c.buffer = v[3]
+    return c
+
+class Board:
+  def __init__(self, file='board.json'):
+    self.file = file
+    self.cases = {}
+    if os.path.isfile(self.file):
+      with open(self.file) as f:
+        s = json.load(f)
+        self.cases = dict([(c[0].lower(), Case.deserialize(c)) for c in s])
+
+  @contextmanager
+  def get(self, name):
+    case = self.cases.get(name)
+    yield case
+    if case is not None:
+      self.save()
+
+  def append(self, client):
+    self.cases[client.client.lower()] = client
+    self.save()
+
+  def remove(self, client):
+    del self.cases[client]
+    self.save()
+
+  def save(self):
+    with open(self.file, "w") as f:
+      json.dump([c.serialize() for c in self.cases.values()], f)
 
 class QConnection(Connection):
   socket = None
@@ -79,9 +118,10 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.botlogger.setLevel(logging.INFO)
 
     self.botlogger.info('Ratbot started')
+    self.realnick = nickname
     self._channels = channels
     self.chanlog = {}
-    self.cases = {}
+    self.cases = Board()
     self.processes = {}
     self.processes_by_qout = {}
     self.cooldown = {}
@@ -178,19 +218,18 @@ class TestBot(irc.bot.SingleServerIRCBot):
     split = cmd.split()
     cmd = split[0]
     args = split[1:]
+    from_channel = e.target if e.type == "pubmsg" else None
 
     if cmd in self.cmd_handlers:
-      chan = self.channels[e.target] if e.target in self.channels else None
+      chan = self.channels.get(from_channel)
       privers = list(chan.opers()) + list(chan.voiced()) + list(chan.owners()) + list(chan.halfops()) if chan is not None else []
-      #self.botlogger.debug("Privers: {}".format(", ".join(privers)))
-      #self.botlogger.debug("{} is {}in privers".format(nick, "" if nick in privers else "not "))
 
       if ((self.cmd_handlers[cmd][3]) == False) or (nick in privers):
-        self.cmd_handlers[cmd][2](c, args, nick, e.target)
+        self.cmd_handlers[cmd][2](c, args, nick, from_channel)
       else:
         self.reply(c, nick, e.target, "Privileged operation - can only be called from a channel by someone having ~@%+ flag")
     elif cmd in FACTS:
-      self.cmd_handlers['fact'][2](c, [cmd] + args, nick, e.target)
+      self.cmd_handlers['fact'][2](c, [cmd] + args, nick, from_channel)
 
   """
   Command handlers
@@ -283,11 +322,12 @@ class TestBot(irc.bot.SingleServerIRCBot):
         self.reply(c, sender_nick, from_channel, "Sorry, couldn't find a grabbable line, did you misspell the nick?")
       else:
         line = self.ratsignalre.sub("R@signal", line)
-        
-        if not grabnick.lower() in self.cases:
-          self.cases[grabnick.lower()] = Case(grabnick, True, line)
-        else:
-          self.cases[grabnick.lower()].buffer.append(line)
+
+        with self.cases.get(grabnick.lower()) as case:
+          if case is not None:
+            case.buffer.append(line)
+          else:
+            self.cases.append(Case(grabnick, True, line))
         if not self.silenced:
           self.reply(c, sender_nick, from_channel, "Grabbed '{}' from {}".format(line, grabnick))
 
@@ -296,31 +336,31 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.reply(c, sender_nick, from_channel, "Sorry, I need a nick to quote")
     else:
       grabnick = params[0]
-      case = self.cases.get(grabnick.lower(), None)
-      lines = case.buffer if case is not None else None
-      if lines is None:
-        self.reply(c, sender_nick, from_channel, "Sorry, couldn't find grabbed lines, did you misspell the nick?")
-      else:
-        if len(case.rats) > 0:
-          self.reply(c, sender_nick, from_channel, "Rats on case: {}".format(", ".join(case.rats)))
-        for i in range(len(lines)):
-          line = lines[i]
-          self.reply(c, sender_nick, from_channel, "<{}> {} [{}]".format(grabnick, line, i))
+      with self.cases.get(grabnick.lower()) as case:
+        lines = case.buffer if case is not None else None
+        if lines is None:
+          self.reply(c, sender_nick, from_channel, "Sorry, couldn't find grabbed lines, did you misspell the nick?")
+        else:
+          if len(case.rats) > 0:
+            self.reply(c, sender_nick, from_channel, "Rats on case: {}".format(", ".join(case.rats)))
+          for i in range(len(lines)):
+            line = lines[i]
+            self.reply(c, sender_nick, from_channel, "<{}> {} [{}]".format(grabnick, line, i))
 
   def cmd_clear(self, c, params, sender_nick, from_channel):
     if len(params) > 0:
-      if params[0].lower() in self.cases:
-        del self.cases[params[0].lower()]
-        self.reply(c, sender_nick, from_channel, "Cleared {}, {}".format(params[0], "Board is clear!" if len(self.cases) < 0 else "{} left on the board".format(len(self.cases))))
+      if params[0].lower() in self.cases.cases:
+        self.cases.remove(params[0].lower())
+        self.reply(c, sender_nick, from_channel, "Cleared {}, {}".format(params[0], "Board is clear!" if len(self.cases.cases) <= 0 else "{} left on the board".format(len(self.cases.cases))))
       else:
         self.reply(c, sender_nick, from_channel, "Can't find {} on the board".format(params[0]))
     else:
       self.reply(c, sender_nick, from_channel, "Need a nick to clear")
 
   def cmd_list(self, c, params, sender_nick, from_channel):
-    if len(self.cases) > 0:
-      active_cases = [c.client for c in self.cases.values() if c.active]
-      inactive_cases = [c.client for c in self.cases.values() if not c.active]
+    if len(self.cases.cases) > 0:
+      active_cases = [c.client for c in self.cases.cases.values() if c.active]
+      inactive_cases = [c.client for c in self.cases.cases.values() if not c.active]
       #self.reply(c, sender_nick, from_channel, "On the board: {}".format(", ".join([c.client + ' (Inactive)' if not c.active else '' for c in self.cases.values() if c.active or '-i' in self.params])))
       self.reply(c, sender_nick, from_channel, "Active cases: {}{}".format(", ".join(active_cases), "; Inactive cases: {}".format(", ".join(inactive_cases)) if '-i' in params else " (Plus {} inactive)".format(len(inactive_cases)) if len(inactive_cases) > 0 else ''))
     else:
@@ -332,11 +372,13 @@ class TestBot(irc.bot.SingleServerIRCBot):
     else:
       grabnick = params[0]
       grabtext = self.ratsignalre.sub("R@signal"," ".join(params[1:]))
-      case = self.cases.get(grabnick.lower(), None)
-      if case is None:
-        case = Case(grabnick)
-        self.cases[grabnick.lower()] = case
-      case.buffer.append("{} [INJECTED BY {}]".format(grabtext, sender_nick))
+      with self.cases.get(grabnick.lower()) as case:
+        if case is not None:
+          case.buffer.append("{} [INJECTED BY {}]".format(grabtext, sender_nick))
+        else:
+          case = Case(grabnick)
+          case.buffer.append("{} [INJECTED BY {}]".format(grabtext, sender_nick))
+          self.cases.append(case)
       if not self.silenced:
         self.reply(c, sender_nick, from_channel, "Added line for {}".format(grabnick))
 
@@ -345,51 +387,52 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.reply(c, sender_nick, from_channel, "Sorry, I need a nick and a line index.")
       return
     grabnick = params[0]
-    if not grabnick.lower() in self.cases:
-      self.reply(c, sender_nick, from_channel, "Can't find {} on the board.".format(grabnick))
-      return
-    try:
-      lineno = int(params[1])
-    except ValueError:
-      self.reply(c, sender_nick, from_channel, "Cannot parse {} into a number.".format(params[1]))
-      return
-    if len(self.cases[grabnick.lower()].buffer) <= lineno:
-      self.reply(c, sender_nick, from_channel, "There are only {} lines, can't use line no {}.".format(len(self.cases[grabnick.lower()].buffer), lineno))
-      return
-    if len(params) == 2:
-      self.cases[grabnick.lower()].buffer.pop(lineno)
-      if not self.silenced:
-        self.reply(c, sender_nick, from_channel, "Line removed")
-    else:
-      grabtext = self.ratsignalre.sub("R@signal"," ".join(params[2:]))
-      self.cases[grabnick.lower()].buffer[lineno] = "{} [INJECTED BY {}]".format(grabtext, sender_nick)
-      if not self.silenced:
-        self.reply(c, sender_nick, from_channel, "Subbed line no {} for {}".format(lineno, grabnick))
+    with self.cases.get(grabnick.lower()) as case:
+      if case is None:
+        self.reply(c, sender_nick, from_channel, "Can't find {} on the board.".format(grabnick))
+        return
+      try:
+        lineno = int(params[1])
+      except ValueError:
+        self.reply(c, sender_nick, from_channel, "Cannot parse {} into a number.".format(params[1]))
+        return
+      if len(case.buffer) <= lineno:
+        self.reply(c, sender_nick, from_channel, "There are only {} lines, can't use line no {}.".format(len(case.buffer), lineno))
+        return
+      if len(params) == 2:
+        case.buffer.pop(lineno)
+        if not self.silenced:
+          self.reply(c, sender_nick, from_channel, "Line removed")
+      else:
+        grabtext = self.ratsignalre.sub("R@signal"," ".join(params[2:]))
+        case.buffer[lineno] = "{} [INJECTED BY {}]".format(grabtext, sender_nick)
+        if not self.silenced:
+          self.reply(c, sender_nick, from_channel, "Subbed line no {} for {}".format(lineno, grabnick))
 
   def cmd_active(self, c, params, sender_nick, from_channel):
     if len(params) < 1:
       self.reply(c, sender_nick, from_channel, "Sorry, I need a nick to search on the board")
       return
     grabnick = params[0]
-    case = self.cases.get(grabnick.lower(), None)
-    if case is None:
-      self.reply(c, sender_nick, from_channel, "Can't find {} on the board.".format(grabnick))
-      return
-    case.active = not case.active
-    if not self.silenced:
-      self.reply(c, sender_nick, from_channel, "Case for {} is now {}".format(case.client, "Active" if case.active else "Inactive"))
+    with self.cases.get(grabnick.lower()) as case:
+      if case is None:
+        self.reply(c, sender_nick, from_channel, "Can't find {} on the board.".format(grabnick))
+        return
+      case.active = not case.active
+      if not self.silenced:
+        self.reply(c, sender_nick, from_channel, "Case for {} is now {}".format(case.client, "Active" if case.active else "Inactive"))
 
   def cmd_assign(self, c, params, sender_nick, from_channel):
     if len(params) < 1:
       self.reply(c, sender_nick, from_channel, "Sorry, I need a nick to search on the board")
       return
-    case = self.cases.get(params[0].lower(), None)
-    if case is None:
-      self.reply(c, sender_nick, from_channel, "Can't find {} on the board.".format(params[0]))
-    ratnicks = params[1:] if len(params) > 1 else [sender_nick]
-    case.rats.extend(ratnicks)
-    if not self.silenced:
-      self.reply(c, sender_nick, from_channel, "Assigned {} to {}.".format(", ".join(ratnicks), case.client))
+    with self.cases.get(params[0].lower()) as case:
+      if case is None:
+        self.reply(c, sender_nick, from_channel, "Can't find {} on the board.".format(params[0]))
+      ratnicks = params[1:] if len(params) > 1 else [sender_nick]
+      case.rats.extend(ratnicks)
+      if not self.silenced:
+        self.reply(c, sender_nick, from_channel, "Assigned {} to {}.".format(", ".join(ratnicks), case.client))
 
 
 
