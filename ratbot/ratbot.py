@@ -516,7 +516,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
                     "(no coordinates)" if not 'coords' in rec else "[{0[x]:.0f} : {0[y]:.0f} : {0[z]:.0f}]".format(rec['coords']),
                     "(no close system searched)" if '-f' in tp.args else ("(no close system)" if not 'closest' in rec else "{:.1f}Ly from \002{}\017".format(rec['closest']['real_distance'], rec['closest']['name']))
                     ))
-          else:
+          elif tp.origin_systems is not None:
             self.reply(c, sender_nick, from_channel, "No systems found")
           if tp.reloaded is not None:
             self.reply(c, sender_nick, from_channel, tp.reloaded)
