@@ -36,12 +36,7 @@ class ProcessManager:
       self.process.start()
       print("process started")
       self.pid = random.randint(0,99999)
-      if '-f' in self.args:
-        return "Fuzzy searching for '%s' against system list, %s" % (
-            self.system,
-            'extended name matching' if '-x' in self.args else 'matching against similar-length system names'
-            )
-      else:
+      if '-d' in self.args:
         if self.system == "":
           if '-r' in self.args:
             return "Reloading system list."
@@ -51,8 +46,13 @@ class ProcessManager:
           return "Searching closest simple-named system for '%s', %s, %s" % (
               self.system,
               '20 Ly radius' if '-l' in self.args else '10Ly radius',
-              'extended name matching' if '-x' in self.args else 'matching against similar-length system names'
+              'full matching' if '-x' not in self.args else 'matching against similar-length system names'
               )
+      else:
+        return "Fuzzy searching for '%s' against system list, %s" % (
+            self.system,
+            'full matching' if '-x' not in self.args else 'matching against similar-length system names'
+            )
 
   def join_process(self):
     self.process.join()

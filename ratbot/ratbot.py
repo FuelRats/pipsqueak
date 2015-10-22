@@ -143,6 +143,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
       stderrhandler = logging.StreamHandler()
       stderrhandler.setFormatter(logging.Formatter('ratbot %(levelname)s: %(message)s'))
       self.botlogger.addHandler(stderrhandler)
+      botlib.systemsearch.DEBUG = True
     else:
       self.botlogger.setLevel(logging.INFO)
 
@@ -165,9 +166,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
           ['channel name (current channel if parameter not present and command issued from a channel)'], self.cmd_part, True, 3 ],
         'help': [ 'Prints help message listing commands', [], self.cmd_help, False, 4 ],
         # search
-        'search': [ 'Search for a simply-named system',
-          ['-x Extended Search: Do not restrict search by system name length',
-           '-f Fuzzy Search: Return just the three best-matching system names for search term',
+        'search': [ 'Search for a system',
+          ['-x Restricted search: Only search systems with similar length to search term',
+           '-d Distance search: Try to find close simple-named system',
            '-l / -ll / -lll Large radius: Search for close systems in 20 / 30 / 50Ly radius instead of 10',
            '-r Reload system list'
            'System'
@@ -501,13 +502,11 @@ class TestBot(irc.bot.SingleServerIRCBot):
           self.reply(c,sender_nick, from_channel,
               "\0034Unexpected Error\017: {}".format(tp))
         if isinstance(tp, Systemsearch):
-          if tp.origin_systems is None:
-            self.reply(c, sender_nick, from_channel, "Done reloading system list.")
-          elif len(tp.origin_systems) > 0:
-            if '-f' in tp.args:
-              plen = len(tp.origin_systems)
-            else:
+          if tp.origin_systems is not None and len(tp.origin_systems) > 0:
+            if '-d' in tp.args:
               plen = 1
+            else:
+              plen = len(tp.origin_systems)
             for rec in tp.origin_systems[:plen]:
               self.reply(c,sender_nick, from_channel,
                   "Found system \002%s\017 (\003%sMatching %d%%\017) at %s, %s" % (
@@ -519,6 +518,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
                     ))
           else:
             self.reply(c, sender_nick, from_channel, "No systems found")
+          if tp.reloaded is not None:
+            self.reply(c, sender_nick, from_channel, tp.reloaded)
       return proc
     except (IndexError, ValueError, KeyError):
       self.reply(c,sender_nick, from_channel, "Failed - Please pass a valid pid instead of {}".format(params[0]))

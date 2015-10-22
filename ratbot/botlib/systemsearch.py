@@ -2,6 +2,7 @@ import requests
 import json
 import math
 import os
+from datetime import datetime, timedelta
 from functools import reduce
 from fuzzywuzzy import fuzz
 
@@ -15,6 +16,8 @@ if os.path.isfile('systems.json'):
   sysnames = json.load(open('systems.json'))
 else:
   sysnames = requests.get(SYSTEMS_URL,{'coords':1}).json()
+  with open('systems.json', 'w') as f:
+    json.dump(sysnames, f)
 
 def multifind(name, full_length=False):
   name = name.lower()
@@ -64,23 +67,33 @@ class Systemsearch:
     self.sysname = sysname
     self.origin_systems = None
     self.close_systems = None
+    self.reloaded = None
 
   def __str__(self):
     return "Systemsearch for {}, options {}, found origin systems {}, found close systems {}".format(self.sysname, self.args, self.origin_systems, self.close_systems)
 
   def do_search(self):
     if '-r' in self.args:
-      sysnames = requests.get(SYSTEMS_URL,{'coords':1}).json()
-      with open('systems.json', 'w') as f:
-        json.dump(sysnames, f)
+      is_old = datetime.now() - datetime.fromtimestamp(os.path.getmtime('systems.json')) > timedelta(hours=12)
+      if is_old:
+        if DEBUG:
+          print('requesting new system list')
+        sysnames = requests.get(SYSTEMS_URL,{'coords':1}).json()
+        with open('systems.json', 'w') as f:
+          json.dump(sysnames, f)
+        if DEBUG:
+          print('Done with system reload')
+        self.reloaded = "Reloaded system list."
+      else:
+        self.reloaded = "System list too young."
 
-    if self.sysname is None:
+    if self.sysname is None or len(self.sysname) == 0:
       return
 
-    self.origin_systems = multifind(self.sysname, '-x' in self.args)
+    self.origin_systems = multifind(self.sysname, '-x' not in self.args)
     if DEBUG:
       print('SSearch DEBUG Origin systems found: ', self.origin_systems)
-    if '-f' in self.args or len(self.origin_systems) < 1:
+    if '-d' not in self.args or len(self.origin_systems) < 1:
       return
 
     radius = 10
