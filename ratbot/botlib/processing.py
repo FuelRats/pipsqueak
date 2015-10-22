@@ -42,12 +42,17 @@ class ProcessManager:
             'extended name matching' if '-x' in self.args else 'matching against similar-length system names'
             )
       else:
-        return "Searching closest simple-named system for '%s', %s, %s" % (
-            self.system,
-            '20 Ly radius' if '-l' in self.args else '10Ly radius',
-            'extended name matching' if '-x' in self.args else 'matching against similar-length system names'
-            )
-
+        if self.system == "":
+          if '-r' in self.args:
+            return "Reloading system list."
+          else:
+            return "This is going to do nothing."
+        else:
+          return "Searching closest simple-named system for '%s', %s, %s" % (
+              self.system,
+              '20 Ly radius' if '-l' in self.args else '10Ly radius',
+              'extended name matching' if '-x' in self.args else 'matching against similar-length system names'
+              )
 
   def join_process(self):
     self.process.join()

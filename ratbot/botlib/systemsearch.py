@@ -69,6 +69,14 @@ class Systemsearch:
     return "Systemsearch for {}, options {}, found origin systems {}, found close systems {}".format(self.sysname, self.args, self.origin_systems, self.close_systems)
 
   def do_search(self):
+    if '-r' in self.args:
+      sysnames = requests.get(SYSTEMS_URL,{'coords':1}).json()
+      with open('systems.json', 'w') as f:
+        json.dump(sysnames, f)
+
+    if self.sysname is None:
+      return
+
     self.origin_systems = multifind(self.sysname, '-x' in self.args)
     if DEBUG:
       print('SSearch DEBUG Origin systems found: ', self.origin_systems)

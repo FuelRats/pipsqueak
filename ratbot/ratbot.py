@@ -33,44 +33,73 @@ FACTS = json.load(open('facts.json'))
 logging.getLogger().setLevel(logging.INFO)
 
 class Case:
-  def __init__(self, client, active=True, msg=None):
+  def __init__(self, client, active=True, msg=None, idx=None):
     self.client = client
     self.active = active
+    self.idx=None
     self.rats = []
     self.buffer = [msg] if msg is not None else []
 
   def serialize(self):
     return [ self.client, self.active, self.rats, self.buffer ]
 
-  def deserialize(v):
+  def deserialize(v, idx):
     c = Case(v[0], v[1])
+    c.idx = idx
     c.rats = v[2]
     c.buffer = v[3]
     return c
 
+  def __str__(self):
+    return "{} [{}]".format(self.client, self.idx)
+
+  def __repr__(self):
+    return str(self)
+
 class Board:
   def __init__(self, file='board.json'):
+    self.botlogger = logging.getLogger('RatBotLogger')
     self.file = file
     self.cases = {}
+    self.caselist = []
     if os.path.isfile(self.file):
       with open(self.file) as f:
-        s = json.load(f)
-        self.cases = dict([(c[0].lower(), Case.deserialize(c)) for c in s])
+        self.caselist = [Case.deserialize(c,i) for i,c in enumerate(json.load(f))]
+        self.cases = dict([(c.client.lower(), c) for c in self.caselist])
 
   @contextmanager
   def get(self, name):
-    case = self.cases.get(name)
+    try:
+      case = self.cases.get(name.lower())
+      if case is None:
+        case = self.caselist[int(name)]
+    except ValueError:
+      case = None
+      pass
     yield case
     if case is not None:
       self.save()
 
   def append(self, client):
+    inserted = False
+    for i,c in enumerate(self.caselist):
+      if c is None:
+        self.caselist[i] = client
+        client.idx = i
+        inserted = True
+        break
+    if not inserted:
+      self.botlogger.debug(self.caselist)
+      self.caselist.append(client)
+      client.idx = len(self.caselist) - 1
     self.cases[client.client.lower()] = client
     self.save()
 
   def remove(self, client):
-    del self.cases[client]
-    self.save()
+    if client in self.cases:
+      self.caselist[self.cases[client].idx] = None
+      del self.cases[client]
+      self.save()
 
   def save(self):
     with open(self.file, "w") as f:
@@ -139,7 +168,10 @@ class TestBot(irc.bot.SingleServerIRCBot):
         'search': [ 'Search for a simply-named system',
           ['-x Extended Search: Do not restrict search by system name length',
            '-f Fuzzy Search: Return just the three best-matching system names for search term',
-           '-l / -ll / -lll Large radius: Search for close systems in 20 / 30 / 50Ly radius instead of 10', 'System'],
+           '-l / -ll / -lll Large radius: Search for close systems in 20 / 30 / 50Ly radius instead of 10',
+           '-r Reload system list'
+           'System'
+          ],
           self.cmd_search, False, 5],
         # facts
         'fact': [ 'Recites a fact',
@@ -219,6 +251,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
     cmd = split[0]
     args = split[1:]
     from_channel = e.target if e.type == "pubmsg" else None
+
+    self.botlogger.info('Got command {} from {} via {}'.format(cmd, nick, e.type))
 
     if cmd in self.cmd_handlers:
       chan = self.channels.get(from_channel)
@@ -345,22 +379,23 @@ class TestBot(irc.bot.SingleServerIRCBot):
             self.reply(c, sender_nick, from_channel, "Rats on case: {}".format(", ".join(case.rats)))
           for i in range(len(lines)):
             line = lines[i]
-            self.reply(c, sender_nick, from_channel, "<{}> {} [{}]".format(grabnick, line, i))
+            self.reply(c, sender_nick, from_channel, "<{}> {} [{}]".format(case.client, line, i))
 
   def cmd_clear(self, c, params, sender_nick, from_channel):
     if len(params) > 0:
-      if params[0].lower() in self.cases.cases:
-        self.cases.remove(params[0].lower())
-        self.reply(c, sender_nick, from_channel, "Cleared {}, {}".format(params[0], "Board is clear!" if len(self.cases.cases) <= 0 else "{} left on the board".format(len(self.cases.cases))))
-      else:
-        self.reply(c, sender_nick, from_channel, "Can't find {} on the board".format(params[0]))
+      with self.cases.get(params[0].lower()) as case:
+        if case is not None:
+          self.cases.remove(case.client.lower())
+          self.reply(c, sender_nick, from_channel, "Cleared {}, {}".format(params[0], "Board is clear!" if len(self.cases.cases) <= 0 else "{} left on the board".format(len(self.cases.cases))))
+        else:
+          self.reply(c, sender_nick, from_channel, "Can't find {} on the board".format(params[0]))
     else:
       self.reply(c, sender_nick, from_channel, "Need a nick to clear")
 
   def cmd_list(self, c, params, sender_nick, from_channel):
     if len(self.cases.cases) > 0:
-      active_cases = [c.client for c in self.cases.cases.values() if c.active]
-      inactive_cases = [c.client for c in self.cases.cases.values() if not c.active]
+      active_cases = [str(c) for c in self.cases.caselist if c is not None and c.active]
+      inactive_cases = [str(c) for c in self.cases.caselist if c is not None and not c.active]
       #self.reply(c, sender_nick, from_channel, "On the board: {}".format(", ".join([c.client + ' (Inactive)' if not c.active else '' for c in self.cases.values() if c.active or '-i' in self.params])))
       self.reply(c, sender_nick, from_channel, "Active cases: {}{}".format(", ".join(active_cases), "; Inactive cases: {}".format(", ".join(inactive_cases)) if '-i' in params else " (Plus {} inactive)".format(len(inactive_cases)) if len(inactive_cases) > 0 else ''))
     else:
@@ -434,9 +469,6 @@ class TestBot(irc.bot.SingleServerIRCBot):
       if not self.silenced:
         self.reply(c, sender_nick, from_channel, "Assigned {} to {}.".format(", ".join(ratnicks), case.client))
 
-
-
-
   """
   Misc
   """
@@ -469,7 +501,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
           self.reply(c,sender_nick, from_channel,
               "\0034Unexpected Error\017: {}".format(tp))
         if isinstance(tp, Systemsearch):
-          if len(tp.origin_systems) > 0:
+          if tp.origin_systems is None:
+            self.reply(c, sender_nick, from_channel, "Done reloading system list.")
+          elif len(tp.origin_systems) > 0:
             if '-f' in tp.args:
               plen = len(tp.origin_systems)
             else:
