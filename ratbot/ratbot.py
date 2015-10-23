@@ -204,7 +204,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
   IRC event handlers
   """
   def on_nicknameinuse(self, c, e):
-    c.nick(c.get_nickname() + "_")
+    if self.realnick == c.get_nickname():
+      c.nick(c.get_nickname() + "_")
 
   def on_welcome(self, c, e):
     for channel in self._channels:
@@ -218,6 +219,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.do_command(c, e, e.arguments[0])
 
   def on_pubmsg(self, c, e):
+    if self.realnick != c.get_nickname():
+      c.nick(self.realnick)
+
     if not e.target in self.chanlog:
       self.chanlog[e.target] = {}
     self.chanlog[e.target][e.source.nick.lower()] = e.arguments[0]
