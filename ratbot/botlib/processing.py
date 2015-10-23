@@ -49,6 +49,11 @@ class ProcessManager:
               'full matching' if '-x' not in self.args else 'matching against similar-length system names'
               )
       else:
+        if self.system == "":
+          if '-r' in self.args:
+            return "Reloading system list."
+          else:
+            return "This is going to do nothing."
         return "Fuzzy searching for '%s' against system list, %s" % (
             self.system,
             'full matching' if '-x' not in self.args else 'matching against similar-length system names'
