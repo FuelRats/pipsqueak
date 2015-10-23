@@ -135,17 +135,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
   def __init__(self, channels, nickname, server, port=6667, debug=False):
     irc.bot.SingleServerIRCBot.__init__(self, [(server, port)], nickname, nickname)
     self.debug = debug
+    self.reset = None
 
     self.botlogger = logging.getLogger('RatBotLogger')
-
-    if debug:
-      self.botlogger.setLevel(logging.DEBUG)
-      stderrhandler = logging.StreamHandler()
-      stderrhandler.setFormatter(logging.Formatter('ratbot %(levelname)s: %(message)s'))
-      self.botlogger.addHandler(stderrhandler)
-      botlib.systemsearch.DEBUG = True
-    else:
-      self.botlogger.setLevel(logging.INFO)
 
     self.botlogger.info('Ratbot started')
     self.realnick = nickname
@@ -275,14 +267,16 @@ class TestBot(irc.bot.SingleServerIRCBot):
   """
   def cmd_die(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Killed by " + sender_nick)
+    self.reset = False
     if len(params) > 0:
-      raise RatBotKilledError(" ".join(params))
+      self.die(" ".join(params))
     else:
-      raise RatBotKilledError("Killed by !die")
+      self.die("Killed by !die")
 
   def cmd_reset(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Reset by " + sender_nick)
-    raise RatBotResetError("Killed by reset command, see you soon")
+    self.reset = True
+    self.die("Killed by !reset")
 
   def cmd_join(self, c, params, sender_nick, from_channel):
     if len(params) > 0:
@@ -591,18 +585,30 @@ def main():
   sysloghandler.setFormatter(logging.Formatter('ratbot %(levelname)s: %(message)s'))
   botlogger.addHandler(sysloghandler)
 
+  if debug:
+    botlogger.setLevel(logging.DEBUG)
+    stderrhandler = logging.StreamHandler()
+    stderrhandler.setFormatter(logging.Formatter('ratbot %(levelname)s: %(message)s'))
+    botlogger.addHandler(stderrhandler)
+    botlib.systemsearch.DEBUG = True
+  else:
+    self.botlogger.setLevel(logging.INFO)
+
   bot = None
   while True:
     try:
       bot = TestBot(channels, nickname, server, port, debug)
       bot.start()
-    except (RatBotKilledError, KeyboardInterrupt) as e:
-      bot.disconnect("".join(e.args))
+    except KeyboardInterrupt as e:
       raise
+    except SystemExit:
+      if bot.reset is None or bot.reset:
+        botlogger.debug("Continuing")
+        continue
+      else:
+        break
     except:
-      logging.exception("Thrown")
-      bot.disconnect("Thrown")
-      continue
+      botlogger.exception("Thrown")
 
 if __name__ == "__main__":
   main()
