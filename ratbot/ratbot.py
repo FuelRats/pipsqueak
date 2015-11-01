@@ -216,26 +216,35 @@ class TestBot(irc.bot.SingleServerIRCBot):
   IRC message handlers
   """
   def on_privmsg(self, c, e):
-    self.do_command(c, e, e.arguments[0])
+    try:
+      self.do_command(c, e, e.arguments[0])
+    except:
+      self.botlogger.error("Error while processing: {}".format(e.arguments))
+      raise
 
   def on_pubmsg(self, c, e):
-    if self.realnick != c.get_nickname():
-      c.nick(self.realnick)
+    try:
+      if self.realnick != c.get_nickname():
+        c.nick(self.realnick)
 
-    if not e.target in self.chanlog:
-      self.chanlog[e.target] = {}
-    self.chanlog[e.target][e.source.nick.lower()] = e.arguments[0]
+      if not e.target in self.chanlog:
+        self.chanlog[e.target] = {}
+      self.chanlog[e.target][e.source.nick.lower()] = e.arguments[0]
 
-    #self.botlogger.debug('Pubmsg arguments: {}'.format(e.arguments))
-    if e.arguments[0].startswith('!'):
-      self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
-      self.do_command(c, e, e.arguments[0][1:])
-    elif e.arguments[0].lower().startswith('ratsignal') and not self.silenced:
-      self.do_command(c, e, 'grab ' + e.source.nick)
-    else:
-      a = e.arguments[0].split(":", 1)
-      if len(a) > 1 and len(a[0]) > 0 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
-        self.do_command(c, e, a[1].strip())
+      #self.botlogger.debug('Pubmsg arguments: {}'.format(e.arguments))
+      if e.arguments[0].startswith('!'):
+        self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
+        self.do_command(c, e, e.arguments[0][1:])
+      elif e.arguments[0].lower().startswith('ratsignal') and not self.silenced:
+        self.do_command(c, e, 'grab ' + e.source.nick)
+      else:
+        a = e.arguments[0].split(":", 1)
+        if len(a) > 1 and len(a[0]) > 0 and irc.strings.lower(a[0]) == irc.strings.lower(self.connection.get_nickname()):
+          self.do_command(c, e, a[1].strip())
+    except:
+      self.botlogger.error("Error while processing: {}".format(e.arguments))
+      raise
+
 
   """
   Command parsing
