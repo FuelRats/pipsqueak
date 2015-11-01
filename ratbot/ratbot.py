@@ -232,7 +232,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
       self.chanlog[e.target][e.source.nick.lower()] = e.arguments[0]
 
       #self.botlogger.debug('Pubmsg arguments: {}'.format(e.arguments))
-      if e.arguments[0].startswith('!'):
+      if e.arguments[0].startswith('!') and len(e.arguments[0]) > 1:
         self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
         self.do_command(c, e, e.arguments[0][1:])
       elif e.arguments[0].lower().startswith('ratsignal') and not self.silenced:
