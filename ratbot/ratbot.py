@@ -73,7 +73,7 @@ class Board:
       case = self.cases.get(name.lower())
       if case is None:
         case = self.caselist[int(name)]
-    except ValueError:
+    except (ValueError, KeyError):
       case = None
       pass
     yield case
@@ -245,6 +245,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
     c = self.connection
 
     split = cmd.split()
+
     cmd = split[0]
     args = split[1:]
     from_channel = e.target if e.type == "pubmsg" else None
@@ -463,10 +464,11 @@ class TestBot(irc.bot.SingleServerIRCBot):
     with self.cases.get(params[0].lower()) as case:
       if case is None:
         self.reply(c, sender_nick, from_channel, "Can't find {} on the board.".format(params[0]))
-      ratnicks = params[1:] if len(params) > 1 else [sender_nick]
-      case.rats.extend(ratnicks)
-      if not self.silenced:
-        self.reply(c, sender_nick, from_channel, "Assigned {} to {}.".format(", ".join(ratnicks), case.client))
+      else:
+        ratnicks = params[1:] if len(params) > 1 else [sender_nick]
+        case.rats.extend(ratnicks)
+        if not self.silenced:
+          self.reply(c, sender_nick, from_channel, "Assigned {} to {}.".format(", ".join(ratnicks), case.client))
 
   """
   Misc
