@@ -202,7 +202,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
           ['-x Restricted search: Only search systems with similar length to search term',
            '-d Distance search: Try to find close simple-named system',
            '-l / -ll / -lll Large radius: Search for close systems in 20 / 30 / 50Ly radius instead of 10',
-           '-r Reload system list'
+           '-r Reload system list',
            'System'
           ],
           self.cmd_search, False, 5],
