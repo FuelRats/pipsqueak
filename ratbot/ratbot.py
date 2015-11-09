@@ -722,14 +722,8 @@ class TestBot(irc.bot.SingleServerIRCBot):
     c.privmsg(to, msg)
 
   def send(self, msg):
-#    now = time.time()
-#    if self.lastmsgtime != None:
-#      elapsed = now - self.lastmsgtime
-#      if elapsed < self.delay:
-#        time.sleep(self.delay - elapsed)
     self.botlogger.debug(">> " + str(msg.replace("\r\n",'\\r\\n').encode()))
     self.socket.send(msg.encode())
-#   self.lastmsgtime = time.time()
 
 def main():
   import sys
