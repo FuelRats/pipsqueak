@@ -444,7 +444,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
       jp = " ".join(params)
       if jp in self.cooldown and datetime.now() - self.cooldown[jp] < timedelta(seconds=180):
         self.reply(c, sender_nick, from_channel, "I'm afraid I can't do that Dave. This search was just started {}s ago".format(delta.seconds))
-	self.botlogger.debug("No search started")
+        self.botlogger.debug("No search started")
       else:
         self.cooldown[jp] = datetime.now()
         """
