@@ -1,10 +1,8 @@
 #! /usr/bin/env python
 #
-# Example program using irc.bot.
-#
-# Joel Rosdahl <joel@rosdahl.net>
+"""The Mechasqueak ratbot.
 
-"""A simple example bot.
+Based on example ircbot by Joel Rosdahl <joel@rosdahl.net>
 
 """
 
@@ -26,12 +24,20 @@ from botlib import processing
 from botlib.systemsearch import Systemsearch
 import botlib.systemsearch
 
+## By default, line buffer only accepts utf8. LenientDecodingLineBuffer decodes Latin1 if UTF8 decoding fails.
 ServerConnection.buffer_class = LenientDecodingLineBuffer
 
+# Trigger -> Fact Dictionary for fact replies
 FACTS = json.load(open('facts.json'))
 
+# Set default log level to INFO (used by irc library)
 logging.getLogger().setLevel(logging.INFO)
 
+"""
+  Case class: holds information about a case.
+
+  A case consists of a client (string), an active/inactive flag (bool), rats assigned to the case ([string]), a message buffer (messages captured from client), and an idx field (index into a list of cases)
+"""
 class Case:
   def __init__(self, client, active=True, msg=None, idx=None):
     self.client = client
@@ -56,6 +62,11 @@ class Case:
   def __repr__(self):
     return str(self)
 
+"""
+  Board class: Manages cases with persistence and indexing as dict (to reference cases by client name) and list (to reference cases by number)
+
+  Cases are persisted to a json file
+"""
 class Board:
   def __init__(self, file='board.json'):
     self.botlogger = logging.getLogger('RatBotLogger')
@@ -67,6 +78,9 @@ class Board:
         self.caselist = [Case.deserialize(c,i) for i,c in enumerate(json.load(f))]
         self.cases = dict([(c.client.lower(), c) for c in self.caselist])
 
+  """
+    Get case by name or index and save after the caller is done with it
+  """
   @contextmanager
   def get(self, name):
     try:
@@ -80,6 +94,9 @@ class Board:
     if case is not None:
       self.save()
 
+  """
+    append a client case: find a free index in the list and add to dict as well
+  """
   def append(self, client):
     inserted = False
     for i,c in enumerate(self.caselist):
@@ -105,6 +122,11 @@ class Board:
     with open(self.file, "w") as f:
       json.dump([c.serialize() for c in self.cases.values()], f)
 
+"""
+  Custom Connection class that can be injected into the irc library's reactor to select on a multiprocessing.Queue
+
+  This is needed for asynchronous communication with subprocesses (for the system search)
+"""
 class QConnection(Connection):
   socket = None
 
@@ -118,12 +140,22 @@ class QConnection(Connection):
   def process_data(self):
     self.bot.cmd_readout(self.c, [self.proc.pid], None, None)
 
+
+"""
+  Signalling base class
+"""
 class RatBotError(Exception):
   pass
 
+"""
+  Thrown on legitimate kill command (not used atm)
+"""
 class RatBotKilledError(RatBotError):
   pass
 
+"""
+  Thrown on reset command (not used atm)
+"""
 class RatBotResetError(RatBotError):
   pass
 
@@ -148,6 +180,14 @@ class TestBot(irc.bot.SingleServerIRCBot):
     self.processes_by_qout = {}
     self.cooldown = {}
     self.silenced = False
+    """
+    The cmd_handlers dict maps command triggers to a description list that holds:
+      * Short description of command
+      * List of parameter descriptions
+      * Reference to command handler function
+      * Bool flag for whether the command is privileged (can only be triggered by people with status flags, see do_command)
+      * Index for ordering in the !help response, because using an OrderedDict would be too obvious
+    """
     self.cmd_handlers = {
         # bot management
         'die': [ 'Kills the bot.', [], self.cmd_die, True, 0 ],
@@ -204,10 +244,16 @@ class TestBot(irc.bot.SingleServerIRCBot):
   IRC event handlers
   """
   def on_nicknameinuse(self, c, e):
+    """
+      Just append _ to nick if nick in use
+    """
     if self.realnick == c.get_nickname():
       c.nick(c.get_nickname() + "_")
 
   def on_welcome(self, c, e):
+    """
+      Join channels when getting welcome
+    """
     for channel in self._channels:
       self.botlogger.debug('Joining %s' % channel)
       c.join(channel)
@@ -216,6 +262,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
   IRC message handlers
   """
   def on_privmsg(self, c, e):
+    """
+      In privmsg (query) handler, we simply pass the whole message to the command parser (no prefix handling!)
+    """
     try:
       self.do_command(c, e, e.arguments[0])
     except:
@@ -223,14 +272,29 @@ class TestBot(irc.bot.SingleServerIRCBot):
       raise
 
   def on_pubmsg(self, c, e):
+    """
+      Pubmsg (in-channel message) requires some parsing and handling of channel context
+    """
     try:
+      """
+        Since this handler gets called often enough, we can check if our nick is free here and try to /nick to it.
+      """
       if self.realnick != c.get_nickname():
         c.nick(self.realnick)
 
+      """
+        The channel log keeps the most recent message for every nick in every channel. This is for the !grab command.
+      """
       if not e.target in self.chanlog:
         self.chanlog[e.target] = {}
       self.chanlog[e.target][e.source.nick.lower()] = e.arguments[0]
 
+      """
+        Parse for irc command
+        * !<string> triggers a command
+        * ratsignal triggers the grab command
+        * <botnick>:<string> triggers a command
+      """
       #self.botlogger.debug('Pubmsg arguments: {}'.format(e.arguments))
       if e.arguments[0].startswith('!') and len(e.arguments[0]) > 1:
         self.botlogger.debug('detected command {}'.format(e.arguments[0][1:]))
@@ -250,21 +314,48 @@ class TestBot(irc.bot.SingleServerIRCBot):
   Command parsing
   """
   def do_command(self, c, e, cmd):
+    """
+      Get normalised nick
+    """
     nick = irc.strings.IRCFoldedCase(e.source.nick)
     c = self.connection
 
+    """
+      Split on spaces
+    """
     split = cmd.split()
 
+    """
+      Then the command should be the first element of the split, and the rest should be arguments
+    """
     cmd = split[0]
     args = split[1:]
+
+    """
+      We pass from_channel and sender_nick into every command handler. If from_channel is None that indicates private message
+    """
     from_channel = e.target if e.type == "pubmsg" else None
 
     self.botlogger.info('Got command {} from {} via {}'.format(cmd, nick, e.type))
 
+    """
+      We trigger a command in two cases:
+        * The command is a trigger in the command handlers dict
+        * The command is a trigger in the facts list
+
+      In the first case, we call the command with all the args, in the second case, we call the handler for 'fact' directly
+      and add the cmd to the args
+    """
     if cmd in self.cmd_handlers:
+      """
+        Make list of privileged users
+      """
       chan = self.channels.get(from_channel)
       privers = list(chan.opers()) + list(chan.voiced()) + list(chan.owners()) + list(chan.halfops()) if chan is not None else []
 
+      """
+        Command must either be unprivileged, or the sender must be a privileged user
+      """
       if ((self.cmd_handlers[cmd][3]) == False) or (nick in privers):
         self.cmd_handlers[cmd][2](c, args, nick, from_channel)
       else:
@@ -279,6 +370,10 @@ class TestBot(irc.bot.SingleServerIRCBot):
   """
   System commands
   """
+
+  """
+    This make the bot exit and terminate
+  """
   def cmd_die(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Killed by " + sender_nick)
     self.reset = False
@@ -287,17 +382,26 @@ class TestBot(irc.bot.SingleServerIRCBot):
     else:
       self.die("Killed by !die")
 
+  """
+    This makes the bot exit but sets a flag so it is respawned
+  """
   def cmd_reset(self, c, params, sender_nick, from_channel):
     self.botlogger.info("Reset by " + sender_nick)
     self.reset = True
     self.die("Killed by !reset")
 
+  """
+    Join a channel
+  """
   def cmd_join(self, c, params, sender_nick, from_channel):
     if len(params) > 0:
       c.join(params[0])
     else:
       self.reply(c, sender_nick, from_channel, "Failed - Please specify a channel to join")
 
+  """
+    Leave a channel - either channel specified as arg or current channel if there is a channel context
+  """
   def cmd_part(self, c, params, sender_nick, from_channel):
     chan = None
     if len(params) > 0:
@@ -309,6 +413,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
     if chan is not None:
       c.part(chan)
 
+  """
+    Dump the command and parameter descriptions from the command handler table
+  """
   def cmd_help(self, c, params, sender_nick, from_channel):
     ##self.botlogger.debug(json.dumps(self.cmd_handlers, indent=2, default=lambda o: 'INVALID'))
     self.reply(c,sender_nick, None, "Commands:")
@@ -324,9 +431,16 @@ class TestBot(irc.bot.SingleServerIRCBot):
   """
   Search
   """
+
+  """
+    The search command starts a subprocess that is connected via a Queue. The QConnection class handles reading out the queue.
+  """
   def cmd_search(self, c, params, sender_nick, from_channel):
     #self.botlogger.debug('Calling search')
     try:
+      """
+        The cooldown list saves when a specific search (by its full parameter list) was last executed. We limit identical searches to once every three minutes.
+      """
       jp = " ".join(params)
       if jp in self.cooldown:
         delta = datetime.now() - self.cooldown[jp]
@@ -334,6 +448,10 @@ class TestBot(irc.bot.SingleServerIRCBot):
           self.reply(c, sender_nick, from_channel, "I'm afraid I can't do that Dave. This search was just started {}s ago".format(delta.seconds))
       else:
         self.cooldown[jp] = datetime.now()
+        """
+          The ProcessManager handles spawning the subprocess for the system search and returns a subprocess class with the pid and queues of the subprocess.
+          We put the process into a dict to keep track of it and put the output queue into a QConnection and inject it into the reactor so it gets select()ed on.
+        """
         proc = processing.ProcessManager(params, sender_nick=sender_nick, from_channel=from_channel)
         self.botlogger.info("Received command: "+" ".join(params))
         self.processes[proc.pid]=proc
@@ -352,7 +470,17 @@ class TestBot(irc.bot.SingleServerIRCBot):
   """
   Board
   """
+
+  """
+    re for matching ratsignal so it can be subbed by r@signal to avoid triggering hilights
+  """
   ratsignalre = re.compile("ratsignal", re.I)
+  """
+    Grab takes the last recorded line by someone in the channel from the channel log that is filled in the on_pubmsg handler.
+    It creates a new case, if there isn't one for the client nick, and appends the line to the message buffer for the case.
+
+    Here we also put the ratsignal->r@signal substitution.
+  """
   def cmd_grab(self, c, params, sender_nick, from_channel):
     if from_channel is None:
       self.reply(c, sender_nick, from_channel, "This command only works in a channel")
@@ -374,6 +502,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
         if not self.silenced:
           self.reply(c, sender_nick, from_channel, "Grabbed '{}' from {}".format(line, grabnick))
 
+  """
+    Quote just prints out the whole message buffer
+  """
   def cmd_quote(self, c, params, sender_nick, from_channel):
     if len(params) < 1:
       self.reply(c, sender_nick, from_channel, "Sorry, I need a nick to quote")
@@ -390,6 +521,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
             line = lines[i]
             self.reply(c, sender_nick, from_channel, "<{}> {} [{}]".format(case.client, line, i))
 
+  """
+    Removes a case from the board
+  """
   def cmd_clear(self, c, params, sender_nick, from_channel):
     if len(params) > 0:
       with self.cases.get(params[0].lower()) as case:
@@ -401,6 +535,11 @@ class TestBot(irc.bot.SingleServerIRCBot):
     else:
       self.reply(c, sender_nick, from_channel, "Need a nick to clear")
 
+  """
+    Lists cases
+
+    By default active cases are listed with client name and reference number, for inactive cases only number of cases is printed. -i switch also prints inactive clients completely.
+  """
   def cmd_list(self, c, params, sender_nick, from_channel):
     if len(self.cases.cases) > 0:
       active_cases = [str(c) for c in self.cases.caselist if c is not None and c.active]
@@ -410,6 +549,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
     else:
       self.reply(c, sender_nick, from_channel, "Board is clear")
 
+  """
+    Add a line to client's message buffer like !grab, but with arbitrary content from params passed to the command
+  """
   def cmd_inject(self, c, params, sender_nick, from_channel):
     if len(params) < 2:
       self.reply(c, sender_nick, from_channel, "Sorry, I need a nick and some text.")
@@ -426,6 +568,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
       if not self.silenced:
         self.reply(c, sender_nick, from_channel, "Added line for {}".format(grabnick))
 
+  """
+    Replace or delete a line in a case's message buffer
+  """
   def cmd_sub(self, c, params, sender_nick, from_channel):
     if len(params) < 2:
       self.reply(c, sender_nick, from_channel, "Sorry, I need a nick and a line index.")
@@ -453,6 +598,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
         if not self.silenced:
           self.reply(c, sender_nick, from_channel, "Subbed line no {} for {}".format(lineno, grabnick))
 
+  """
+    Toggle active flag on a client case
+  """
   def cmd_active(self, c, params, sender_nick, from_channel):
     if len(params) < 1:
       self.reply(c, sender_nick, from_channel, "Sorry, I need a nick to search on the board")
@@ -466,6 +614,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
       if not self.silenced:
         self.reply(c, sender_nick, from_channel, "Case for {} is now {}".format(case.client, "Active" if case.active else "Inactive"))
 
+  """
+    Assign a rat to a case
+  """
   def cmd_assign(self, c, params, sender_nick, from_channel):
     if len(params) < 1:
       self.reply(c, sender_nick, from_channel, "Sorry, I need a nick to search on the board")
@@ -498,6 +649,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
 
   """
   Readout
+  """
+  """
+    This function reads out a search process' output queue and turns it into user readable output
   """
   def cmd_readout(self, c, params, sender_nick, from_channel):
     try:
@@ -540,6 +694,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
   def cmd_signal(self, c, params, sender_nick, from_channel):
     self.reply(c,sender_nick, from_channel, "Not implemented yet, sorry")
 
+  """
+    Reply with a fact. If a param is given, the params are prefixed to the output.
+  """
   def cmd_fact(self, c, params, sender_nick, from_channel):
     if len(params) > 0:
       if params[0] in FACTS.keys():
@@ -554,10 +711,9 @@ class TestBot(irc.bot.SingleServerIRCBot):
       for k in sorted(FACTS.keys()):
         self.reply(c, sender_nick, None, k + ' -> ' + FACTS[k])
 
-  def handle_PING(self, msg):
-    chunk = msg[5:]
-    self.send("PONG %s" % chunk)
-
+  """
+    Reply to channel, or to nick if there is no channel
+  """
   def reply(self, c, nick,channel,msg):
     #self.botlogger.debug("reply nick: %s, channel: %s" % (nick, channel))
     to = channel if channel else nick
@@ -566,21 +722,24 @@ class TestBot(irc.bot.SingleServerIRCBot):
     c.privmsg(to, msg)
 
   def send(self, msg):
-    now = time.time()
-    if self.lastmsgtime != None:
-      elapsed = now - self.lastmsgtime
-      if elapsed < self.delay:
-        time.sleep(self.delay - elapsed)
+#    now = time.time()
+#    if self.lastmsgtime != None:
+#      elapsed = now - self.lastmsgtime
+#      if elapsed < self.delay:
+#        time.sleep(self.delay - elapsed)
     self.botlogger.debug(">> " + str(msg.replace("\r\n",'\\r\\n').encode()))
     self.socket.send(msg.encode())
-    self.lastmsgtime = time.time()
+#   self.lastmsgtime = time.time()
 
 def main():
   import sys
   if len(sys.argv) < 4:
     print("Usage: testbot <server[:port]> <channel> <nickname> [debug]")
     sys.exit(1)
-
+  
+  """
+    Commandline arg parsing
+  """
   s = sys.argv[1].split(":", 1)
   server = s[0]
   if len(s) == 2:
@@ -595,6 +754,10 @@ def main():
   nickname = sys.argv[3]
   debug = len(sys.argv) >= 5
 
+
+  """
+    Logging setup
+  """
   botlogger = logging.getLogger('RatBotLogger')
   sysloghandler = logging.handlers.SysLogHandler('/dev/log')
   sysloghandler.setFormatter(logging.Formatter('ratbot %(levelname)s: %(message)s'))
@@ -607,8 +770,11 @@ def main():
     botlogger.addHandler(stderrhandler)
     botlib.systemsearch.DEBUG = True
   else:
-    self.botlogger.setLevel(logging.INFO)
+    botlogger.setLevel(logging.INFO)
 
+  """
+    This loop keeps spawning a new bot if an unhandled exception occurs or the bot exits after setting the reset flag
+  """
   bot = None
   while True:
     try:

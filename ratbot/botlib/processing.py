@@ -1,3 +1,6 @@
+"""
+  This module implements a multiprocessing (fork) based Process Manager that sets up a subprocess for running system search.
+"""
 import select
 import sys
 from multiprocessing import Process, Queue
@@ -8,6 +11,10 @@ from botlib.systemsearch import Systemsearch
 import logging
 botlogger = logging.getLogger('RatBotLogger')
 
+"""
+  Filter switches (strings starting with a -) out of a parameter list
+  Returns switches as a list, and the other parameters joined together
+"""
 def argfilter(args):
   switches = []
   sys = []
@@ -30,6 +37,9 @@ class ProcessManager:
     if run:
       self.start_result = self.start_process()
 
+  """
+    Starts the subprocess and returns something to reply to user
+  """
   def start_process(self):
     if self.process == None:
       self.process=Process(target=self.runner,args=((self.args, self.system), self.in_queue,self.out_queue))
