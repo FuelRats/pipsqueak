@@ -442,7 +442,7 @@ class TestBot(irc.bot.SingleServerIRCBot):
         The cooldown list saves when a specific search (by its full parameter list) was last executed. We limit identical searches to once every three minutes.
       """
       jp = " ".join(params)
-      delta = datetime.now() - self.cooldown.get(jp,0)
+      delta = datetime.now() - self.cooldown.get(jp,datetime.min)
       if delta < timedelta(seconds=180):
         self.reply(c, sender_nick, from_channel, "I'm afraid I can't do that Dave. This search was just started {}s ago".format(delta.seconds))
         self.botlogger.debug("No search started due to cooldown")
