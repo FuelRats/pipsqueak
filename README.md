@@ -15,7 +15,7 @@ Configure Sopel's [core]extra value for detection in any other folder.
 Command | Parameters | Explanation
 --- | --- | ---
 `search` | System | Searches for the given system in EDSM's system list and then finds coordinates
-| -r | Download a new system list (Will only execute if list is over 12 hours old.)
+ | -r | Download a new system list (Will only execute if list is over 12 hours old.)
 
 ## Detailed module information
 The system search compares the input with a large list of systems,
@@ -49,9 +49,9 @@ automatically used to create a new case.
 Defined in JSON file, see config.
 
 ## Config
-Config name | Explanation
---- | ---
-filename | the name (and absolute path) to the JSON file containing the facts
+Name | Purpose | Example
+--- | --- | ---
+filename | the name (and absolute path) to the JSON file containing the facts | /home/pipsqueak/facts.json
 
 ## Detailed module information
 Scans incoming message that start with ! for keywords specified in the file
