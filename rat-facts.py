@@ -18,7 +18,7 @@ class RatfactsSection(StaticSection):
 
 def configure(config):
     config.define_section('ratfacts', RatfactsSection)
-    config.rat-facts.configure_setting('filename',
+    config.ratfacts.configure_setting('filename',
         "The name of the json file containing the fact list.")
 
 @rule('.*')
