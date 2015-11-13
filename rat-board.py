@@ -331,6 +331,37 @@ def addRats(bot, trigger):
 
     return bot.say('Added rats to %s\'s case: %s' % (client, ', '.join(newrats)))
 
+@commands('unassign')
+def addRats(bot, trigger):
+    """
+    Remove rats from a client's case.
+    """
+    # I need at least 2 parameters
+    if trigger.group(4) == None:
+        return bot.reply('I need a case and at least 1 rat name.')
+
+    # Does this client exist?
+    client = Identifier(trigger.group(3))
+    if client not in bot.memory['ratbot']['cases']:
+        return bot.reply('Case not found.')
+    caseID = bot.memory['ratbot']['cases'][client]['ID']
+
+    removedRats = trigger.group(2)[len(client)+1:].split(' ')
+    rats = conn.request('GET', 'api/rescues/'+caseID)['rats']
+
+    for rat in removedRats:
+        try:
+            rats.remove(rat)
+        except ValueError:
+            # This rat wasn't assigned here in the first place!
+            continue
+
+    query = dict(rats=rats)
+    conn.request_encode_body('PUT', 'api/rescues/'+caseID, fields=query)
+
+    return bot.say('Removed rats from %s\'s case: %s' % (
+        client, ', '.join(removedRats)))
+
 @commands('codered', 'cr')
 def codeRed(bot, trigger):
     """
