@@ -9,6 +9,7 @@ http://sopel.chat/
 """
 
 #Python core imports
+import json
 import re
 from time import time
 
@@ -22,11 +23,11 @@ from sopel.tools import Identifier, SopelMemory
 from sopel.config.types import StaticSection, ValidatedAttribute
 
 class RatBoardSection(StaticSection):
-    apiURL = ValidatedAttribute('apiURL', str, default='')
+    apiurl = ValidatedAttribute('apiurl', str, default='http://api.fuelrats.com/')
 
 def configure(config):
     config.define_section('ratboard', RatBoardSection)
-    config.ratboard.configure_setting('apiURL',
+    config.ratboard.configure_setting('apiurl',
         "The URL of the API to talk to.")
 
 def setup(bot):
@@ -40,20 +41,25 @@ ratsignal = re.compile('ratsignal', re.IGNORECASE)
 # urllib3 things.
 conn = None
 
+def callAPI(conn, method, URI, fields=None):
+    ret = conn.request_encode_body(method, URI, fields)
+    data = ret.data
+    return json.loads(data)
 
 def openCase(bot, client, line):
     """
     Wrapper function to create a new case.
     """
+    global conn
+    if conn == None:
+        # Make a connection
+        conn = urllib3.connection_from_url(bot.config.ratboard.apiurl)
+
     # Prepare API call.
     query = dict(nickname=client, CMDRname=client, codeRed=False)
 
-    if conn == None:
-        # Make a connection
-        conn = urllib3.connection_from_url(bot.config.ratboard.apiURL)
-
     # Tell the website about the new case.
-    ret = conn.request_encode_body('POST', '/api/rescues/', fields=query)
+    ret = callAPI(conn, 'POST', '/api/rescues/', query)
 
     # Insert the Web ID and quotes in the bot's memory.
     bot.memory['ratbot']['cases'][client] = dict(id=ret['id'], quote=[line])
@@ -107,12 +113,13 @@ def getQuote(bot, trigger):
     caseID = bot.memory['ratbot']['cases'][client]['id']
     quote = bot.memory['ratbot']['cases'][client]['quote']
 
+    global conn
     if conn == None:
         # Make a connection
-        conn = urllib3.connection_from_url(bot.config.ratboard.apiURL)
+        conn = urllib3.connection_from_url(bot.config.ratboard.apiurl)
 
     # Grab required web bits.
-    ret = conn.request('GET', '/api/rescues/'+caseID)
+    ret = callAPI(conn, 'GET', '/api/rescues/'+caseID)
     rats = ret['rats']
     plat = ret['platform']
 
@@ -140,13 +147,14 @@ def clearCase(bot, trigger):
     except KeyError:
         return bot.reply('Case not found.')
 
+    global conn
     if conn == None:
         # Make a connection
-        conn = urllib3.connection_from_url(bot.config.ratboard.apiURL)
+        conn = urllib3.connection_from_url(bot.config.ratboard.apiurl)
 
     # Tell the website the case's closed.
     query = dict(active=False, open=False)
-    conn.request_encode_body('PUT', 'api/rescues/'+caseID, fields=query)
+    callAPI(conn, 'PUT', 'api/rescues/'+caseID, query)
 
     return bot.say('%s\'s case closed.' % (client,))
 
@@ -161,13 +169,14 @@ def listCases(bot, trigger):
     else:
         showInactive = False
 
+    global conn
     if conn == None:
         # Make a connection
-        conn = urllib3.connection_from_url(bot.config.ratboard.apiURL)
+        conn = urllib3.connection_from_url(bot.config.ratboard.apiurl)
 
     # Ask the API for all open cases.
     query = dict(open=True)
-    ret = conn.request_encode_body('GET', '/api/search/rescues',fields=query)
+    ret = callAPI(conn, 'GET', '/api/search/rescues', query)
 
     if len(ret) == 0:
         return bot.reply('No open cases.')
@@ -303,16 +312,17 @@ def toggleCaseActive(bot, trigger):
 
     caseID = bot.memory['ratbot']['cases'][client]['ID']
 
+    global conn
     if conn == None:
         # Make a connection
-        conn = urllib3.connection_from_url(bot.config.ratboard.apiURL)
+        conn = urllib3.connection_from_url(bot.config.ratboard.apiurl)
 
     # Ask the API what it is, then reverse the result.
-    a = not conn.request('GET', '/api/search/rescues/'+caseID)['active']
+    a = not callAPI(conn, 'GET', '/api/rescues/'+caseID)['active']
 
     # Upload the new result.
     query = dict(active=a)
-    conn.request_encode_body('PUT', 'api/rescues/'+caseID, fields=query)
+    callAPI(conn, 'PUT', 'api/rescues/'+caseID, query)
 
     if a:
         return bot.say('%s\'s case is now ' % (client,)+bold('active'))
@@ -337,17 +347,18 @@ def addRats(bot, trigger):
     rats = trigger.group(2)[len(client)+1:].split(' ')
     newrats = rats
 
+    global conn
     if conn == None:
         # Make a connection
-        conn = urllib3.connection_from_url(bot.config.ratboard.apiURL)
+        conn = urllib3.connection_from_url(bot.config.ratboard.apiurl)
 
-    webrats = conn.request('GET', 'api/rescues/'+caseID)['rats']
+    webrats = callAPI(conn, 'GET', 'api/rescues/'+caseID)['rats']
 
     for rat in webrats:
         rats.add(rat)
 
     query = dict(rats=rats)
-    conn.request_encode_body('PUT', 'api/rescues/'+caseID, fields=query)
+    callAPI(conn, 'PUT', 'api/rescues/'+caseID, query)
 
     return bot.say('Added rats to %s\'s case: %s' % (client, ', '.join(newrats)))
 
@@ -366,12 +377,13 @@ def addRats(bot, trigger):
         return bot.reply('Case not found.')
     caseID = bot.memory['ratbot']['cases'][client]['ID']
 
+    global conn
     if conn == None:
         # Make a connection
-        conn = urllib3.connection_from_url(bot.config.ratboard.apiURL)
+        conn = urllib3.connection_from_url(bot.config.ratboard.apiurl)
 
     removedRats = trigger.group(2)[len(client)+1:].split(' ')
-    rats = conn.request('GET', 'api/rescues/'+caseID)['rats']
+    rats = callAPI(conn, 'GET', 'api/rescues/'+caseID)['rats']
 
     for rat in removedRats:
         try:
@@ -381,7 +393,7 @@ def addRats(bot, trigger):
             continue
 
     query = dict(rats=rats)
-    conn.request_encode_body('PUT', 'api/rescues/'+caseID, fields=query)
+    callAPI(conn, 'PUT', 'api/rescues/'+caseID, query)
 
     return bot.say('Removed rats from %s\'s case: %s' % (
         client, ', '.join(removedRats)))
@@ -401,17 +413,18 @@ def codeRed(bot, trigger):
         return bot.reply('Case not found.')
     caseID = bot.memory['ratbot']['cases'][client]['ID']
 
+    global conn
     if conn == None:
         # Make a connection
-        conn = urllib3.connection_from_url(bot.config.ratboard.apiURL)
+        conn = urllib3.connection_from_url(bot.config.ratboard.apiurl)
 
     # Ask the API what it is, then reverse the result.
-    ret = conn.request('GET', '/api/search/rescues/'+caseID)
+    ret = callAPI(conn, 'GET', '/api/search/rescues/'+caseID)
     CR = not ret['codeRed']
 
     # Upload the new result.
     query = dict(codeRed=CR)
-    conn.request_encode_body('PUT', 'api/rescues/'+caseID, fields=query)
+    callAPI(conn, 'PUT', 'api/rescues/'+caseID, query)
 
     rats = ', '.join(ret['rats'])
 
@@ -436,12 +449,13 @@ def setCasePC(bot, trigger):
         return bot.reply('Case not found.')
     caseID = bot.memory['ratbot']['cases'][client]['ID']
 
+    global conn
     if conn == None:
         # Make a connection
-        conn = urllib3.connection_from_url(bot.config.ratboard.apiURL)
+        conn = urllib3.connection_from_url(bot.config.ratboard.apiurl)
 
     query = dict(platform='PC')
-    conn.request_encode_body('PUT', 'api/rescues/'+caseID, fields=query)
+    callAPI(conn, 'PUT', 'api/rescues/'+caseID, query)
 
     return bot.say('%s\'s case set to PC.' % (client,))
 
@@ -459,12 +473,13 @@ def setCaseXbox(bot, trigger):
         return bot.reply('Case not found.')
     caseID = bot.memory['ratbot']['cases'][client]['ID']
 
+    global conn
     if conn == None:
         # Make a connection
-        conn = urllib3.connection_from_url(bot.config.ratboard.apiURL)
+        conn = urllib3.connection_from_url(bot.config.ratboard.apiurl)
 
     query = dict(platform='Xbox One')
-    conn.request_encode_body('PUT', 'api/rescues/'+caseID, fields=query)
+    callAPI(conn, 'PUT', 'api/rescues/'+caseID, query)
 
     return bot.say('%s\'s case set to Xbox One.' % (client,))
 
