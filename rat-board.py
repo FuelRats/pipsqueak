@@ -10,6 +10,7 @@ http://sopel.chat/
 
 #Python core imports
 import re
+from json import dumps
 from time import time
 
 #requests imports
@@ -46,12 +47,9 @@ def callAPI(bot, method, URI, fields=None):
     else:
         link += '/'+URI
 
-    # Ugly boolean hack because requests doesn't quite work with the API.
-    for k,v in fields.iteritems():
-        if v == False:
-            fields[k] = 'false'
-        elif v == True:
-            fields[k] = 'true'
+    # Make sure our data is encoded properly.
+    if fields != None:
+        fields = dumps(fields)
 
     # Determine method and execute.
     if method == 'GET':
