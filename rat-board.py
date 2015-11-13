@@ -35,11 +35,36 @@ def setup(bot):
     bot.memory['ratbot']['log'] = SopelMemory()
     bot.memory['ratbot']['cases'] = SopelMemory()
 
+    # Grab cases from the API on module (re)load.
+    syncList(bot)
+
 # This regex gets pre-compiled, so we can easily re-use it later.
 ratsignal = re.compile('ratsignal', re.IGNORECASE)
 
-def callAPI(bot, method, URI, fields=None):
+def syncList(bot):
+    """
+    Grab all open cases from the API so we can work with them.
+    """
 
+    # Prep link.
+    link = bot.config.ratboard.apiurl
+    if link.endswith('/'):
+        link += 'api/search/rescues'
+    else:
+        link += '/api/search/rescues'
+
+    # Execute search
+    d = dumps(dict(open=True))
+    ret = requests.get(link, data=d).json()
+
+    for case in ret:
+        c = dict(id=case['id'], quote=['Case details unknown - Synced from Web API'])
+        bot.memory['ratbot']['cases'][Identifier(case['nickname'])] = c
+
+def callAPI(bot, method, URI, fields=None):
+    """
+    Wrapper function to contact the web API.
+    """
     # Prepare the endpoint.
     link = bot.config.ratboard.apiurl
     if link.endswith('/'):
@@ -70,7 +95,7 @@ def openCase(bot, client, line):
     ret = callAPI(bot, 'POST', 'api/rescues/', query)
 
     # Insert the Web ID and quotes in the bot's memory.
-    bot.memory['ratbot']['cases'][client] = dict(id=ret['ID'], quote=[line])
+    bot.memory['ratbot']['cases'][client] = dict(id=ret['id'], quote=[line])
 
 @rule('.*')
 @priority('low')
@@ -330,7 +355,7 @@ def addRats(bot, trigger):
     client = Identifier(trigger.group(3))
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
-    caseID = bot.memory['ratbot']['cases'][client]['ID']
+    caseID = bot.memory['ratbot']['cases'][client]['id']
 
     rats = trigger.group(2)[len(client)+1:].split(' ')
     newrats = rats
@@ -338,7 +363,7 @@ def addRats(bot, trigger):
     webrats = callAPI(bot, 'GET', 'api/rescues/'+caseID)['rats']
 
     for rat in webrats:
-        rats.add(rat)
+        rats.append(rat)
 
     query = dict(rats=rats)
     callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
@@ -346,7 +371,7 @@ def addRats(bot, trigger):
     return bot.say('Added rats to %s\'s case: %s' % (client, ', '.join(newrats)))
 
 @commands('unassign')
-def addRats(bot, trigger):
+def rmRats(bot, trigger):
     """
     Remove rats from a client's case.
     """
@@ -358,7 +383,7 @@ def addRats(bot, trigger):
     client = Identifier(trigger.group(3))
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
-    caseID = bot.memory['ratbot']['cases'][client]['ID']
+    caseID = bot.memory['ratbot']['cases'][client]['id']
 
     removedRats = trigger.group(2)[len(client)+1:].split(' ')
     rats = callAPI(bot, 'GET', 'api/rescues/'+caseID)['rats']
@@ -389,7 +414,7 @@ def codeRed(bot, trigger):
     client = Identifier(trigger.group(3))
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
-    caseID = bot.memory['ratbot']['cases'][client]['ID']
+    caseID = bot.memory['ratbot']['cases'][client]['id']
 
     # Ask the API what it is, then reverse the result.
     ret = callAPI(bot, 'GET', 'api/search/rescues/'+caseID)
@@ -420,7 +445,7 @@ def setCasePC(bot, trigger):
     client = Identifier(trigger.group(3))
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
-    caseID = bot.memory['ratbot']['cases'][client]['ID']
+    caseID = bot.memory['ratbot']['cases'][client]['id']
 
     query = dict(platform='PC')
     callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
@@ -439,7 +464,7 @@ def setCaseXbox(bot, trigger):
     client = Identifier(trigger.group(3))
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
-    caseID = bot.memory['ratbot']['cases'][client]['ID']
+    caseID = bot.memory['ratbot']['cases'][client]['id']
 
     query = dict(platform='Xbox One')
     callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
