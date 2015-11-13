@@ -1,3 +1,4 @@
 fuzzywuzzy==0.7.0
-sopel
-urllib3
+requests==2.8.1
+sopel==6.0.0
+
