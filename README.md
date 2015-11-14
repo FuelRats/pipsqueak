@@ -2,13 +2,29 @@
 ED Fuel rats [sopel](http://sopel.chat) module package
 
 # Installation instructions
-Requires Sopel to be installed, for more information on this see [Sopel's website](http://sopel.chat)
+Requires Sopel to be installed, for more information on this see [Sopel's website](http://sopel.chat/download.html)
 
-Download this project in ~/.sopel/modules for automatic detection.
+## Normal sopel installation
+
+Copy modules in `sopel-modules` to ~/.sopel/modules for automatic detection.
 Configure Sopel's [core]extra value for detection in any other folder.
 
 Recommended [core]enable modules:
 admin,help,rat-board,rat-facts,rat-search,reload
+
+## Virtualenv
+
+    # setup
+    pip install virtualenv
+    git clone https://github.com/Tyrope/pipsqueak-sopel.git
+    cd pipsqueak
+    virtualenv .
+    ## adjust config
+    vim sopel.cfg
+    # run
+    source bin/activate
+    pip install -r requirements.txt
+    sopel -c sopel.cfg
 
 # rat-search.py
 ## Commands
