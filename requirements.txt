@@ -1,2 +1,3 @@
 fuzzywuzzy==0.7.0
 sopel
+ipython
