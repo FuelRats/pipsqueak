@@ -16,7 +16,7 @@ admin,help,rat-board,rat-facts,rat-search,reload
 
     # setup
     pip install virtualenv
-    git clone https://github.com/duk3luk3/pipsqueak.git
+    git clone https://github.com/Tyrope/pipsqueak-sopel.git
     cd pipsqueak
     virtualenv .
     ## adjust config
