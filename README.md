@@ -2,7 +2,7 @@
 ED Fuel rats [sopel](http://sopel.chat) module package
 
 # Installation instructions
-Requires Sopel to be installed, for more information on this see [Sopel's website](http://sopel.chat)
+Requires Sopel to be installed, for more information on this see [Sopel's website](http://sopel.chat/download.html)
 
 Download this project in ~/.sopel/modules for automatic detection.
 Configure Sopel's [core]extra value for detection in any other folder.
