@@ -7,8 +7,8 @@ Requires Sopel to be installed, for more information on this see [Sopel's websit
 Download this project in ~/.sopel/modules for automatic detection.
 Configure Sopel's [core]extra value for detection in any other folder.
 
-
-
+Recommended [core]enable modules:
+admin,help,rat-board,rat-facts,rat-search,reload
 
 # rat-search.py
 ## Commands
