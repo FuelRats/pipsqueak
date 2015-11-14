@@ -108,7 +108,7 @@ def listCases(bot, trigger):
 
     actives = set()
     inactives = set()
-    for k,v in bot.memory['ratbot']['cases'].iteritems():
+    for k,v in bot.memory['ratbot']['cases'].items():
         if v['active']:
             actives.add(k)
         else:
