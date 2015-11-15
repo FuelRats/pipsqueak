@@ -1,1 +1,13 @@
 *.pyc
+.Python
+[Bb]in
+[Ii]nclude
+[Ll]ib
+[Ll]ocal
+[Ss]cripts
+[Ss]hare
+logs
+pyvenv.cfg
+pip-selfcheck.json
+*.db
+malwaredomains.txt
