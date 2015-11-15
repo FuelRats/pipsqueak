@@ -54,6 +54,11 @@ Command | Parameters | Explanation
 `pc` | Nick | Set `nick`'s case to be in the PC universe.
 `xbox`/`xb`/`xb1`/`xbone`| Nick | Set `nick`'s case to be in the Xbox One universe.
 
+## Config
+Name | Purpose | Example
+--- | --- | ---
+urlapi | Determining the host at which the API is hosted. | http://api.fuelrats.com/
+
 ## Detailed module information
 pipsqueak includes a tool to keep track of the current board of rescues, called 'cases'.
 
