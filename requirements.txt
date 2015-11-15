@@ -1,3 +1,5 @@
 fuzzywuzzy==0.7.0
+requests==2.8.1
 sopel
 ipython
+
