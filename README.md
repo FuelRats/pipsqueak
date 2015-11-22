@@ -52,7 +52,12 @@ Command | Parameters | Explanation
 `assign`| Nick, rats   | Assigns `rats` to `Nick`'s case.
 `codered` / `cr` | Nick | Toggle the code red status of `Nick`'s case.
 `pc` | Nick | Set `nick`'s case to be in the PC universe.
-`xbox`/`xb`/`xb1`/`xbone`| Set `nick`'s case to be in the Xbox One universe.
+`xbox`/`xb`/`xb1`/`xbone`| Nick | Set `nick`'s case to be in the Xbox One universe.
+
+## Config
+Name | Purpose | Example
+--- | --- | ---
+urlapi | Determining the host at which the API is hosted. | http://api.fuelrats.com/
 
 ## Detailed module information
 pipsqueak includes a tool to keep track of the current board of rescues, called 'cases'.

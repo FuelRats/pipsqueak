@@ -10,20 +10,92 @@ http://sopel.chat/
 
 #Python core imports
 import re
+from json import dumps
 from time import time
+
+#requests imports
+import requests
 
 #Sopel imports
 from sopel.formatting import bold
 from sopel.module import commands, NOLIMIT, priority, require_chanmsg, rule
 from sopel.tools import Identifier, SopelMemory
+from sopel.config.types import StaticSection, ValidatedAttribute
+
+class RatBoardSection(StaticSection):
+    apiurl = ValidatedAttribute('apiurl', str, default='http://api.fuelrats.com/')
+
+def configure(config):
+    config.define_section('ratboard', RatBoardSection)
+    config.ratboard.configure_setting('apiurl',
+        "The URL of the API to talk to.")
 
 def setup(bot):
     bot.memory['ratbot'] = SopelMemory()
     bot.memory['ratbot']['log'] = SopelMemory()
     bot.memory['ratbot']['cases'] = SopelMemory()
 
+    # Grab cases from the API on module (re)load.
+    syncList(bot)
+
 # This regex gets pre-compiled, so we can easily re-use it later.
 ratsignal = re.compile('ratsignal', re.IGNORECASE)
+
+def syncList(bot):
+    """
+    Grab all open cases from the API so we can work with them.
+    """
+
+    # Prep link.
+    link = bot.config.ratboard.apiurl
+    if link.endswith('/'):
+        link += 'api/search/rescues'
+    else:
+        link += '/api/search/rescues'
+
+    # Execute search
+    d = dumps(dict(open=True))
+    ret = requests.get(link, data=d).json()
+
+    for case in ret:
+        c = dict(id=case['id'], quote=['Case details unknown - Synced from Web API'])
+        bot.memory['ratbot']['cases'][Identifier(case['nickname'])] = c
+
+def callAPI(bot, method, URI, fields=None):
+    """
+    Wrapper function to contact the web API.
+    """
+    # Prepare the endpoint.
+    link = bot.config.ratboard.apiurl
+    if link.endswith('/'):
+        link += URI
+    else:
+        link += '/'+URI
+
+    # Make sure our data is encoded properly.
+    if fields != None:
+        fields = dumps(fields)
+
+    # Determine method and execute.
+    if method == 'GET':
+        return requests.get(link, data=fields).json()
+    elif method == 'PUT':
+        return requests.put(link, data=fields).json()
+    elif method == 'POST':
+        return requests.post(link, data=fields).json()
+
+def openCase(bot, client, line):
+    """
+    Wrapper function to create a new case.
+    """
+    # Prepare API call.
+    query = dict(nickname=client, CMDRname=client, codeRed=False)
+
+    # Tell the website about the new case.
+    ret = callAPI(bot, 'POST', 'api/rescues/', query)
+
+    # Insert the Web ID and quotes in the bot's memory.
+    bot.memory['ratbot']['cases'][client] = dict(id=ret['id'], quote=[line])
 
 @rule('.*')
 @priority('low')
@@ -46,21 +118,19 @@ def getLog(bot, trigger):
     return NOLIMIT #This should NOT trigger rate limit, EVER.
 
 @rule('(ratsignal)(.*)')
+@priority('high')
 def lightSignal(bot, trigger):
     """
     Light the rat signal, somebody needs fuel.
     """
     bot.say('Received R@SIGNAL from %s, Calling all available rats!' % trigger.nick)
 
-    # Prepare a new case.
+    # Prepare values.
     line = ratsignal.sub('R@signal', trigger.group())
+    client = Identifier(trigger.nick)
 
-    #TODO call POST http://api.fuelrats.com/api/rescues/
-
-    signal = dict(active=True, codeRed=False, platform='', rats=[], quote=(line,))
-
-    # Inject it in the bot's memory.
-    bot.memory['ratbot']['cases'][Identifier(trigger.nick)] = signal
+    # Open it up.
+    openCase(bot, client, line)
 
 @commands('quote')
 def getQuote(bot, trigger):
@@ -71,13 +141,21 @@ def getQuote(bot, trigger):
         return bot.reply('I need a client name to look up.')
 
     client = Identifier(trigger.group(3))
-    case = bot.memory['ratbot']['cases'][client]
 
-    bot.reply('%s\'s case:' % client)
-    if len(case['rats']) > 0:
-        bot.say('Assigned rats: '+', '.join(case['rats']))
-    for i in range(len(case['quote'])):
-        msg = case['quote'][i]
+    # Grab required memory bits.
+    caseID = bot.memory['ratbot']['cases'][client]['id']
+    quote = bot.memory['ratbot']['cases'][client]['quote']
+
+    # Grab required web bits.
+    ret = callAPI(bot, 'GET', 'api/rescues/'+caseID)
+    rats = ret['rats']
+    plat = ret['platform']
+
+    bot.reply('%s\'s case (%s):' % (client, plat))
+    if len(rats) > 0:
+        bot.say('Assigned rats: '+', '.join(rats))
+    for i in range(len(quote)):
+        msg = quote[i]
         bot.say('[%s]%s' % (i, msg))
 
 @commands('clear', 'close')
@@ -89,10 +167,18 @@ def clearCase(bot, trigger):
         return bot.reply('I need a name to clear cases.')
 
     client = Identifier(trigger.group(3))
+
+    # Remove the memory bits.
     try:
+        caseID = bot.memory['ratbot']['cases'][client]['id']
         del bot.memory['ratbot']['cases'][client]
-    except:
+    except KeyError:
         return bot.reply('Case not found.')
+
+    # Tell the website the case's closed.
+    query = dict(active=False, open=False)
+    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+
     return bot.say('%s\'s case closed.' % (client,))
 
 @commands('list')
@@ -106,14 +192,23 @@ def listCases(bot, trigger):
     else:
         showInactive = False
 
+    # Ask the API for all open cases.
+    query = dict(open=True)
+    ret = callAPI(bot, 'GET', 'api/search/rescues', query)
+
+    if len(ret) == 0:
+        return bot.reply('No open cases.')
+
+    # We have cases, sort them.
     actives = set()
     inactives = set()
-    for k,v in bot.memory['ratbot']['cases'].items():
-        if v['active']:
-            actives.add(k)
+    for case in ret:
+        if case['active'] == True:
+            actives.add(case['CMDRname'])
         else:
-            inactives.add(k)
+            inactives.add(case['CMDRname'])
 
+    # Print to IRC.
     if showInactive:
         return bot.reply('%s active case(s): %s. %s inactive: %s' %
             (len(actives), ', '.join(actives), len(inactives), ', '.join(inactives)))
@@ -132,25 +227,19 @@ def grabLine(bot, trigger):
     client = Identifier(trigger.group(3))
 
     if client not in bot.memory['ratbot']['log']:
-        # This shouldn't ever happen,
-        # because the RATSIGNAL line should be in the log.
+        # If this were to happen, somebody is trying to break the system.
+        # After all, why make a case with no information?
         return bot.reply('%s has never spoken before.' % (client,))
-
-    if client not in bot.memory['ratbot']['cases']:
-        # Create a new case.
-        signal = dict(active=True, codeRed=False, platform='', rats=[], quote=tuple())
-        bot.memory['ratbot']['cases'][client] = signal
-        newCase = True
-    else:
-        newCase = False
 
     line = bot.memory['ratbot']['log'][client]
 
-    bot.memory['ratbot']['cases'][client]['quote'] += (line,)
-
-    if newCase:
+    if client not in bot.memory['ratbot']['cases']:
+        # Create a new case.
+        openCase(bot, client, line)
         return bot.say('%s\'s case opened with: %s' % (client, line))
     else:
+        # Add line to case.
+        bot.memory['ratbot']['cases'][client]['quote'] += (line,)
         return bot.say('Added "%s" to %s\'s case.' % (line, client))
 
 @commands('inject')
@@ -163,16 +252,19 @@ def injectLine(bot, trigger):
     if trigger.group(4) == None:
         return bot.reply('I need a case and some text to do this.')
 
-    # Does this client exist?
+    # Prepare the inject
     client = Identifier(trigger.group(3))
+    line = trigger.group(2)[len(client)+1:] + ' [INJECT by %s]' % (trigger.nick,)
+
+    # Does this client exist?
     if client not in bot.memory['ratbot']['cases']:
-        return bot.reply('Case not found.')
-
-    # Good. Inject.
-    inject = trigger.group(2)[len(client)+1:] + ' [INJECT by %s]' % (trigger.nick,)
-
-    bot.memory['ratbot']['cases'][client]['quote'] += (inject,)
-    return bot.say('Added "%s" to %s\'s case.' % (inject, client))
+        # Create a new case.
+        openCase(bot, client, line)
+        return bot.say('%s\'s case opened with: %s' % (client, line))
+    else:
+        # Add line to case.
+        bot.memory['ratbot']['cases'][client]['quote'] += (line,)
+        return bot.say('Added "%s" to %s\'s case.' % (line, client))
 
 @commands('sub')
 def subLine(bot, trigger):
@@ -188,20 +280,22 @@ def subLine(bot, trigger):
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
 
+    # Do we have enough lines?
+    lines = bot.memory['ratbot']['cases'][client]['quote']
+    if int(number) > len(lines):
+        return bot.reply('I can\'t replace line %s if there\'s only %s lines.' %
+            (number, len(lines)))
+
+    # Ok, now we can sub the line.
     data = trigger.group(2)[len(client)+1:]
     try:
         number, subtext = data.split(' ', 1)
     except ValueError:
+        # Or delete it.
         number = data
         subtext = None
 
-    lines = bot.memory['ratbot']['cases'][client]['quote']
-
-    if int(number) > len(lines):
-        return bot.reply('I can\'t replace line %s if there\'s only %s lines.' %
-            (number, len(lines)))
     newquote = tuple()
-
     for i in range(len(lines)):
         if i != int(number):
             # Not our line, continue.
@@ -210,6 +304,7 @@ def subLine(bot, trigger):
             # Delete, don't sub.
             continue
         else:
+            # Sub
             newquote += (subtext + '[SUB by %s]' % (trigger.nick,),)
 
     bot.memory['ratbot']['cases'][client]['quote'] = newquote
@@ -230,15 +325,19 @@ def toggleCaseActive(bot, trigger):
         return bot.reply('I need a case name to grab to.')
 
     client = Identifier(trigger.group(3))
-
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
 
-    # Reverse the polarity.
-    active = not bot.memory['ratbot']['cases'][client]['active']
-    bot.memory['ratbot']['cases'][client]['active'] = active
+    caseID = bot.memory['ratbot']['cases'][client]['ID']
 
-    if active:
+    # Ask the API what it is, then reverse the result.
+    a = not callAPI(bot, 'GET', 'api/rescues/'+caseID)['active']
+
+    # Upload the new result.
+    query = dict(active=a)
+    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+
+    if a:
         return bot.say('%s\'s case is now ' % (client,)+bold('active'))
     else:
         return bot.say('%s\'s case is now ' % (client,)+bold('inactive'))
@@ -256,13 +355,51 @@ def addRats(bot, trigger):
     client = Identifier(trigger.group(3))
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
+    caseID = bot.memory['ratbot']['cases'][client]['id']
 
     rats = trigger.group(2)[len(client)+1:].split(' ')
+    newrats = rats
 
-    for rat in rats:
-        bot.memory['ratbot']['cases'][client]['rats'].append(rat)
+    webrats = callAPI(bot, 'GET', 'api/rescues/'+caseID)['rats']
 
-    return bot.say('Added rats to %s\'s case: %s' % (client, ', '.join(rats)))
+    for rat in webrats:
+        rats.append(rat)
+
+    query = dict(rats=rats)
+    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+
+    return bot.say('Added rats to %s\'s case: %s' % (client, ', '.join(newrats)))
+
+@commands('unassign')
+def rmRats(bot, trigger):
+    """
+    Remove rats from a client's case.
+    """
+    # I need at least 2 parameters
+    if trigger.group(4) == None:
+        return bot.reply('I need a case and at least 1 rat name.')
+
+    # Does this client exist?
+    client = Identifier(trigger.group(3))
+    if client not in bot.memory['ratbot']['cases']:
+        return bot.reply('Case not found.')
+    caseID = bot.memory['ratbot']['cases'][client]['id']
+
+    removedRats = trigger.group(2)[len(client)+1:].split(' ')
+    rats = callAPI(bot, 'GET', 'api/rescues/'+caseID)['rats']
+
+    for rat in removedRats:
+        try:
+            rats.remove(rat)
+        except ValueError:
+            # This rat wasn't assigned here in the first place!
+            continue
+
+    query = dict(rats=rats)
+    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+
+    return bot.say('Removed rats from %s\'s case: %s' % (
+        client, ', '.join(removedRats)))
 
 @commands('codered', 'cr')
 def codeRed(bot, trigger):
@@ -275,20 +412,24 @@ def codeRed(bot, trigger):
         return bot.reply('I need a case name.')
 
     client = Identifier(trigger.group(3))
-
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
+    caseID = bot.memory['ratbot']['cases'][client]['id']
 
-    # Reverse the polarity.
-    CR = not bot.memory['ratbot']['cases'][client]['codeRed']
-    bot.memory['ratbot']['cases'][client]['codeRed'] = CR
+    # Ask the API what it is, then reverse the result.
+    ret = callAPI(bot, 'GET', 'api/search/rescues/'+caseID)
+    CR = not ret['codeRed']
 
-    rats = bot.memory['ratbot']['cases'][client]['rats']
+    # Upload the new result.
+    query = dict(codeRed=CR)
+    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+
+    rats = ', '.join(ret['rats'])
 
     if CR:
         bot.say('CODE RED! %s is on emegency oxygen.' % (client,))
         if len(rats) > 0:
-            bot.say('%s: This is your case!' % (', '.join(rats),))
+            bot.say('%s: This is your case!' % (rats,))
     else:
         bot.say('%s\'s case demoted from code red.' % (client,))
 
@@ -304,14 +445,12 @@ def setCasePC(bot, trigger):
     client = Identifier(trigger.group(3))
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
+    caseID = bot.memory['ratbot']['cases'][client]['id']
 
-    #Check the current platform.
-    p = bot.memory['ratbot']['cases'][client]['platform']
-    if p == 'PC':
-        return bot.say('%s\'s case is already PC.' % (client,))
-    else:
-        bot.memory['ratbot']['cases'][client]['platform'] = 'PC'
-        return bot.say('%s\'s case set to PC.' % (client,))
+    query = dict(platform='PC')
+    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+
+    return bot.say('%s\'s case set to PC.' % (client,))
 
 @commands('xbox','xb','xb1','xbone')
 def setCaseXbox(bot, trigger):
@@ -325,12 +464,10 @@ def setCaseXbox(bot, trigger):
     client = Identifier(trigger.group(3))
     if client not in bot.memory['ratbot']['cases']:
         return bot.reply('Case not found.')
+    caseID = bot.memory['ratbot']['cases'][client]['id']
 
-    #Check the current platform.
-    p = bot.memory['ratbot']['cases'][client]['platform']
-    if p == 'Xbox One':
-        return bot.say('%s\'s case is already Xbox One.' % (client,))
-    else:
-        bot.memory['ratbot']['cases'][client]['platform'] = 'Xbox One'
-        return bot.say('%s\'s case set to Xbox One.' % (client,))
+    query = dict(platform='Xbox One')
+    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+
+    return bot.say('%s\'s case set to Xbox One.' % (client,))
 
