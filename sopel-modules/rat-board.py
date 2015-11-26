@@ -55,7 +55,10 @@ def syncList(bot):
 
     # Execute search
     d = dumps(dict(open=True))
-    ret = requests.get(link, data=d).json()
+    ret = requests.get(link, data=d).json()['data']
+    # Don't really care about the KeyError at this point.
+    # If it's thrown the API behind the configured URL is
+    # broken and this module should fail anyway.
 
     for case in ret:
         c = dict(id=case['id'], quote=['Case details unknown - Synced from Web API'])
@@ -92,10 +95,15 @@ def openCase(bot, client, line):
     query = dict(nickname=client, CMDRname=client, codeRed=False)
 
     # Tell the website about the new case.
-    ret = callAPI(bot, 'POST', 'api/rescues/', query)
+    ans = callAPI(bot, 'POST', 'api/rescues/', query)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return False, ans
 
     # Insert the Web ID and quotes in the bot's memory.
     bot.memory['ratbot']['cases'][client] = dict(id=ret['id'], quote=[line])
+    return True, None
 
 @rule('.*')
 @priority('low')
@@ -130,7 +138,9 @@ def lightSignal(bot, trigger):
     client = Identifier(trigger.nick)
 
     # Open it up.
-    openCase(bot, client, line)
+    success, error = openCase(bot, client, line)
+    if not success:
+        return bot.say('Error in opening new case: [%s]%s' % (error['code'], error['message']))
 
 @commands('quote')
 def getQuote(bot, trigger):
@@ -147,7 +157,13 @@ def getQuote(bot, trigger):
     quote = bot.memory['ratbot']['cases'][client]['quote']
 
     # Grab required web bits.
-    ret = callAPI(bot, 'GET', 'api/rescues/'+caseID)
+    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error fetching data: [%s]%s' %
+            (ans['code'], ans['message']))
+
     rats = ret['rats']
     plat = ret['platform']
 
@@ -177,9 +193,13 @@ def clearCase(bot, trigger):
 
     # Tell the website the case's closed.
     query = dict(active=False, open=False)
-    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
 
-    return bot.say('%s\'s case closed.' % (client,))
+    if 'data' in ret:
+        return bot.say('%s\'s case closed.' % (client,))
+    else:
+        return bot.say('Error closing %s\'s case: [%s]%s' %
+            (client, ret['code'],ret['message']))
 
 @commands('list')
 def listCases(bot, trigger):
@@ -194,7 +214,13 @@ def listCases(bot, trigger):
 
     # Ask the API for all open cases.
     query = dict(open=True)
-    ret = callAPI(bot, 'GET', 'api/search/rescues', query)
+    ans = callAPI(bot, 'GET', 'api/search/rescues', query)
+
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error fetching cases from API: [%s]%s' %
+            (ret['code'], ret['message']))
 
     if len(ret) == 0:
         return bot.reply('No open cases.')
@@ -235,8 +261,12 @@ def grabLine(bot, trigger):
 
     if client not in bot.memory['ratbot']['cases']:
         # Create a new case.
-        openCase(bot, client, line)
-        return bot.say('%s\'s case opened with: %s' % (client, line))
+        success, error = openCase(bot, client, line)
+        if success:
+            return bot.say('%s\'s case opened with: %s' % (client, line))
+        else:
+            return bot.reply('Error in opening new case: [%s]%s' %
+                (error['code'], error['message']))
     else:
         # Add line to case.
         bot.memory['ratbot']['cases'][client]['quote'] += (line,)
@@ -259,8 +289,12 @@ def injectLine(bot, trigger):
     # Does this client exist?
     if client not in bot.memory['ratbot']['cases']:
         # Create a new case.
-        openCase(bot, client, line)
-        return bot.say('%s\'s case opened with: %s' % (client, line))
+        success, error = openCase(bot, client, line)
+        if success:
+            return bot.say('%s\'s case opened with: %s' % (client, line))
+        else:
+            return bot.reply('Error in opening new case: [%s]%s' %
+                (error['code'], error['message']))
     else:
         # Add line to case.
         bot.memory['ratbot']['cases'][client]['quote'] += (line,)
@@ -331,11 +365,22 @@ def toggleCaseActive(bot, trigger):
     caseID = bot.memory['ratbot']['cases'][client]['ID']
 
     # Ask the API what it is, then reverse the result.
-    a = not callAPI(bot, 'GET', 'api/rescues/'+caseID)['active']
+    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error fetching data: [%s]%s' %
+            (ans['code'], ans['message']))
+    a = not ret['active']
 
     # Upload the new result.
     query = dict(active=a)
-    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error pushing data: [%s]%s' %
+            (ans['code'], ans['message']))
 
     if a:
         return bot.say('%s\'s case is now ' % (client,)+bold('active'))
@@ -360,13 +405,24 @@ def addRats(bot, trigger):
     rats = trigger.group(2)[len(client)+1:].split(' ')
     newrats = rats
 
-    webrats = callAPI(bot, 'GET', 'api/rescues/'+caseID)['rats']
+    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error fetching data: [%s]%s' %
+            (ans['code'], ans['message']))
+    webrats = ret['rats']
 
     for rat in webrats:
         rats.append(rat)
 
     query = dict(rats=rats)
-    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error pushing data: [%s]%s' %
+            (ans['code'], ans['message']))
 
     return bot.say('Added rats to %s\'s case: %s' % (client, ', '.join(newrats)))
 
@@ -386,7 +442,14 @@ def rmRats(bot, trigger):
     caseID = bot.memory['ratbot']['cases'][client]['id']
 
     removedRats = trigger.group(2)[len(client)+1:].split(' ')
-    rats = callAPI(bot, 'GET', 'api/rescues/'+caseID)['rats']
+    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error fetching data: [%s]%s' %
+            (ans['code'], ans['message']))
+
+    rats = ret['rats']
 
     for rat in removedRats:
         try:
@@ -396,7 +459,12 @@ def rmRats(bot, trigger):
             continue
 
     query = dict(rats=rats)
-    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error pushing data: [%s]%s' %
+            (ans['code'], ans['message']))
 
     return bot.say('Removed rats from %s\'s case: %s' % (
         client, ', '.join(removedRats)))
@@ -417,12 +485,22 @@ def codeRed(bot, trigger):
     caseID = bot.memory['ratbot']['cases'][client]['id']
 
     # Ask the API what it is, then reverse the result.
-    ret = callAPI(bot, 'GET', 'api/search/rescues/'+caseID)
+    ans = callAPI(bot, 'GET', 'api/search/rescues/'+caseID)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error fetching data: [%s]%s' %
+            (ans['code'], ans['message']))
     CR = not ret['codeRed']
 
     # Upload the new result.
     query = dict(codeRed=CR)
-    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error pushing data: [%s]%s' %
+            (ans['code'], ans['message']))
 
     rats = ', '.join(ret['rats'])
 
@@ -448,7 +526,12 @@ def setCasePC(bot, trigger):
     caseID = bot.memory['ratbot']['cases'][client]['id']
 
     query = dict(platform='PC')
-    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error pushing data: [%s]%s' %
+            (ans['code'], ans['message']))
 
     return bot.say('%s\'s case set to PC.' % (client,))
 
@@ -467,7 +550,12 @@ def setCaseXbox(bot, trigger):
     caseID = bot.memory['ratbot']['cases'][client]['id']
 
     query = dict(platform='Xbox One')
-    callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    try:
+        ret = ans['data']
+    except KeyError:
+        return bot.reply('Error pushing data: [%s]%s' %
+            (ans['code'], ans['message']))
 
     return bot.say('%s\'s case set to Xbox One.' % (client,))
 
