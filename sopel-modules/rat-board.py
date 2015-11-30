@@ -17,7 +17,7 @@ from time import time
 import requests
 
 #Sopel imports
-from sopel.formatting import bold
+from sopel.formatting import bold, color, colors
 from sopel.module import commands, NOLIMIT, priority, require_chanmsg, rule
 from sopel.tools import Identifier, SopelMemory
 from sopel.config.types import StaticSection, ValidatedAttribute
@@ -229,10 +229,14 @@ def listCases(bot, trigger):
     actives = set()
     inactives = set()
     for case in ret:
-        if case['active'] == True:
-            actives.add(case['CMDRname'])
+        if case['codeRed']:
+            name = color(case['CMDRname'], color.RED)
         else:
-            inactives.add(case['CMDRname'])
+            name = case['CMDRname']
+        if case['active'] == True:
+            actives.add(name)
+        else:
+            inactives.add(name)
 
     # Print to IRC.
     if showInactive:
