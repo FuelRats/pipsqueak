@@ -67,7 +67,9 @@ automatically used to create a new case.
 
 # rat-facts.py
 ## Commands
-Defined in JSON file, see config.
+Command | Parameters | Explanation
+--- | --- | ---
+`fact` / `facts` | | Lists the facts in the .json file configured (see below).
 
 ## Config
 Name | Purpose | Example

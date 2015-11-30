@@ -48,3 +48,14 @@ def reciteFact(bot, trigger):
     else:
         # Not one of our commands.
         return NOLIMIT
+
+@commands('fact', 'facts'):
+    """Lists the facts in the .JSON file"""
+    try:
+        with open(bot.config.ratfacts.filename) as f:
+            facts = json.load(f)
+    except IOError:
+        # We couldn't open facts.json...
+        return bot.reply('There appears to be a problem with the fact list.')
+    return bot.reply('Known facts: '+', '.join(facts.keys())
+
