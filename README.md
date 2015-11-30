@@ -78,7 +78,7 @@ filename | the name (and absolute path) to the JSON file containing the facts | 
 Scans incoming message that start with ! for keywords specified in the file
 configured and replies with the appropriate response.
 
-# rat-dill.py
+# rat-drill.py
 ## Commands
 Command | Parameters | Explanation
 --- | --- | ---
