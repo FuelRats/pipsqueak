@@ -78,3 +78,22 @@ filename | the name (and absolute path) to the JSON file containing the facts | 
 Scans incoming message that start with ! for keywords specified in the file
 configured and replies with the appropriate response.
 
+# rat-drill.py
+## Commands
+Command | Parameters | Explanation
+--- | --- | ---
+`drill` | | Print out both drill lists.
+ | `-b` | See above
+ | `-r` | Print only the [R]atting drills list.
+ | `-d` / `-p` | Print only the [D]is[P]atch drills list.
+`drilladd` | -r `name` | Add `name` to the [R]atting drills list.
+ | -d `name` / -p `name` | Add `name` to the [D]is[P]atch drills list.
+ | -b `name` | Add `name` to [B]oth the ratting and dispatch drills list.
+`drillrem` | `name` | Remove `name` from both drill lists (if applicable).
+ | | To remove `name` from only 1 list, use `drilladd`
+
+## Config
+Name | Purpose | Example
+--- | --- | ---
+drilllist | The name of the JSON file containing the drill lists | drills.json
+
