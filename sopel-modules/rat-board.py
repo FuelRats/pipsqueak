@@ -520,7 +520,7 @@ def addRats(bot, trigger):
         return bot.reply('Error pushing data: [%s]%s' %
             (ans['code'], ans['details']))
 
-    return bot.say('Added rats to %s\'s case: %s' % (client, ', '.join(newrats)))
+    return bot.say('%s, Please add the following rat(s): %s' % (client, ', '.join(newrats)))
 
 @commands('unassign', 'rm', 'remove', 'stdn', 'standdown')
 def rmRats(bot, trigger):
