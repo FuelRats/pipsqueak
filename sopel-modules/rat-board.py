@@ -137,7 +137,7 @@ def addLine(bot, client, line):
     query = dict(quotes=ret['quotes']+[line])
 
     # And push it to the API.
-    ret = callAPI('PUT', 'api/rescues/'+caseID, query)
+    ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
 
     if 'data' in ret:
         # Success
@@ -392,7 +392,7 @@ def subLine(bot, trigger):
     number = trigger.group(4)
 
     # Grab lines
-    ans = callAPI('GET', 'api/rescues/'+caseID)
+    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
     try:
         ret = ans['data']
     except KeyError:
@@ -427,7 +427,7 @@ def subLine(bot, trigger):
             newquote += (subtext + '[SUB by %s]' % (trigger.nick,),)
 
         # And push it to the API.
-        ret = callAPI('PUT', 'api/rescues/'+caseID, query)
+        ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
 
         if 'data' not in ret:
             # Oops.
