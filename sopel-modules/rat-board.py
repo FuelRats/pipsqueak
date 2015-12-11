@@ -360,7 +360,7 @@ def injectLine(bot, trigger):
         client = Identifier(trigger.group(3))
 
     # Prepare the inject
-    line = trigger.group(2)[len(client)+1:] + ' [INJECT by %s]' % (trigger.nick,)
+    line = trigger.group(2)[len(trigger.group(3))+1:] + ' [INJECT by %s]' % (trigger.nick,)
 
     if caseID == None:
         # Create a new case.
@@ -406,7 +406,7 @@ def subLine(bot, trigger):
             (number, len(lines)))
 
     # Ok, now we can sub the line.
-    data = trigger.group(2)[len(client)+1:]
+    data = trigger.group(2)[len(trigger.group(3))+1:]
     try:
         number, subtext = data.split(' ', 1)
     except ValueError:
@@ -492,7 +492,7 @@ def addRats(bot, trigger):
         return bot.reply('Case not found.')
 
     # List of rats
-    rats = trigger.group(2)[len(client)+1:].split(' ')
+    rats = trigger.group(2)[len(trigger.group(3))+1:].split(' ')
     newrats = rats[:]
 
     # Grab the current rats
@@ -536,7 +536,7 @@ def rmRats(bot, trigger):
     if caseID == None:
         return bot.reply('Case not found.')
 
-    removedRats = trigger.group(2)[len(client)+1:].split(' ')
+    removedRats = trigger.group(2)[len(trigger.group(3))+1:].split(' ')
     ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
     try:
         ret = ans['data']
