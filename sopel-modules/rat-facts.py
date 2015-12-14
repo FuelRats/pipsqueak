@@ -58,5 +58,5 @@ def listFacts(bot, trigger):
     except IOError:
         # We couldn't open facts.json...
         return bot.reply('There appears to be a problem with the fact list.')
-    return bot.reply('Known facts: '+', '.join(facts.keys())
+    return bot.reply('Known facts: '+', '.join(facts.keys()))
 
