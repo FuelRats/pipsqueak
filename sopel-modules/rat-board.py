@@ -262,8 +262,7 @@ def getQuote(bot, trigger):
     # Printout
 
     bot.reply('%s\'s case (%s):' % (cmdr, plat))
-    # bot.say('Case opened: {0:o}, last updated: {0:u}'.format(times))
-    bot.say('Case opened: {0}, last updated: {1}'.format(times['o'], times['u']))
+    bot.say('Case opened: {0[o]}, last updated: {0[u]}'.format(times))
     if len(rats) > 0:
         bot.say('Assigned rats: '+', '.join(rats))
     for i in range(len(quote)):
