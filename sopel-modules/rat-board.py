@@ -131,8 +131,7 @@ def addLine(bot, client, line):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error fetching data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ans))
 
     # Add this line
     query = dict(quotes=ret['quotes']+[line])
@@ -142,10 +141,9 @@ def addLine(bot, client, line):
 
     if 'data' in ret:
         # Success
-        return bot.say('Added "%s" to %s\'s case.' % (line, client))
+        return bot.say('Added "{0}" to {1}\'s case.'.format(line, client))
     else:
-        return bot.say('Error adding line to %s\'s case: [%s]%s' %
-            (client, ret['code'],ret['details']))
+        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ret))
 
 def getID(bot, inp):
     """
@@ -196,7 +194,7 @@ def getLog(bot, trigger):
 @priority('high')
 def lightSignal(bot, trigger):
     """Light the rat signal, somebody needs fuel."""
-    bot.say('Received R@SIGNAL from %s, Calling all available rats!' % trigger.nick)
+    bot.say('Received R@SIGNAL from {0}, Calling all available rats!'.format(trigger.nick))
 
     # Prepare values.
     line = ratsignal.sub('R@signal', trigger.group())
@@ -205,7 +203,7 @@ def lightSignal(bot, trigger):
     # Open it up.
     success, error = openCase(bot, client, line)
     if not success:
-        return bot.say('Error in opening new case: [%s]%s' % (error['code'], error['details']))
+        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(error))
 
 @commands('quote')
 def getQuote(bot, trigger):
@@ -226,8 +224,7 @@ def getQuote(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error fetching data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ans))
 
     cmdr = ret['client']['CMDRname']
     rats = ret['rats']
@@ -261,13 +258,13 @@ def getQuote(bot, trigger):
 
     # Printout
 
-    bot.reply('%s\'s case (%s):' % (cmdr, plat))
+    bot.reply('{0}\'s case ({1}):'.format(cmdr, plat))
     bot.say('Case opened: {0[o]}, last updated: {0[u]}'.format(times))
     if len(rats) > 0:
         bot.say('Assigned rats: '+', '.join(rats))
     for i in range(len(quote)):
         msg = quote[i]
-        bot.say('[%s]%s' % (i, msg))
+        bot.say('[{0}]{1}'.format(i, msg))
 
 @commands('clear', 'close')
 def clearCase(bot, trigger):
@@ -289,10 +286,9 @@ def clearCase(bot, trigger):
 
     if 'data' in ret:
         del bot.memory['ratbot']['cases'][client]
-        return bot.say('%s\'s case closed.' % (client,))
+        return bot.say(client+'\'s case closed.')
     else:
-        return bot.say('Error closing %s\'s case: [%s]%s' %
-            (client, ret['code'],ret['details']))
+        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ret))
 
 @commands('list')
 def listCases(bot, trigger):
@@ -313,8 +309,7 @@ def listCases(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error fetching cases from API: [%s]%s' %
-            (ret['code'], ret['details']))
+        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ret))
 
     if len(ret) == 0:
         return bot.reply('No open cases.')
@@ -331,17 +326,17 @@ def listCases(bot, trigger):
         else:
             name = case['client']['CMDRname']
         if case['active'] == True:
-            actives.add('[%s]%s' % (index,name))
+            actives.add('[{0}]{1}'.format(index,name))
         else:
-            inactives.add('[%s]%s' % (index,name))
+            inactives.add('[{0}]{1}'.format(index,name))
 
     # Print to IRC.
     if showInactive:
-        return bot.reply('%s active case(s): %s. %s inactive: %s.' %
-            (len(actives), ', '.join(actives), len(inactives), ', '.join(inactives)))
+        return bot.reply('{0} active case(s): {1}. {2} inactive: {3}.'.format(
+            len(actives), ', '.join(actives), len(inactives), ', '.join(inactives)))
     else:
-        return bot.reply('%s active case(s): %s (+ %s inactive).' %
-            (len(actives), ', '.join(actives), len(inactives)))
+        return bot.reply('{0} active case(s): {1} (+ {2} inactive).'.format(
+            len(actives), ', '.join(actives), len(inactives)))
 
 @commands('grab')
 def grabLine(bot, trigger):
@@ -357,7 +352,7 @@ def grabLine(bot, trigger):
     if client not in bot.memory['ratbot']['log']:
         # If this were to happen, somebody is trying to break the system.
         # After all, why make a case with no information?
-        return bot.reply('%s has never spoken before.' % (client,))
+        return bot.reply(client+' has never spoken before.')
 
     line = bot.memory['ratbot']['log'][client]
 
@@ -365,10 +360,9 @@ def grabLine(bot, trigger):
         # Create a new case.
         success, error = openCase(bot, client, line)
         if success:
-            return bot.say('%s\'s case opened with: %s' % (client, line))
+            return bot.say('{0}\'s case opened with: {1}'.format(client, line))
         else:
-            return bot.reply('Error in opening new case: [%s]%s' %
-                (error['code'], error['details']))
+            return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(error))
     else:
         return addLine(bot, client, line)
 
@@ -389,16 +383,15 @@ def injectLine(bot, trigger):
         client = Identifier(trigger.group(3))
 
     # Prepare the inject
-    line = trigger.group(2)[len(trigger.group(3))+1:] + ' [INJECT by %s]' % (trigger.nick,)
+    line = trigger.group(2)[len(trigger.group(3))+1:] + ' [INJECT by {0}]'.format(trigger.nick)
 
     if caseID == None:
         # Create a new case.
         success, error = openCase(bot, client, line)
         if success:
-            return bot.say('%s\'s case opened with: %s' % (client, line))
+            return bot.say('{0}\'s case opened with: {1}'.format(client, line))
         else:
-            return bot.reply('Error in opening new case: [%s]%s' %
-                (error['code'], error['details']))
+            return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(error))
     else:
         return addLine(bot, client, line)
 
@@ -425,14 +418,14 @@ def subLine(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error fetching data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ret))
     lines = ret['quotes']
 
     # Do we have enough lines?
     if int(number) > len(lines):
-        return bot.reply('I can\'t replace line %s if there\'s only %s lines.' %
-            (number, len(lines)))
+        return bot.reply(
+            'I can\'t replace line {0} if there\'s only {1} lines.'.format(
+                number, len(lines)))
 
     # Ok, now we can sub the line.
     data = trigger.group(2)[len(trigger.group(3))+1:]
@@ -453,22 +446,22 @@ def subLine(bot, trigger):
             continue
         else:
             # Sub
-            newquote += (subtext + '[SUB by %s]' % (trigger.nick,),)
+            newquote += (subtext + '[SUB by {0}]'.format(trigger.nick),)
 
         # And push it to the API.
         ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
 
         if 'data' not in ret:
             # Oops.
-            return bot.say('Error changing line %s in %s\'s case: [%s]%s' %
-                (number, client, ret['code'],ret['details']))
+            return bot.reply(
+                'Error pushing data: [{0[code]}]{0[details]}'.format(ret))
 
     if subtext == None:
-        return bot.say('Line %s in %s\'s case deleted.' %
-            (number, client))
+        return bot.say('Line {0} in {1}\'s case deleted.'.format(number, client))
     else:
-        return bot.say('Line %s in %s\'s case replaced with: %s' %
-            (number, client, subtext))
+        return bot.say(
+            'Line {0} in {1}\'s case replaced with: {2}'.format(
+                number, client, subtext))
 
 @commands('active')
 def toggleCaseActive(bot, trigger):
@@ -488,8 +481,7 @@ def toggleCaseActive(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error fetching data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ret))
     a = not ret['active']
 
     # Upload the new result.
@@ -497,13 +489,13 @@ def toggleCaseActive(bot, trigger):
     ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
 
     if 'data' not in ans:
-        return bot.reply('Error pushing data: [%s]%s' %
-            (ans['code'], ans['details']))
+            return bot.reply(
+                'Error pushing data: [{0[code]}]{0[details]}'.format(ans))
 
     if a:
-        return bot.say('%s\'s case is now ' % (client,)+bold('active'))
+        return bot.say(client+'\'s case is now '+bold('active'))
     else:
-        return bot.say('%s\'s case is now ' % (client,)+bold('inactive'))
+        return bot.say(client+'\'s case is now '+bold('inactive'))
 
 @commands('assign', 'add', 'go')
 def addRats(bot, trigger):
@@ -529,8 +521,7 @@ def addRats(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error fetching data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ans))
     webrats = ret['rats']
 
     # Add the current rats to the list of new rats.
@@ -546,10 +537,9 @@ def addRats(bot, trigger):
     query = dict(rats=rats)
     ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
     if 'data' not in ans:
-        return bot.reply('Error pushing data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
 
-    return bot.say('%s, Please add the following rat(s): %s' % (client, ', '.join(newrats)))
+    return bot.say(client+', Please add the following rat(s): '+', '.join(newrats))
 
 @commands('unassign', 'rm', 'remove', 'stdn', 'standdown')
 def rmRats(bot, trigger):
@@ -570,8 +560,7 @@ def rmRats(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error fetching data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ans))
 
     rats = ret['rats']
 
@@ -591,11 +580,11 @@ def rmRats(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error pushing data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
 
-    return bot.say('Removed rats from %s\'s case: %s' % (
-        client, ', '.join(removedRats)))
+    return bot.say(
+        'Removed rats from {0}\'s case: {1}'.format(
+            client, ', '.join(removedRats)))
 
 @commands('codered', 'cr')
 def codeRed(bot, trigger):
@@ -616,8 +605,7 @@ def codeRed(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error fetching data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ans))
     CR = not ret['codeRed']
 
     # Upload the new result.
@@ -626,17 +614,16 @@ def codeRed(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error pushing data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
 
     rats = ', '.join(ret['rats'])
 
     if CR:
-        bot.say('CODE RED! %s is on emegency oxygen.' % (client,))
+        bot.say('CODE RED! {0} is on emegency oxygen.'.format(client))
         if len(rats) > 0:
-            bot.say('%s: This is your case!' % (rats,))
+            bot.say(rats+': This is your case!')
     else:
-        bot.say('%s\'s case demoted from code red.' % (client,))
+        bot.say(client+'\'s case demoted from code red.')
 
 @commands('pc')
 def setCasePC(bot, trigger):
@@ -656,10 +643,9 @@ def setCasePC(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error pushing data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
 
-    return bot.say('%s\'s case set to PC.' % (client,))
+    return bot.say(client+'\'s case set to PC.')
 
 @commands('xbox','xb','xb1','xbone')
 def setCaseXbox(bot, trigger):
@@ -680,8 +666,7 @@ def setCaseXbox(bot, trigger):
     try:
         ret = ans['data']
     except KeyError:
-        return bot.reply('Error pushing data: [%s]%s' %
-            (ans['code'], ans['details']))
+        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
 
-    return bot.say('%s\'s case set to Xbox One.' % (client,))
+    return bot.say(client+'\'s case set to Xbox One.')
 
