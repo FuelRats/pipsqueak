@@ -49,7 +49,8 @@ def reciteFact(bot, trigger):
         # Not one of our commands.
         return NOLIMIT
 
-@commands('fact', 'facts'):
+@commands('fact', 'facts')
+def listFacts(bot, trigger):
     """Lists the facts in the .JSON file"""
     try:
         with open(bot.config.ratfacts.filename) as f:
