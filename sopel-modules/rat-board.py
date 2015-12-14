@@ -11,6 +11,7 @@ http://sopel.chat/
 #Python core imports
 import re
 from json import dumps
+from datetime import datetime, date
 
 #requests imports
 import requests
@@ -233,7 +234,35 @@ def getQuote(bot, trigger):
     plat = ret['platform']
     quote = ret['quotes']
 
+    # Prepare timestamps:
+
+    # Created At
+    opened = datetime.fromtimestamp(ret['createdAt'])
+    try:
+        # Turn into Galactic years
+        opened = opened.replace(year = opened.year + 1286)
+    except:
+        # Feb 29th is a bit of a special case.
+        opened = opened + (date(opened.year + 1286, 1, 1) - date(opened.year, 1, 1))
+
+    # Last Modified
+    updated = datetime.fromtimestamp(ret['lastModified'])
+    try:
+        # Turn into Galactic years
+        updated = updated.replace(year = updated.year + 1286)
+    except ValueError:
+        # Feb 29th is a bit of a special case.
+        updated = updated + (date(updated.year + 1286, 1, 1) - date(updated.year, 1, 1))
+
+    # Turn both dates into human-readable strings.
+    times = {
+        'o': opened.strftime('%H:%M %d %b %Y'),
+        'u': updated.strftime('%H:%M %d %b %Y')}
+
+    # Printout
+
     bot.reply('%s\'s case (%s):' % (cmdr, plat))
+    bot.say('Case opened: {0[o]}, last updated: {0[u]}'.format(times))
     if len(rats) > 0:
         bot.say('Assigned rats: '+', '.join(rats))
     for i in range(len(quote)):
