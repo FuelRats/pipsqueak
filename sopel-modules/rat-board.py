@@ -258,7 +258,11 @@ def getQuote(bot, trigger):
 
     # Printout
 
-    bot.reply('{0}\'s case ({1}):'.format(cmdr, plat))
+    if ret['codeRed']:
+        bot.reply('{0}\'s case ({1}, {2}):'.format(cmdr, plat, bold(color('CR', colors.RED))))
+    else:
+        bot.reply('{0}\'s case ({1}):'.format(cmdr, plat))
+
     bot.say('Case opened: {0[o]}, last updated: {0[u]}'.format(times))
     if len(rats) > 0:
         bot.say('Assigned rats: '+', '.join(rats))
