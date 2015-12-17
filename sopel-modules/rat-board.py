@@ -407,9 +407,15 @@ def subLine(bot, trigger):
         return bot.reply('I need a case and a line number.')
 
     # Does this client exist?
-    caseID = getID(bot, trigger.group(3))
+    client, caseID = getID(bot, trigger.group(3))
     if caseID == None:
         return bot.reply('Case not found.')
+
+    # Is the line number even a number?
+    try:
+        int(trigger.group(4))
+    except ValueError:
+        return bot.reply('Line number is not a valid number.')
 
     number = trigger.group(4)
 
@@ -436,7 +442,7 @@ def subLine(bot, trigger):
         number = data
         subtext = None
 
-    newquote = tuple()
+    newquote = list()
     for i in range(len(lines)):
         if i != int(number):
             # Not our line, continue.
@@ -446,15 +452,16 @@ def subLine(bot, trigger):
             continue
         else:
             # Sub
-            newquote += (subtext + '[SUB by {0}]'.format(trigger.nick),)
+            newquote += [subtext + '[SUB by {0}]'.format(trigger.nick)]
 
-        # And push it to the API.
-        ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    query = {'quotes':newquote}
+    # And push it to the API.
+    ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
 
-        if 'data' not in ret:
-            # Oops.
-            return bot.reply(
-                'Error pushing data: [{0[code]}]{0[details]}'.format(ret))
+    if 'data' not in ret:
+        # Oops.
+        return bot.reply(
+            'Error pushing data: [{0[code]}]{0[details]}'.format(ret))
 
     if subtext == None:
         return bot.say('Line {0} in {1}\'s case deleted.'.format(number, client))
