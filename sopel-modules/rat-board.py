@@ -428,7 +428,7 @@ def subLine(bot, trigger):
     lines = ret['quotes']
 
     # Do we have enough lines?
-    if int(number) > len(lines):
+    if int(number)+1 > len(lines):
         return bot.reply(
             'I can\'t replace line {0} if there\'s only {1} lines.'.format(
                 number, len(lines)))
