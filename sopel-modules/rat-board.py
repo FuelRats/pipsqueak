@@ -550,7 +550,7 @@ def addRats(bot, trigger):
     if 'data' not in ans:
         return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
 
-    return bot.say(client+', Please add the following rat(s): '+', '.join(newrats))
+    return bot.say(client+', Please add the following rat(s) to your friends list: '+', '.join(newrats))
 
 @commands('unassign', 'rm', 'remove', 'stdn', 'standdown')
 def rmRats(bot, trigger):
