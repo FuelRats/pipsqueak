@@ -195,6 +195,7 @@ def getLog(bot, trigger):
 def lightSignal(bot, trigger):
     """Light the rat signal, somebody needs fuel."""
     bot.say('Received R@SIGNAL from {0}, Calling all available rats!'.format(trigger.nick))
+    bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
 
     # Prepare values.
     line = ratsignal.sub('R@signal', trigger.group())
