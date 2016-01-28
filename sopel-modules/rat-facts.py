@@ -63,5 +63,5 @@ def listFacts(bot, trigger):
     """Lists the facts in the .JSON file"""
     facts = bot.memory['ratbot']['facts']
     if not facts:
-        return bot.reply("Like Jon Snow, I know nothing.  (Or there's a problem with the fact list.")
+        return bot.reply("Like Jon Snow, I know nothing.  (Or there's a problem with the fact list.)")
     return bot.reply('Known facts: ' + ', '.join(sorted(facts.keys())))
