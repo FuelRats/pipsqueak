@@ -98,4 +98,4 @@ def listFacts(bot, trigger):
     facts = bot.memory['ratbot']['facts']
     if not facts:
         return bot.reply("Like Jon Snow, I know nothing.  (Or there's a problem with the fact list.)")
-    return bot.reply('Known facts: ' + ', '.join(sorted(facts.keys())))
+    return bot.reply("{} known fact(s): {}".format(len(facts), ", ".join(sorted(facts.keys()))))
