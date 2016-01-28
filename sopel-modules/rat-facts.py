@@ -13,9 +13,9 @@ import os
 import os.path
 import re
 import glob
-from sopel.module import commands, NOLIMIT, rule
+from sopel.module import commands, NOLIMIT, HALFOP, OP, rule
 from sopel.config.types import StaticSection, ValidatedAttribute
-from sopel.tools import SopelMemory
+from sopel.tools import SopelMemory, Identifier
 
 
 class RatfactsSection(StaticSection):
@@ -83,7 +83,18 @@ def reciteFact(bot, trigger):
 
 @commands('fact', 'facts')
 def listFacts(bot, trigger):
-    """Lists the facts in the .JSON file"""
+    """Lists the facts in the .JSON file, or reloads the facts database"""
+    command = trigger.group(3)
+    if command and command.strip().lower() == 'reload':
+        nick = Identifier(trigger.nick)
+        for channel in bot.privileges.values():
+            access = channel.get(nick, 0)
+            if access & (HALFOP|OP):
+                reload(bot)
+                return bot.reply("Facts reloaded.  {} known fact(s).".format(len(bot.memory['ratbot']['facts'])))
+
+        return bot.reply("Not authorized.")
+
     facts = bot.memory['ratbot']['facts']
     if not facts:
         return bot.reply("Like Jon Snow, I know nothing.  (Or there's a problem with the fact list.)")
