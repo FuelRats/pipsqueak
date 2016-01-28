@@ -36,7 +36,7 @@ def getfacts(path, recurse=True):
     """
     facts = {}
     if recurse and os.path.isdir(path):
-        for filename in glob.glob(os.path.join(path, "*.json")):
+        for filename in glob.iglob(os.path.join(path, "*.json")):
             result = getfacts(filename, recurse=False)
             if result:
                 facts.update(result)

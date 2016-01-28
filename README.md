@@ -69,12 +69,12 @@ automatically used to create a new case.
 ## Commands
 Command | Parameters | Explanation
 --- | --- | ---
-`fact` / `facts` | | Lists the facts in the .json file configured (see below).
+`fact` / `facts` | [reload] | Lists the facts in the .json file configured (see below).  If 'reload' is specified and the user is at least halfop on any channel the bot is in, reloads the facts database.
 
 ## Config
 Name | Purpose | Example
 --- | --- | ---
-filename | the name (and absolute path) to the JSON file containing the facts | /home/pipsqueak/facts.json
+filename | the name (and absolute path) to the JSON file containing the facts, or a directory containing .json files | /home/pipsqueak/facts.json
 
 ## Detailed module information
 Scans incoming message that start with ! for keywords specified in the file
