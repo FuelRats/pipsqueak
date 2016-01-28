@@ -10,7 +10,9 @@ http://sopel.chat/
 
 import json
 import os
+import os.path
 import re
+import glob
 from sopel.module import commands, NOLIMIT, rule
 from sopel.config.types import StaticSection, ValidatedAttribute
 from sopel.tools import SopelMemory
@@ -23,20 +25,41 @@ class RatfactsSection(StaticSection):
 def configure(config):
     config.define_section('ratfacts', RatfactsSection)
     config.ratfacts.configure_setting('filename',
-        "The name of the json file containing the fact list.")
+        "The name of the json file containing the fact list, or a directory of .json files that will all be examined.")
 
 
-def setup(bot):
-    with open(bot.config.ratfacts.filename) as f:
+def getfacts(path, recurse=True):
+    """
+    Loads facts from the specified filename.
+
+    If filename is a directory and recurse is True, loads all json files in that directory.
+    """
+    facts = {}
+    if recurse and os.path.isdir(path):
+        for filename in glob.glob(os.path.join(path, "*.json")):
+            result = getfacts(filename, recurse=False)
+            if result:
+                facts.update(result)
+        return facts
+
+    with open(path) as f:
         facts = json.load(f)
 
     if not isinstance(facts, dict):
         # Something horribly wrong with the json
-        raise RuntimeError("expects rat-facts json to be a dict")
+        raise RuntimeError("{}: json structure is not a dict.".format(path))
+    return facts
 
+
+def reload(bot):
+    facts = getfacts(bot.config.ratfacts.filename)
     if 'ratbot' not in bot.memory:
         bot.memory['ratbot'] = SopelMemory()
     bot.memory['ratbot']['facts'] = facts
+
+
+def setup(bot):
+    reload(bot)
 
 
 @commands(r'[^\s]+')
