@@ -15,10 +15,10 @@ class CorrectionResult:
     allowed = {'L': 'a-z', 'D': '0-9'}
 
     # Create the regular expression we use to match systems
-    regex = (r'\w+\s+(?P<l>LL-L\s+L)(?P<d>D?-?D+)\b')  #  L and D will be replaced from lookalikes and alowed.
+    pattern = (r'\w+\s+(?P<l>LL-L\s+L)(?P<d>D?-?D+)\b')  #  L and D will be replaced from lookalikes and alowed.
     for search, characters in allowed.items():
-        regex = regex.replace(search, "[" + characters + "".join(lookalikes[search].keys()) + "]")
-    regex = re.compile(regex, re.IGNORECASE)
+        pattern = pattern.replace(search, "[" + characters + "".join(lookalikes[search].keys()) + "]")
+    regex = re.compile("(?i)" + pattern)
 
     def __init__(self, input):
         def fn(match):
@@ -27,6 +27,7 @@ class CorrectionResult:
             if old != new:
                 self.corrections[old] = new
             return new
+
 
         self.input = input
         self.corrections = collections.OrderedDict()
@@ -71,6 +72,9 @@ class CorrectionResult:
 def correct(input):
     return CorrectionResult(input)
 
+
+pattern = CorrectionResult.pattern
+regex = CorrectionResult.regex
 
 if __name__ == '__main__':
     print(repr(correct("Should trigger correction: Imaginary Sector CX-5 DS-9 Blah blah")))
