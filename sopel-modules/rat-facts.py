@@ -197,7 +197,6 @@ class Fact(object):
             sql += " ORDER BY {order_by}".format(order_by=", ".join(order_by))
         if limit:
             sql += " LIMIT {limit}".format(limit=limit)
-        print(sql)
         return sql
 
     @classmethod
