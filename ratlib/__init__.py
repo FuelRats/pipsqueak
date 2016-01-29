@@ -1,0 +1,45 @@
+# Utility functions
+
+import datetime
+def friendly_timedelta(delta):
+    """
+    Given a datetime.timedelta or a datetime.datetime, gives a human-readable explanation of time differences
+
+    Assumes negative values are in the past, positive values in the future.
+    """
+    if isinstance(delta, datetime.datetime):
+        return friendly_timedelta(delta - datetime.datetime.now(tz=datetime.timezone.utc))
+    if isinstance(delta, datetime.date):
+        return friendly_timedelta(delta - datetime.date.today())
+
+    if delta < datetime.timedelta():
+        # Delta is in the past
+        delta = delta * -1  # Invert it to simplify math
+        fmt = "{} ago"
+    else:
+        fmt = "{} from now"
+
+    # Calculate some values
+    d = delta.days
+    s = delta.seconds
+    m, s = divmod(s, 60)
+    h, m = divmod(m, 60)
+
+    if d >= 365:  # More than a year ago.
+        # This isn't technically safe against leap years, but it's an approximation anyways.  So deal.
+        result = "{} years".format(d // 365.24)
+    elif d >= 28:  # More than 28 days ago.  Let's just go to weeks.
+        result = "{}w".format(d // 7)
+    elif d >= 10:  # More than 10 days ago.  Long enough where we probably don't care about hours
+        result = "{}d".format(d)
+    elif d:
+        result = "{}d,{}h".format(d, h)
+    elif h:
+        result = "{}h,{}m".format(h, m)
+    elif m:
+        result = "{}m,{}s".format(m, s)
+    elif s:
+        result = "{}s".format(s)
+    else:
+        return "now"
+    return fmt.format(result)

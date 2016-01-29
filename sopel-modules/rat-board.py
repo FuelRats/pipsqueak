@@ -11,7 +11,8 @@ http://sopel.chat/
 #Python core imports
 import re
 from json import dumps
-from datetime import datetime, date
+import datetime
+# from iso8601 import parse_date as parse_datetime  # parse_date is a misnomer, as documented it produces a datetime.
 
 #requests imports
 import requests
@@ -22,6 +23,7 @@ from sopel.module import commands, NOLIMIT, priority, require_chanmsg, rule
 from sopel.tools import Identifier, SopelMemory
 from sopel.config.types import StaticSection, ValidatedAttribute
 
+from ratlib import friendly_timedelta
 ## Start setup section ###
 
 class RatBoardSection(StaticSection):
@@ -70,12 +72,30 @@ def syncList(bot):
         return
 
     for case in ret:
-        c = dict(id=case['id'], index=bot.memory['ratbot']['caseIndex'])
+        c = dict(id=case['_id'], index=bot.memory['ratbot']['caseIndex'])
         bot.memory['ratbot']['caseIndex'] += 1
         bot.memory['ratbot']['cases'][Identifier(case['client']['nickname'])] = c
 
 ### End setup section ###
 ### Start wrapper section ###
+class APIError(Exception):
+    def __init__(self, code, details, json=None):
+        self.code = code
+        self.details = details
+        self.json = json
+
+    def __repr__(self):
+        return "<{0.__class__.__name__({0.code}, {0.details!r})>".format(self)
+    __str__ = __repr__
+
+class APIJSONError(APIError):
+    def __init__(self, code='2608', details="API didn\'t return valid JSON."):
+        super().__init__(code, details)
+
+class APIMissingDataError(APIError):
+    def __init__(self, code='????', details="API response had no 'data' section.", json=None):
+        super().__init__(code, details, json=json)
+
 
 def callAPI(bot, method, URI, fields=dict()):
     """Wrapper function to contact the web API."""
@@ -95,55 +115,54 @@ def callAPI(bot, method, URI, fields=dict()):
         ret = requests.post(link, json=fields)
 
     try:
-        json=ret.json()
-
+        json = ret.json()
         if 'errors' in json:
-            return json['errors'][0]
+            err = json['errors'][0]
+            raise APIError(err.get('code'), err.get('details'), json=json)
+        if 'data' not in json:
+            raise APIMissingDataError(json=json)
         else:
             return json
     except ValueError:
-        return {'code': '2608', 'details': 'API didn\'t return valid JSON.'}
+        raise APIJSONError()
+
 
 def openCase(bot, client, line):
     """Wrapper function to create a new case."""
     # Prepare API call.
     query = dict(client=dict(nickname=client, CMDRname=client), quotes=[line])
 
-    # Tell the website about the new case.
+    # Tell the website about the new case.  No try-except here since we want it to propogate out.
     ans = callAPI(bot, 'POST', 'api/rescues/', query)
-    try:
-        ret = ans['data']
-    except KeyError:
-        return False, ans
+    ret = ans['data']
 
     # Insert the Web ID and quotes in the bot's memory.
     i = bot.memory['ratbot']['caseIndex']
     bot.memory['ratbot']['caseIndex'] += 1
-    bot.memory['ratbot']['cases'][client] = dict(id=ret['id'], index=i)
-    return True, None
+    bot.memory['ratbot']['cases'][client] = dict(id=ret['_id'], index=i)
+    return i
 
 def addLine(bot, client, line):
     """
     Wrapper function for !grab and !inject
     """
     client, caseID = getID(bot, client)
-    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
     try:
+        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ans))
+    except APIError as ex:
+        return bot.reply(str(ex))
 
     # Add this line
     query = dict(quotes=ret['quotes']+[line])
 
     # And push it to the API.
-    ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-
-    if 'data' in ret:
+    try:
+        ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
         # Success
-        return bot.say('Added "{0}" to {1}\'s case.'.format(line, client))
-    else:
-        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ret))
+        return bot.say('Added "{0}" to {1}\'s case.'.format(lines[0], client))
+    except APIError as ex:
+        return bot.reply(str(ex))
 
 def getID(bot, inp):
     """
@@ -193,18 +212,23 @@ def getLog(bot, trigger):
 @rule('(ratsignal)(.*)')
 @priority('high')
 def lightSignal(bot, trigger):
-    """Light the rat signal, somebody needs fuel."""
-    bot.say('Received R@SIGNAL from {0}, Calling all available rats!'.format(trigger.nick))
-    bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
-
-    # Prepare values.
     line = ratsignal.sub('R@signal', trigger.group())
     client = Identifier(trigger.nick)
 
-    # Open it up.
-    success, error = openCase(bot, client, line)
-    if not success:
-        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(error))
+    """Light the rat signal, somebody needs fuel."""
+    index = None
+    try:
+        index = openCase(bot, client, line)
+    except APIError as ex:
+        bot.say(str(ex))
+
+    msg = "Received R@SIGNAL from {nick}, Calling all available rats!"
+    if index is not None:
+        msg += "  (Case {index})"
+    bot.say(msg.format(nick=trigger.nick, index=index))
+    bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
+
+    # Prepare values.
 
 @commands('quote')
 def getQuote(bot, trigger):
@@ -221,50 +245,36 @@ def getQuote(bot, trigger):
         return bot.reply('No case with that name.')
 
     # Grab required web bits.
-    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
     try:
+        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ans))
+    except APIError as ex:
+        return bot.reply(str(ex))
 
     cmdr = ret['client']['CMDRname']
     rats = ret['rats']
     plat = ret['platform']
     quote = ret['quotes']
 
-    # Prepare timestamps:
-
-    # Created At
-    opened = datetime.fromtimestamp(ret['createdAt'])
-    try:
-        # Turn into Galactic years
-        opened = opened.replace(year = opened.year + 1286)
-    except:
-        # Feb 29th is a bit of a special case.
-        opened = opened + (date(opened.year + 1286, 1, 1) - date(opened.year, 1, 1))
-
-    # Last Modified
-    updated = datetime.fromtimestamp(ret['lastModified'])
-    try:
-        # Turn into Galactic years
-        updated = updated.replace(year = updated.year + 1286)
-    except ValueError:
-        # Feb 29th is a bit of a special case.
-        updated = updated + (date(updated.year + 1286, 1, 1) - date(updated.year, 1, 1))
-
-    # Turn both dates into human-readable strings.
-    times = {
-        'o': opened.strftime('%H:%M %d %b %Y'),
-        'u': updated.strftime('%H:%M %d %b %Y')}
-
-    # Printout
+    #opened = parse_datetime(ret['createdAt'])
+    #updated = parse_datetime(ret['lastModified'])
+    opened = datetime.datetime.fromtimestamp(ret['createdAt'] / 1000, tz=datetime.timezone.utc)
+    updated = datetime.datetime.fromtimestamp(ret['lastModified'] / 1000, tz=datetime.timezone.utc)
+    datefmt = "%Y-%m-%d %H:%M:%S %Z"
 
     if ret['codeRed']:
         bot.reply('{0}\'s case ({1}, {2}):'.format(cmdr, plat, bold(color('CR', colors.RED))))
     else:
         bot.reply('{0}\'s case ({1}):'.format(cmdr, plat))
 
-    bot.say('Case opened: {0[o]}, last updated: {0[u]}'.format(times))
+    bot.say(
+        "Case opened: {opened} ({opened_ago}), last updated: {updated} ({updated_ago})"
+        .format(
+            opened=opened.strftime(datefmt), updated=updated.strftime(datefmt),
+            opened_ago=friendly_timedelta(opened), updated_ago=friendly_timedelta(opened)
+        )
+    )
+
     if len(rats) > 0:
         bot.say('Assigned rats: '+', '.join(rats))
     for i in range(len(quote)):
@@ -287,13 +297,12 @@ def clearCase(bot, trigger):
 
     # Tell the website the case's closed.
     query = dict(active=False, open=False)
-    ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-
-    if 'data' in ret:
+    try:
+        ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
         del bot.memory['ratbot']['cases'][client]
-        return bot.say(client+'\'s case closed.')
-    else:
-        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ret))
+    except APIError as ex:
+        return bot.reply(str(ex))
+    return bot.say(client+'\'s case closed.')
 
 @commands('list')
 def listCases(bot, trigger):
@@ -309,12 +318,11 @@ def listCases(bot, trigger):
 
     # Ask the API for all open cases.
     query = dict(open=True)
-    ans = callAPI(bot, 'GET', 'api/search/rescues', query)
-
     try:
+        ans = callAPI(bot, 'GET', 'api/search/rescues', query)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ret))
+    except APIError as ex:
+        return bot.reply(str(ex))
 
     if len(ret) == 0:
         return bot.reply('No open cases.')
@@ -425,11 +433,11 @@ def subLine(bot, trigger):
     number = trigger.group(4)
 
     # Grab lines
-    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
     try:
+        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ret))
+    except APIError as ex:
+        return bot.reply(str(ex))
     lines = ret['quotes']
 
     # Do we have enough lines?
@@ -459,21 +467,19 @@ def subLine(bot, trigger):
             # Sub
             newquote += [subtext + '[SUB by {0}]'.format(trigger.nick)]
 
-    query = {'quotes':newquote}
+    query = {'quotes': newquote}
     # And push it to the API.
-    ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    try:
+        ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
 
-    if 'data' not in ret:
-        # Oops.
-        return bot.reply(
-            'Error pushing data: [{0[code]}]{0[details]}'.format(ret))
-
-    if subtext == None:
-        return bot.say('Line {0} in {1}\'s case deleted.'.format(number, client))
-    else:
-        return bot.say(
-            'Line {0} in {1}\'s case replaced with: {2}'.format(
-                number, client, subtext))
+        if subtext == None:
+            return bot.say('Line {0} in {1}\'s case deleted.'.format(number, client))
+        else:
+            return bot.say(
+                'Line {0} in {1}\'s case replaced with: {2}'.format(
+                    number, client, subtext))
+    except APIError as ex:
+        return bot.reply(str(ex))
 
 @commands('active')
 def toggleCaseActive(bot, trigger):
@@ -489,25 +495,20 @@ def toggleCaseActive(bot, trigger):
         return bot.reply('Case not found.')
 
     # Ask the API what it is, then reverse the result.
-    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
     try:
+        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ret))
-    a = not ret['active']
+    except APIError as ex:
+        return bot.reply(str(ex))
 
+    a = not ret['active']
     # Upload the new result.
     query = dict(active=a)
-    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-
-    if 'data' not in ans:
-            return bot.reply(
-                'Error pushing data: [{0[code]}]{0[details]}'.format(ans))
-
-    if a:
-        return bot.say(client+'\'s case is now '+bold('active'))
-    else:
-        return bot.say(client+'\'s case is now '+bold('inactive'))
+    try:
+        ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+    except APIError as ex:
+        return bot.reply(str(ex))
+    return bot.say("{client}'s case is now {active}".format(client=client, active=bold('active' if a else 'inactive')))
 
 @commands('assign', 'add', 'go')
 def addRats(bot, trigger):
@@ -529,11 +530,11 @@ def addRats(bot, trigger):
     newrats = rats[:]
 
     # Grab the current rats
-    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
     try:
+        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ans))
+    except APIError as ex:
+        return bot.reply(str(ex))
     webrats = ret['rats']
 
     # Add the current rats to the list of new rats.
@@ -547,10 +548,12 @@ def addRats(bot, trigger):
 
     # Upload new list.
     query = dict(rats=rats)
-    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-    if 'data' not in ans:
-        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
-
+    try:
+        ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
+        # Success
+        bot.say('Added "{0}" to {1}\'s case.'.format(line, client))
+    except APIError as ex:
+        bot.reply(str(ex))
     return bot.say(client+', Please add the following rat(s) to your friends list: '+', '.join(newrats))
 
 @commands('unassign', 'rm', 'remove', 'stdn', 'standdown')
@@ -568,11 +571,11 @@ def rmRats(bot, trigger):
         return bot.reply('Case not found.')
 
     removedRats = trigger.group(2)[len(trigger.group(3))+1:].split(' ')
-    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
     try:
+        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ans))
+    except APIError as ex:
+        return bot.reply(str(ex))
 
     rats = ret['rats']
 
@@ -588,11 +591,11 @@ def rmRats(bot, trigger):
             continue
 
     query = dict(rats=rats)
-    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
     try:
+        ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
+    except APIError as ex:
+        return bot.reply(str(ex))
 
     return bot.say(
         'Removed rats from {0}\'s case: {1}'.format(
@@ -613,25 +616,25 @@ def codeRed(bot, trigger):
         return bot.reply('Case not found.')
 
     # Ask the API what it is, then reverse the result.
-    ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
     try:
+        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error fetching data: [{0[code]}]{0[details]}'.format(ans))
+    except APIError as ex:
+        return bot.reply(str(ex))
     CR = not ret['codeRed']
 
     # Upload the new result.
     query = dict(codeRed=CR)
-    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
     try:
+        ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
+    except ValueError as ex:
+        return bot.reply(str(ex))
 
     rats = ', '.join(ret['rats'])
 
     if CR:
-        bot.say('CODE RED! {0} is on emegency oxygen.'.format(client))
+        bot.say('CODE RED! {0} is on emergency oxygen.'.format(client))
         if len(rats) > 0:
             bot.say(rats+': This is your case!')
     else:
@@ -651,12 +654,11 @@ def setCasePC(bot, trigger):
         return bot.reply('Case not found.')
 
     query = dict(platform='PC')
-    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
     try:
+        ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
-
+    except APIError as ex:
+        return bot.reply(str(ex))
     return bot.say(client+'\'s case set to PC.')
 
 @commands('xbox','xb','xb1','xbone')
@@ -674,11 +676,11 @@ def setCaseXbox(bot, trigger):
 
 
     query = dict(platform='Xbox One')
-    ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
     try:
+        ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
         ret = ans['data']
-    except KeyError:
-        return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(ans))
+    except APIError as ex:
+        return bot.reply(str(ex))
 
     return bot.say(client+'\'s case set to Xbox One.')
 
