@@ -24,6 +24,7 @@ from sopel.tools import Identifier, SopelMemory
 from sopel.config.types import StaticSection, ValidatedAttribute
 
 from ratlib import friendly_timedelta
+from ratlib.autocorrect import correct
 ## Start setup section ###
 
 class RatBoardSection(StaticSection):
@@ -126,11 +127,31 @@ def callAPI(bot, method, URI, fields=dict()):
     except ValueError:
         raise APIJSONError()
 
+def _autocorrect_filter(line, autocorrect):
+    if not autocorrect:
+        return [line]
 
-def openCase(bot, client, line):
-    """Wrapper function to create a new case."""
+    result = correct(line)
+    lines = [result.output]
+    if result.fixed:
+        originals = ", ".join('"...{name}"'.format(name=system) for system in result.corrections)
+        if result.fixed > 1:
+            lines.append("[Autocorrected system names, originals were {}]".format(originals))
+        else:
+            lines.append("[Autocorrected system name, original was {}]".format(originals))
+    return lines
+
+def openCase(bot, client, line, autocorrect=True):
+    """
+    Wrapper function to create a new case.
+
+    :param autocorrect: If True, performs system name autocorrection.
+    :return: Board id of new case.
+    """
+    quotes = _autocorrect_filter(line, autocorrect)
+
     # Prepare API call.
-    query = dict(client=dict(nickname=client, CMDRname=client), quotes=[line])
+    query = dict(client=dict(nickname=client, CMDRname=client), quotes=quotes)
 
     # Tell the website about the new case.  No try-except here since we want it to propogate out.
     ans = callAPI(bot, 'POST', 'api/rescues/', query)
@@ -142,7 +163,7 @@ def openCase(bot, client, line):
     bot.memory['ratbot']['cases'][client] = dict(id=ret['_id'], index=i)
     return i
 
-def addLine(bot, client, line):
+def addLine(bot, client, line, autocorrect=True):
     """
     Wrapper function for !grab and !inject
     """
@@ -154,7 +175,8 @@ def addLine(bot, client, line):
         return bot.reply(str(ex))
 
     # Add this line
-    query = dict(quotes=ret['quotes']+[line])
+    lines = _autocorrect_filter(line, autocorrect)
+    query = dict(quotes=ret['quotes'] + lines)
 
     # And push it to the API.
     try:
