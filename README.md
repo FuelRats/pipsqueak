@@ -66,19 +66,43 @@ Every message that starts with the word 'ratsignal' (case insensitive) is
 automatically used to create a new case.
 
 # rat-facts.py
+
 ## Commands
 Command | Parameters | Explanation
 --- | --- | ---
-`fact` / `facts` | [reload] | Lists the facts in the .json file configured (see below).  If 'reload' is specified and the user is at least halfop on any channel the bot is in, reloads the facts database.
+`fact` / `facts` | | Shows a list of all known facts.
+ | *fact* | Reports translation statistics on the listed fact.
+ | *fact* `full` | As above, but also PMs you with all translations.
+ | *lang* | Reports translation statistics on the listed language.
+ | *lang* `full` | As above, but also PMs you with all facts in that language.
+
+## Privileged Commands
+Commands listed here are only usable if you have halfop or op on any channel the bot is joined to.
+You need not be in that channel when you send the command.
+
+Command | Parameters | Explanation
+--- | --- | ---
+`fact` / `facts` | (add|set) *fact*-*lang* *message* | Adds a new fact to the database, replacing the old version if it already existed.
+`fact` / `facts` | (del[ete]|remove) set *fact*-*lang* | Deletes a fact from the database.
+`fact` / `facts` | rescan | Updates the bot's cached knowledge of known facts and languages.  Only needed if the database is modified externally while the bot is running.
+`fact` / `facts` | import | Tells the bot to (re)import legacy JSON files into the database.  This will not overwrite existing facts.
 
 ## Config
 Name | Purpose | Example
 --- | --- | ---
-filename | the name (and absolute path) to the JSON file containing the facts, or a directory containing .json files | /home/pipsqueak/facts.json
+filename | the name (and absolute path) to the JSON file containing the facts, or a directory containing .json files.  Any files found will be imported to the database on startup | /home/pipsqueak/facts.json
+table | Name of the table in Sopel's SQLite database that facts will be stored in. | ratfacts
+language | Comma-separated list of languages to search for facts when no language specifier is present. | en,es,de,ru
 
 ## Detailed module information
-Scans incoming message that start with ! for keywords specified in the file
-configured and replies with the appropriate response.
+Scans incoming message that start with ! for keywords specified in the database and replies with the appropriate response.  Also allows online editing of facts.
+
+If the language search order is "en,es":
+* `!xwing`: Searches for the 'xwing' fact using the default search order (English, Spanish).  The `fact` command will display matching facts as **xwing-en** and **xwing-es**.
+* `!xwing-es`: Searches for the 'xwing' fact in Spanish first.  If this fails, falls back to the default search order.
+* `!xwing-ru`: Searches for the 'xwing' fact in Russian first.  If this fails, falls back to the default search order.
+
+When adding or deleting facts the full fact+language specifier must be used (`xwing-en` rather than `xwing`)
 
 # rat-drill.py
 ## Commands
