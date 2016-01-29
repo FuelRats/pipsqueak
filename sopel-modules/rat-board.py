@@ -371,11 +371,13 @@ def grabLine(bot, trigger):
 
     if client not in bot.memory['ratbot']['cases']:
         # Create a new case.
-        success, error = openCase(bot, client, line)
-        if success:
-            return bot.say('{0}\'s case opened with: {1}'.format(client, line))
-        else:
-            return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(error))
+        try:
+            index = openCase(bot, client, line)
+        except APIError as ex:
+            return bot.reply(str(ex))
+        return bot.say(
+            "{client}'s case opened with: {line}  (Case {index})".format(client=client, line=line, index=index)
+        )
     else:
         return addLine(bot, client, line)
 
