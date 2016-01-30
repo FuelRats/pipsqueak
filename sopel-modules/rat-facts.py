@@ -9,7 +9,7 @@ http://sopel.chat/
 """
 
 import json
-import os
+import os.path
 import os.path
 import re
 import glob
