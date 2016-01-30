@@ -16,12 +16,15 @@ import os
 from sopel.module import commands
 from sopel.tools import SopelMemory
 
-def setup(bot):
-    if 'ratbot' not in bot.memory:
-        bot.memory['ratbot'] = SopelMemory()
+import ratlib.sopel
 
-    bot.memory['ratbot']['drilllist'] = os.path.join(
-        bot.config.core.homedir, 'drills.json')
+def configure(config):
+    ratlib.sopel.configure(config)
+
+def setup(bot):
+    ratlib.sopel.setup(bot)
+
+    bot.memory['ratbot']['drilllist'] = ratlib.sopel.makepath(bot.config.ratbot.workdir, 'drills.json')
 
 @commands('drill')
 def listDrills(bot, trigger):

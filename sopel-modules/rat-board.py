@@ -20,22 +20,14 @@ import requests
 from sopel.formatting import bold, color, colors
 from sopel.module import commands, NOLIMIT, priority, require_chanmsg, rule
 from sopel.tools import Identifier, SopelMemory
-from sopel.config.types import StaticSection, ValidatedAttribute
+import ratlib.sopel
 
 ## Start setup section ###
-
-class RatBoardSection(StaticSection):
-    apiurl = ValidatedAttribute('apiurl', str, default='http://api.fuelrats.com/')
-
 def configure(config):
-    config.define_section('ratboard', RatBoardSection)
-    config.ratboard.configure_setting('apiurl',
-        "The URL of the API to talk to.")
+    ratlib.sopel.configure(config)
 
 def setup(bot):
-    if 'ratbot' not in bot.memory:
-        bot.memory['ratbot'] = SopelMemory()
-
+    ratlib.sopel.setup(bot)
     bot.memory['ratbot']['log'] = SopelMemory()
     bot.memory['ratbot']['cases'] = SopelMemory()
     bot.memory['ratbot']['caseIndex'] = 0
@@ -52,7 +44,7 @@ def syncList(bot):
     """
 
     # Prep link.
-    link = bot.config.ratboard.apiurl
+    link = bot.config.ratbot.apiurl
     if link.endswith('/'):
         link += 'api/search/rescues'
     else:
@@ -80,7 +72,7 @@ def syncList(bot):
 def callAPI(bot, method, URI, fields=dict()):
     """Wrapper function to contact the web API."""
     # Prepare the endpoint.
-    link = bot.config.ratboard.apiurl
+    link = bot.config.ratbot.apiurl
     if link.endswith('/'):
         link += URI
     else:
