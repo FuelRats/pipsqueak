@@ -510,7 +510,7 @@ def listFacts(bot, trigger):
     extra = parts[0] if parts else None
 
     access = 0
-    if command in('full', 'rescan', 'import', 'add', 'del', 'delete', 'set'):
+    if command in('full', 'rescan', 'import', 'add', 'del', 'delete', 'set', 'remove'):
         nick = Identifier(trigger.nick)
         for channel in bot.privileges.values():
             access |= channel.get(nick, 0)
@@ -590,7 +590,7 @@ def listFacts(bot, trigger):
 
     # See if it's the name of a fact.
     with mem['facts'] as facts, mem['langs'] as langs:
-        full = option == 'lower'
+        full = option.lower() == 'full'
         prop = None
 
         if command in facts:
@@ -622,7 +622,7 @@ def listFacts(bot, trigger):
                     bot.reply("Messaging you what I know about language '{}'".format(command))
                     pm("Fact search for lang='{}'".format(command))
                     exists = set()
-                    for fact in Fact.findall(bot=bot, lang=command, order_by=['fact']):
+                    for fact in Fact.findall(bot=bot, lang=command, order_by=['name']):
                         pm(format_fact(fact))
                         exists.add(fact.name)
                     missing = set(facts) - exists
