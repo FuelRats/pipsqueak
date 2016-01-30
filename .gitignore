@@ -3,6 +3,9 @@
 # Ship sopel.cfg-dist as a baseline instead
 sopel.cfg
 
+# Ignore pid files.
+*.pid
+
 # Ignore the run/ folder, which stores any data that is modified or created at runtime
 run/
 logs/
