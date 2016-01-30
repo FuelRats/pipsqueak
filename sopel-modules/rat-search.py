@@ -22,13 +22,16 @@ from sopel.formatting import bold
 from sopel.module import commands, example, NOLIMIT
 from sopel.tools import SopelMemory
 
+import ratlib.sopel
+
+def configure(config):
+    ratlib.sopel.configure(config)
+
 def setup(bot):
-    if 'ratbot' not in bot.memory:
-        bot.memory['ratbot'] = SopelMemory()
+    ratlib.sopel.setup(bot)
 
     bot.memory['ratbot']['searches'] = SopelMemory()
-    bot.memory['ratbot']['systemFile'] = os.path.join(
-        bot.config.core.homedir, 'systems.json')
+    bot.memory['ratbot']['systemFile'] = ratlib.sopel.makepath(bot.config.ratbot.workdir, 'systems.json')
 
 def findSystems(systemfile, refresh, system):
     """ EDSM interfacing and system list fuzzy searches. """
@@ -149,4 +152,3 @@ def search(bot, trigger):
     for res in searchResults:
         if res != None:
             bot.say(res.replace(' percent.', '%'))
-

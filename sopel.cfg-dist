@@ -1,0 +1,43 @@
+[core]
+## Bot presence and identity
+nick = mechasqueak-test
+# channels = #rattest,#botabuse
+host = irc.mibbit.com
+use_ssl = true
+verify_ssl = False
+port = 6697
+# auth_method = sasl
+# auth_password = topsecret
+# auth_username = mechasqueak-test
+
+prefix = \!
+help_prefix = !
+
+## Admins
+# owner = OwnerNameHere
+# admins = Joe,Bob
+
+## Where to find modules
+extra = sopel-modules
+
+## For production/testing
+enable = admin,help,rat-board,rat-facts,rat-search
+## Development use, which may add security risks
+# enable = admin,help,rat-board,rat-facts,rat-search,reload,ipython
+
+db_filename = run/ratbot.db
+logdir = logs
+verbose = verbose
+log_raw = True
+
+[ratbot]
+## Common configuration to all rat modules.
+# If running sopel in a read-only location, make sure it has write access to workdir
+workdir = run
+apiurl = http://dev.api.fuelrats.com
+
+[ratboard]
+
+
+[ratfacts]
+filename = facts.json

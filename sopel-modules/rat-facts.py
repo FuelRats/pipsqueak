@@ -9,7 +9,7 @@ http://sopel.chat/
 """
 
 import json
-import os
+import os.path
 from sopel.module import commands, NOLIMIT, rule
 from sopel.config.types import StaticSection, ValidatedAttribute
 
@@ -18,8 +18,7 @@ class RatfactsSection(StaticSection):
 
 def configure(config):
     config.define_section('ratfacts', RatfactsSection)
-    config.ratfacts.configure_setting('filename',
-        "The name of the json file containing the fact list.")
+    config.ratfacts.configure_setting('filename', "The name of the json file containing the fact list.")
 
 @rule('.*')
 def reciteFact(bot, trigger):
