@@ -10,6 +10,9 @@ port = 6697
 # auth_password = topsecret
 # auth_username = mechasqueak-test
 
+prefix = \!
+help_prefix = !
+
 ## Admins
 # owner = OwnerNameHere
 # admins = Joe,Bob
