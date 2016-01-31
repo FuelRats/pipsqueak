@@ -2,29 +2,32 @@
 ED Fuel rats [sopel](http://sopel.chat) module package
 
 # Installation instructions
-Requires Sopel to be installed, for more information on this see [Sopel's website](http://sopel.chat/download.html)
+Requires Sopel to be installed, for more information on this see [Sopel's website](http://sopel.chat/download.html).  Following the virtualenv setup procedure should install sopel.
 
-## Normal sopel installation
+## Acquiring source
+`git clone https://github.com/FuelRats/pipsqueak.git`
 
-Copy modules in `sopel-modules` to ~/.sopel/modules for automatic detection.
-Configure Sopel's [core]extra value for detection in any other folder.
+## Create a virtual environment
+1. Most Python distributions include a built-in module for creating virtualenvs.  If yours does not:
+  - `# pip install virtualenv`   
+2. `# cd pipsqueak`
+3. `# python -m venv *PATH*` or `virtualenv *PATH*` 
+  - *PATH* can be . to create the virtualenv in the current directory.  Using 'venv' as a path is also fine, and will ensure virtual environment files are ignored by git.
+	
+## Configure the bot
+1. Copy sopel.cfg-dist to sopel.cfg
+  - `# cp sopel.cfg-dist sopel.cfg`
+2. Edit sopel.cfg
+  - `# vim sopel.cfg`
+   
+## Activate the virtual environment and install dependencies
+1. `# source *PATH*/bin/activate`
+2. `# pip install -r requirements.txt`
 
-Recommended [core]enable modules:
-admin,help,rat-board,rat-facts,rat-search,reload
-
-## Virtualenv
-
-    # setup
-    pip install virtualenv
-    git clone https://github.com/FuelRats/pipsqueak.git
-    cd pipsqueak
-    virtualenv .
-    ## adjust config
-    vim sopel.cfg
-    # run
-    source bin/activate
-    pip install -r requirements.txt
-    sopel -c sopel.cfg
+## Start the bot   
+1. `# source *PATH*/bin/activate`
+2. `# python start.py -c sopel.cfg`
+  - **Using the built-in sopel command is not recommended, as it won't set PYTHONPATH correctly for imports.**
 
 # rat-search.py
 ## Commands
