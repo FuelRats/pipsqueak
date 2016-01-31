@@ -9,16 +9,16 @@ Requires Sopel to be installed, for more information on this see [Sopel's websit
 
 ## Create a virtual environment
 1. Most Python distributions include a built-in module for creating virtualenvs.  If yours does not:
-   `# pip install virtualenv`   
+  - `# pip install virtualenv`   
 2. `# cd pipsqueak`
 3. `# python -m venv *PATH*` or `virtualenv *PATH*` 
-	*PATH* can be . to create the virtualenv in the current directory.  Using 'venv' as a path is also fine, and will ensure virtual environment files are ignored by git.
+  - *PATH* can be . to create the virtualenv in the current directory.  Using 'venv' as a path is also fine, and will ensure virtual environment files are ignored by git.
 	
 ## Configure the bot
 1. Copy sopel.cfg-dist to sopel.cfg
-   `# cp sopel.cfg-dist sopel.cfg`
+  - `# cp sopel.cfg-dist sopel.cfg`
 2. Edit sopel.cfg
-   `# vim sopel.cfg`
+  - `# vim sopel.cfg`
    
 ## Activate the virtual environment and install dependencies
 1. `# source *PATH*/bin/activate`
@@ -27,7 +27,7 @@ Requires Sopel to be installed, for more information on this see [Sopel's websit
 ## Start the bot   
 1. `# source *PATH*/bin/activate`
 2. `# python start.py -c sopel.cfg`
-   **Using the built-in sopel command is not recommended, as it won't set PYTHONPATH correctly for imports.**
+  - **Using the built-in sopel command is not recommended, as it won't set PYTHONPATH correctly for imports.**
 
 # rat-search.py
 ## Commands
