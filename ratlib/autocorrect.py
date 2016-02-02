@@ -15,7 +15,7 @@ class CorrectionResult:
     allowed = {'L': 'a-z', 'D': '0-9'}
 
     # Create the regular expression we use to match systems
-    pattern = (r'\w+\s+(?P<l>LL-L\s+L)(?P<d>D?-?D+)\b')  #  L and D will be replaced from lookalikes and alowed.
+    pattern = (r'\w+\s+(?P<l>LL-L\s+L)(?P<d>D+(?:-D+))\b')  #  L and D will be replaced from lookalikes and alowed.
     for search, characters in allowed.items():
         pattern = pattern.replace(search, "[" + characters + "".join(lookalikes[search].keys()) + "]")
     regex = re.compile("(?i)" + pattern)
