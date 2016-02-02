@@ -43,3 +43,35 @@ def friendly_timedelta(delta):
     else:
         return "now"
     return fmt.format(result)
+
+
+def format_timedelta(delta):
+    """
+    Given a datetime.timedelta or a datetime.datetime, gives an exact(ish) representation of time difference
+    """
+    if isinstance(delta, datetime.datetime):
+        return friendly_timedelta(delta - datetime.datetime.now(tz=datetime.timezone.utc))
+    if isinstance(delta, datetime.date):
+        return friendly_timedelta(delta - datetime.date.today())
+
+    if delta < datetime.timedelta():
+        # Delta is in the past
+        delta = delta * -1  # Invert it to simplify math
+        fmt = "-{}"
+    else:
+        fmt = "{}"
+
+    # Calculate some values
+    d = delta.days
+    s = delta.seconds
+    m, s = divmod(s, 60)
+    h, m = divmod(m, 60)
+
+    if d:
+        result = "{}d,{:02}h{:02}m{:02}s".format(d, h, m, s)
+    elif h:
+        result = "{}h{:02}m{:02}s".format(h, m, s)
+    else:
+        result = "{}m{:02}s".format(m, s)
+
+    return fmt.format(result)
