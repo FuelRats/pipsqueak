@@ -15,6 +15,7 @@ import collections
 import itertools
 import contextlib
 import warnings
+import functools
 
 #Sopel imports
 from sopel.formatting import bold, color, colors
@@ -495,12 +496,9 @@ def cmd_quote(bot, trigger):
         tags.append(bold(color('CR', colors.RED)))
 
     bot.reply(
-        "{client}'s case #{index} ({tags})  @{id}"
-        .format(client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags), id=rescue.id or 'pending')
-    )
-    bot.say(
-        "Case opened: {opened} ({opened_ago}), updated: {updated} ({updated_ago})"
+        "{client}'s case #{index} ({tags}) opened {opened} ({opened_ago}), last updated {updated} ({updated_ago})  @{id}"
         .format(
+            client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags), id=rescue.id or 'pending',
             opened=rescue.createdAt.strftime(datefmt) if rescue.createdAt else '<unknown>',
             updated=rescue.lastModified.strftime(datefmt) if rescue.lastModified else '<unknown>',
             opened_ago=ratlib.friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
@@ -602,165 +600,139 @@ def cmd_list(bot, trigger):
 
 
 @commands('grab')
-def grabLine(bot, trigger):
+@ratlib.sopel.filter_output
+def cmd_grab(bot, trigger):
     """
     Grab the last line the client said and add it to the case.
     required parameters: client name.
     """
-    if trigger.group(3) == None:
+    if trigger.group(3) is None:
         return bot.reply('I need a case name to grab to.')
 
     client = Identifier(trigger.group(3))
 
-    if client not in bot.memory['ratbot']['log']:
+    lock, log = bot.memory['ratbot']['log']
+    with lock:
+        line = log.get(client)
+
+    if line is None:
         # If this were to happen, somebody is trying to break the system.
         # After all, why make a case with no information?
-        return bot.reply(client+' has never spoken before.')
+        return bot.reply(client + ' has not spoken recently.')
 
-    line = bot.memory['ratbot']['log'][client]
+    rescue, lines = append_quotes(bot, client, line, create=True)
+    created = len(lines) == len(rescue.quotes)  # Dirty hack for now
+    future = save_case(bot, rescue)
 
-    if client not in bot.memory['ratbot']['cases']:
-        # Create a new case.
-        try:
-            index = openCase(bot, client, line)
-        except APIError as ex:
-            return bot.reply(str(ex))
-        return bot.say(
-            "{client}'s case opened with: {line}  (Case {index})".format(client=client, line=line, index=index)
-        )
+    if created:
+        fmt = "{rescue.client_name}'s case opened with: \"{line}\"  (Case {rescue.boardindex})"
     else:
-        return addLine(bot, client, line)
+        fmt = "{rescue.client_name}'s case updated with: \"{line}\"  (Case {rescue.boardindex})"
+    bot.say(fmt.format(rescue=rescue, line=lines[0]))
+    try:
+        result = future.result(timeout=10)
+    except concurrent.futures.TimeoutError:
+        bot.notice(
+            "API is still not done with grab for {rescue.client_name}}; continuing in background.".format(rescue=rescue)
+        )
+
 
 @commands('inject')
-def injectLine(bot, trigger):
+def cmd_inject(bot, trigger):
     """
     Inject a custom line of text into the client's case.
     required parameters: client name, text to inject.
     """
+    parts = re.split(r'\s+', trigger.group(2) or '', 1)
+    if len(parts) != 2:
+        return bot.reply('Usage: {} <client or case number> <text of message>'.format(trigger.group(1)))
+    client, line = parts
+    rescue, lines = append_quotes(bot, client, line, create=True)
 
-    # I need at least 2 parameters.
-    if trigger.group(4) == None:
-        return bot.reply('I need a case and some text to do this.')
+    created = len(lines) == len(rescue.quotes)  # Dirty hack for now
+    future = save_case(bot, rescue)
 
-    # Does this client exist?
-    client, caseID = getID(bot, trigger.group(3))
-    if caseID == None:
-        client = Identifier(trigger.group(3))
-
-    # Prepare the inject
-    line = trigger.group(2)[len(trigger.group(3))+1:] + ' [INJECT by {0}]'.format(trigger.nick)
-
-    if caseID == None:
-        # Create a new case.
-        success, error = openCase(bot, client, line)
-        if success:
-            return bot.say('{0}\'s case opened with: {1}'.format(client, line))
-        else:
-            return bot.reply('Error pushing data: [{0[code]}]{0[details]}'.format(error))
+    if created:
+        fmt = "Created case for {rescue.client_name}.  (Case {rescue.boardindex})"
     else:
-        return addLine(bot, client, line)
+        fmt = "Added line to {rescue.client_name}.  (Case {rescue.boardindex})"
+    bot.reply(fmt.format(rescue=rescue))
+    try:
+        result = future.result(timeout=10)
+    except concurrent.futures.TimeoutError:
+        bot.notice(
+            "API is still not done with inject for {rescue.client_name}}; continuing in background.".format(rescue=rescue)
+        )
+
 
 @commands('sub')
-def subLine(bot, trigger):
+def cmd_sub(bot, trigger):
     """
     Substitute or delete an existing line of text to the client's case.
     required parameters: client name, line number.
     optional parameter: new text
     """
-    # I need at least 2 parameters
-    if trigger.group(4) == None:
-        return bot.reply('I need a case and a line number.')
-
-    # Does this client exist?
-    client, caseID = getID(bot, trigger.group(3))
-    if caseID == None:
-        return bot.reply('Case not found.')
-
-    # Is the line number even a number?
+    parts = re.split(r'\s+', trigger.group(2) or '', 2)
+    if len(parts) < 2:
+        return bot.reply('Usage: {} <client or case number> <line> [<replacement>]'.format(trigger.group(1)))
+    line = None
+    if len(parts) == 3:
+        line = parts.pop()
+    client, lineno = parts
     try:
-        int(trigger.group(4))
+        lineno = int(lineno)
     except ValueError:
-        return bot.reply('Line number is not a valid number.')
+        return bot.reply('Line number must be an integer.')
+    if lineno < 0:
+        return bot.reply('Line number cannot be negative.')
 
-    number = trigger.group(4)
+    board = bot.memory['ratbot']['board']
+    rescue = board.find(client, create=False)
+    if not rescue:
+        return bot.reply("No such case.")
+    if lineno >= len(rescue.quotes):
+        return bot.reply('Case only has {} line(s)'.format(len(rescue.quotes)))
 
-    # Grab lines
+    if not line:
+        rescue.quotes.pop(lineno)
+        bot.reply("Deleted line {}".format(lineno))
+    else:
+        rescue.quotes[lineno] = line
+        bot.reply("Updated line {}".format(lineno))
+
+    future = save_case(bot, rescue)
     try:
-        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
-        ret = ans['data']
-    except APIError as ex:
-        return bot.reply(str(ex))
-    lines = ret['quotes']
+        result = future.result(timeout=10)
+    except concurrent.futures.TimeoutError:
+        bot.notice(
+            "API is still not done updating case for ({rescue.client_name}}; continuing in background.".format(rescue=rescue)
+        )
 
-    # Do we have enough lines?
-    if int(number)+1 > len(lines):
-        return bot.reply(
-            'I can\'t replace line {0} if there\'s only {1} lines.'.format(
-                number, len(lines)))
 
-    # Ok, now we can sub the line.
-    data = trigger.group(2)[len(trigger.group(3))+1:]
-    try:
-        number, subtext = data.split(' ', 1)
-    except ValueError:
-        # Or delete it.
-        number = data
-        subtext = None
-
-    newquote = list()
-    for i in range(len(lines)):
-        if i != int(number):
-            # Not our line, continue.
-            newquote += (lines[i],)
-        elif subtext == None:
-            # Delete, don't sub.
-            continue
-        else:
-            # Sub
-            newquote += [subtext + '[SUB by {0}]'.format(trigger.nick)]
-
-    query = {'quotes': newquote}
-    # And push it to the API.
-    try:
-        ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-
-        if subtext == None:
-            return bot.say('Line {0} in {1}\'s case deleted.'.format(number, client))
-        else:
-            return bot.say(
-                'Line {0} in {1}\'s case replaced with: {2}'.format(
-                    number, client, subtext))
-    except APIError as ex:
-        return bot.reply(str(ex))
-
-@commands('active')
-def toggleCaseActive(bot, trigger):
+@commands('active', 'activate', 'inactive', 'deactivate')
+def cmd_active(bot, trigger):
     """
     Toggle a case active/inactive
     required parameters: client name.
     """
-    if trigger.group(3) == None:
+    if trigger.group(3) is None:
         return bot.reply('I need a case name to set (in)active.')
+    board = bot.memory['ratbot']['board']
+    rescue = board.find(trigger.group(3), create=False)
+    if rescue is None:
+        return bot.reply('No such case.')
+    rescue.active = not rescue.active
 
-    client, caseID = getID(bot, trigger.group(3))
-    if caseID == None:
-        return bot.reply('Case not found.')
-
-    # Ask the API what it is, then reverse the result.
+    future = save_case(bot, rescue)
     try:
-        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
-        ret = ans['data']
-    except APIError as ex:
-        return bot.reply(str(ex))
-
-    a = not ret['active']
-    # Upload the new result.
-    query = dict(active=a)
-    try:
-        ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-    except APIError as ex:
-        return bot.reply(str(ex))
-    return bot.say("{client}'s case is now {active}".format(client=client, active=bold('active' if a else 'inactive')))
+        result = future.result(timeout=10)
+    except concurrent.futures.TimeoutError:
+        bot.notice(
+            "API is still not done updating case for ({rescue.client_name}}; continuing in background.".format(rescue=rescue)
+        )
+    return bot.say(
+        "{rescue.client_name}'s case is now {active}".format(rescue=rescue, active=bold('active' if a else 'inactive'))
+    )
 
 @commands('assign', 'add', 'go')
 def addRats(bot, trigger):
@@ -808,6 +780,7 @@ def addRats(bot, trigger):
         bot.reply(str(ex))
     return bot.say(client+', Please add the following rat(s) to your friends list: '+', '.join(newrats))
 
+
 @commands('unassign', 'rm', 'remove', 'stdn', 'standdown')
 def rmRats(bot, trigger):
     """
@@ -853,86 +826,64 @@ def rmRats(bot, trigger):
         'Removed rats from {0}\'s case: {1}'.format(
             client, ', '.join(removedRats)))
 
-@commands('codered', 'cr')
-def codeRed(bot, trigger):
+
+@commands('codered', 'casered', 'cr')
+def cmd_codered(bot, trigger):
     """
     Toggles the code red status of a case.
     A code red is when the client is so low on fuel that their life support
     system has failed, indicated by the infamous blue timer on their HUD.
     """
-    if trigger.group(3) == None:
-        return bot.reply('I need a case name.')
-
-    client, caseID = getID(bot, trigger.group(3))
-    if caseID == None:
-        return bot.reply('Case not found.')
-
-    # Ask the API what it is, then reverse the result.
+    if trigger.group(3) is None:
+        return bot.reply('I need a case name to set (in)active.')
+    board = bot.memory['ratbot']['board']
+    rescue = board.find(trigger.group(3), create=False)
+    if rescue is None:
+        return bot.reply('No such case.')
+    rescue.codeRed = not rescue.codeRed
+    future = save_case(bot, rescue)
     try:
-        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
-        ret = ans['data']
-    except APIError as ex:
-        return bot.reply(str(ex))
-    CR = not ret['codeRed']
-
-    # Upload the new result.
-    query = dict(codeRed=CR)
-    try:
-        ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-        ret = ans['data']
-    except ValueError as ex:
-        return bot.reply(str(ex))
-
-    rats = ', '.join(ret['rats'])
-
-    if CR:
-        bot.say('CODE RED! {0} is on emergency oxygen.'.format(client))
-        if len(rats) > 0:
-            bot.say(rats+': This is your case!')
+        result = future.result(timeout=10)
+    except concurrent.futures.TimeoutError:
+        bot.notice(
+            "API is still not done updating case for ({rescue.client_name}}; continuing in background.".format(rescue=rescue)
+        )
+    if rescue.codeRed:
+        bot.say('CODE RED! {rescue.client_name} is on emergency oxygen.'.format(rescue=rescue))
+        if rescue.rats:
+            bot.say(", ".join(rats) + ": This is your case!")
     else:
-        bot.say(client+'\'s case demoted from code red.')
+        bot.say('{rescue.client_name}\'s case is no longer CR.'.format(rescue=rescue))
 
+
+def cmd_platform(bot, trigger, platform=None):
+    """
+    Sets a case platform to PC or xbox.
+    """
+    if trigger.group(3) is None:
+        return bot.reply('I need a case name to set (in)active.')
+    board = bot.memory['ratbot']['board']
+    rescue = board.find(trigger.group(3), create=False)
+    if rescue is None:
+        return bot.reply('No such case.')
+
+    rescue.platform = platform
+    future = save_case(bot, rescue)
+    try:
+        result = future.result(timeout=10)
+    except concurrent.futures.TimeoutError:
+        bot.notice(
+            "API is still not done updating platform for ({rescue.client_name}}; continuing in background.".format(rescue=rescue)
+        )
+    return bot.say(
+        "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
+    )
+
+# For some reason, this can't be tricked with functools.partial.
 @commands('pc')
-def setCasePC(bot, trigger):
-    """
-    Sets a case platform to PC.
-    To set a client's case to Xbox One, use the 'xbox' command or it's aliases.
-    """
-    if trigger.group(3) == None:
-        return bot.reply('I need a case name.')
+def cmd_platform_pc(bot, trigger):
+    return cmd_platform(bot, trigger, 'pc')
 
-    client, caseID = getID(bot, trigger.group(3))
-    if caseID == None:
-        return bot.reply('Case not found.')
-
-    query = dict(platform='PC')
-    try:
-        ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-        ret = ans['data']
-    except APIError as ex:
-        return bot.reply(str(ex))
-    return bot.say(client+'\'s case set to PC.')
-
-@commands('xbox','xb','xb1','xbone')
-def setCaseXbox(bot, trigger):
-    """
-    Sets a case platform to Xbox One.
-    To set a client's case to PC, use the 'pc' command
-    """
-    if trigger.group(3) == None:
-        return bot.reply('I need a case name.')
-
-    client, caseID = getID(bot, trigger.group(3))
-    if caseID == None:
-        return bot.reply('Case not found.')
-
-
-    query = dict(platform='Xbox One')
-    try:
-        ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-        ret = ans['data']
-    except APIError as ex:
-        return bot.reply(str(ex))
-
-    return bot.say(client+'\'s case set to Xbox One.')
-
+@commands('xbox', 'xb', 'xb1', 'xbone')
+def cmd_platform_xb(bot, trigger):
+    return cmd_platform(bot, trigger, 'xb')
