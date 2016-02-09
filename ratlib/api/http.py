@@ -18,8 +18,9 @@ class APIError(Exception):
         self.code = code
         self.details = details
         self.json = json
+
     def __repr__(self):
-        return "<{0.__class__.__name__({0.code}, {0.details!r})>".format(self)
+        return "<{0.__class__.__name__}({0.code}, {0.details!r})>".format(self)
     __str__ = __repr__
 
 
@@ -46,7 +47,7 @@ class HTTPError(APIError):
 # Actual API calling
 # For known request methods, we call request.<method> directly since it does some preprocessing for us
 # All other requests just use requests.request(method, ...)
-request_methods = {attr: getattr(requests, attr) for attr in "GET PUT POST".split(" ")}
+request_methods = {attr: getattr(requests, attr.lower()) for attr in "GET PUT POST".split(" ")}
 
 def urljoin(*parts):
     """
@@ -98,11 +99,12 @@ def call(method, uri, data=None, statuses=None, **kwargs):
         else:
             response = requests.request(method.upper(), uri, json=data)
         if not statuses:
-            response.raise_for_status()
+            if response.status_code != 400:
+                response.raise_for_status()
         elif response.status_code not in statuses:
-            raise HTTPError(code=response.status_code, details=requests.status_codes[response.status][0])
+            raise HTTPError(code=response.status_code, details="Unexpected Status Code {}".format(response.status_code))
     except exc.HTTPError as ex:
-        raise HTTPError(code=ex.response.status_code, details=requests.status_codes[ex.response.status_code][0]) from ex
+        raise HTTPError(code=ex.response.status_code, details=str(ex)) from ex
     except exc.RequestException as ex:
         raise BadResponseError from ex
     try:
@@ -112,7 +114,7 @@ def call(method, uri, data=None, statuses=None, **kwargs):
 
     if 'errors' in json:
         err = json['errors'][0]
-        raise APIError(err.get('code'), err.get('details'), json=json)
+        raise APIError(err.get('name'), err.get('message'), json=json)
     if 'data' not in json:
         raise BadResponseError(details="Did not receive a data field in a non-error response.", json=json)
     return json

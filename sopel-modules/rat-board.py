@@ -14,6 +14,7 @@ import datetime
 import collections
 import itertools
 import contextlib
+import warnings
 
 #Sopel imports
 from sopel.formatting import bold, color, colors
@@ -40,17 +41,17 @@ HISTORY_MAX = 10000  # Max number of nicks we'll remember history for at once.
 def configure(config):
     ratlib.sopel.configure(config)
 
+
 def setup(bot):
     ratlib.sopel.setup(bot)
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['board'] = RescueBoard()
-    bot.memory['ratbot']['executor'] = concurrent.futures.ThreadPoolExecutor(max_workers = 1)
+    bot.memory['ratbot']['queue'] = concurrent.futures.ThreadPoolExecutor(max_workers=10)  # Immediate tasks
     refresh_cases(bot)
+
 
 # This regex gets pre-compiled, so we can easily re-use it later.
 ratsignal = re.compile('ratsignal', re.IGNORECASE)
-
-import warnings
 
 
 class RescueBoard:
@@ -67,7 +68,7 @@ class RescueBoard:
     MAX_POOLED_CASES = 10
 
     def __init__(self):
-        self._lock = threading.Lock()
+        self._lock = threading.RLock()
         self.indexes = {k: {} for k in self.INDEX_TYPES.keys()}
 
         # Boardindex pool
@@ -127,7 +128,7 @@ class RescueBoard:
             if rescue.boardindex < self.maxpool:
                 self.pool.append(rescue.boardindex)
             if not self.indexes['boardindex']:  # Board is clear.
-                self.counter = itertools.count(start = self.maxpool)
+                self.counter = itertools.count(start=self.maxpool)
 
     @contextlib.contextmanager
     def change(self, rescue):
@@ -141,7 +142,7 @@ class RescueBoard:
         """
         with self:
             assert rescue.board is self
-            snapshot = dict({index: fn(self.rescue) for index, fn in self.INDEX_TYPES.items()})
+            snapshot = dict({index: fn(rescue) for index, fn in self.INDEX_TYPES.items()})
             yield rescue
             assert rescue.board is self  # In case it was changed
             for index, fn in self.INDEX_TYPES.items():
@@ -208,15 +209,23 @@ class RescueBoard:
         self.add(rescue)
         return rescue
 
+    @property
+    def rescues(self):
+        """
+        Read-only convenience property to list all known rescues.
+        """
+        return self.indexes['boardindex'].values()
+
 
 class Rescue(TrackedBase):
-    active = TrackedProperty()
-    createdAt = DateTimeProperty()
-    id = TrackedProperty(remote_name='_id')
-    rats = SetProperty()
-    tempRats = SetProperty(default=lambda: set())
+    active = TrackedProperty(default=True)
+    createdAt = DateTimeProperty(readonly=True)
+    lastModified = DateTimeProperty(readonly=True)
+    id = TrackedProperty(remote_name='_id', readonly=True)
+    rats = SetProperty(default=lambda: set())
+    unidentifiedRats = SetProperty(default=lambda: set())
     quotes = ListProperty(default=lambda: [])
-    platform = TrackedProperty()
+    platform = TrackedProperty(default='pc')
     open = TypeCoercedProperty(default=True, coerce=bool)
     epic = TypeCoercedProperty(default=False, coerce=bool)
     codeRed = TypeCoercedProperty(default=False, coerce=bool)
@@ -245,8 +254,13 @@ class Rescue(TrackedBase):
             yield self
         return _dummy()
 
-    def refresh(self, json):
+    def refresh(self, json, merge=True):
         for prop in self._props:
+            if isinstance(prop, InstrumentedProperty):
+                prop.read(self, json, merge=merge)
+                continue
+            if merge and prop in self._changed:
+                continue  # Ignore incoming data that conflicts with our pending changes.
             prop.read(self, json)
 
     @classmethod
@@ -259,29 +273,64 @@ class Rescue(TrackedBase):
         inst.refresh(json)
         return inst
 
+    def save(self, full=False, props=None):
+        result = {}
+        props = self._props if full else self._changed
+        for prop in props:
+            prop.write(self, result)
+        return result
+
     @property
     def client_name(self):
-        t = self.client.get('CMDRname')
-        if t:
-            return "CMDR " + t
+        """Returns the first logical name for a client."""
         t = self.client.get('nickname')
         if t:
             return t
+        t = self.client.get('CMDRname')
+        if t:
+            return "CMDR " + t
         return "<unknown client>"
 
+    @property
+    def client_names(self):
+        """Returns all known names for a client."""
+        nickname = self.client.get('nickname')
+        cmdrname = self.client.get('CMDRname')
+        if nickname:
+            if cmdrname and nickname.lower() != cmdrname.lower():
+                return "{nickname} (CMDR {cmdrname})".format(nickname, cmdrname)
+            return nickname
+        elif cmdrname:
+            return "CMDR {cmdrname}".format(cmdrname)
+        else:
+            return "<unknown client>"
 
-
-def refresh_cases(bot):
+def refresh_cases(bot, rescue=None):
     """
     Grab all open cases from the API so we can work with them.
+    :param bot: Sopel bot
+    :param rescue: Individual rescue to refresh.
     """
-    try:
-        result = call('GET', urljoin(bot.config.ratbot.apiurl, '/api/search/rescues'), data={'open': True})
-    except api.APIError as ex:
-        # TODO: Rework this to try again later.
-        raise
+    uri = urljoin(bot.config.ratbot.apiurl, '/api/search/rescues')
+    if rescue is not None:
+        if rescue.id is None:
+            raise ValueError('Cannot refresh a non-persistent case.')
+        uri += "/" + rescue.id
+        data = {}
+    else:
+        data = {'open': True}
 
+    # Exceptions here are the responsibility of the caller.
+    result = call('GET', uri, data=data)
     board = bot.memory['ratbot']['board']
+
+    if rescue:
+        if not result['data']:
+            board.remove(rescue)
+        else:
+            with rescue.change():
+                rescue.refresh(result['data'])
+        return
 
     with board:
         # Cases we have but the refresh doesn't.  We'll assume these are closed after winnowing down the list.
@@ -292,26 +341,52 @@ def refresh_cases(bot):
             existing = board.indexes['id'].get(id)
 
             if existing:
-                # TODO: This should refresh the existing case if it can safely do so.
+                with existing.change():
+                    existing.refresh(case)
                 continue
-
             board.add(Rescue.load(case))
 
         for id in missing:
-            # TODO: Remove these cases if we can safely do so.
-            pass
+            case = board.indexes['id'].get(id)
+            if case:
+                board.remove(case)
 
+def save_case(bot, rescue):
+    """
+    Begins saving changes to a case.  Returns the future.
+    """
+    with rescue.change():
+        data = rescue.save(full=(rescue.id is None))
+        rescue.commit()
+    uri = urljoin(bot.config.ratbot.apiurl, '/api/rescues')
+    if rescue.id:
+        method = "PUT"
+        uri += "/" + rescue.id
+    else:
+        method = "POST"
 
-def append_quotes(bot, search, lines, autocorrect=True, create=True):
+    def task():
+        result = call(method, uri, data=data)
+        rescue.commit()
+        if 'data' not in result or not result['data']:
+            raise RuntimeError("API response returned unusable data.")
+        with rescue.change():
+            rescue.refresh(result['data'])
+        return rescue
+
+    return bot.memory['ratbot']['queue'].submit(task)
+
+def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_platform=True):
     """
     Appends lines to a (possibly newly created) case.  Returns a tuple of (Rescue, appended_lines).
 
-    If autocorect is True, performs system autocorrection first.  In this case, appended_lines may not match the input.
+    If autocorrect is True, performs system autocorrection first.  In this case, appended_lines may not match the input.
     :param bot: IRC bot handle.
     :param search: Client name, case ID, boardindex, or a Rescue object.
     :param lines: Line(s) to append.  If this is a string it is coerced to a list of strings.
     :param autocorrect: Whether to perform system autocorrection.
     :param create: Whether this is allowed to create a new case.  Passed to `Board.find()`
+    :param detect_platform: If True, attempts to parse a platform out of the first line.
     :return:
     """
     if isinstance(lines, str):
@@ -336,24 +411,33 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True):
         rescue = bot.memory['ratbot']['board'].find(search, create=create)
     if not rescue:
         return None
+    if detect_platform and not rescue.quotes:
+        platforms = set()
+        for line in lines:
+            if re.search(r'\bpc\b', line, flags=re.IGNORECASE):
+                platforms.add('pc')
+            if re.search(r'\bxb(ox|one|1)?\b', line, flags=re.IGNORECASE):
+                platforms.add('xb')
+        if len(platforms) == 1:
+            rescue.platform = platforms.pop()
+
     rescue.quotes.extend(newlines)
     return rescue, newlines
-
 
 # Maintain a log of the last thing anyone in channel said.
 @rule('.*')
 @priority('low')
 @require_chanmsg
-def maintain_history(bot, trigger):
+def rule_history(bot, trigger):
     """Remember the last thing somebody said."""
     if trigger.group().startswith("\x01ACTION"): # /me
         line = trigger.group()[:-1]
     else:
         line = trigger.group()
 
-    # Make sure we don't accidentally signal again.
-    # TODO: This should probably happen on quote/etc instead -- we should store the client's words verbatim.
-    ratsignal.sub('R@signal', line)
+    ## Make sure we don't accidentally signal again.
+    ## This is now replaced by filtering our output to not include ratsignal, rather than filtering input.
+    # ratsignal.sub('R@signal', line)
 
     lock, log = bot.memory['ratbot']['log']
     nick = Identifier(trigger.nick)
@@ -365,21 +449,29 @@ def maintain_history(bot, trigger):
     return NOLIMIT  #This should NOT trigger rate limit, EVER.
 
 
-@rule(r'\s*(ratsignal)(.*)')
+@rule(r'\s*(testsignal)(.*)')
 @priority('high')
+@ratlib.sopel.filter_output
 def rule_ratsignal(bot, trigger):
     """Light the rat signal, somebody needs fuel."""
-    line = ratsignal.sub('R@signal', trigger.group())
+    line = trigger.group()
     client = Identifier(trigger.nick)
     rescue, lines = append_quotes(bot, trigger.nick, [line], create=True)
     bot.say(
-        "Received R@SIGNAL from {nick}.  Calling all available rats!  (Case {index})"
+        "Received RATSIGNAL from {nick}.  Calling all available rats!  (Case {index})"
         .format(nick=trigger.nick, index=rescue.boardindex if rescue else "<unknown>")
     )
     bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
-
+    future = save_case(bot, rescue)
+    try:
+        result = future.result(timeout=10)
+    except concurrent.futures.TimeoutError:
+        bot.notice(
+            "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick)
+        )
 
 @commands('quote')
+@ratlib.sopel.filter_output
 def cmd_quote(bot, trigger):
     """
     Recite all case information
@@ -396,7 +488,7 @@ def cmd_quote(bot, trigger):
 
     datefmt = "%b %d %H:%M:%S UTC"
 
-    tags = [rescue.platform if rescue.platform else '(unknown platform)']
+    tags = [rescue.platform.upper() if rescue.platform else 'unknown platform']
     if rescue.epic:
         tags.append("epic")
     if rescue.codeRed:
@@ -404,7 +496,7 @@ def cmd_quote(bot, trigger):
 
     bot.reply(
         "{client}'s case #{index} ({tags})  @{id}"
-        .format(client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags))
+        .format(client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags), id=rescue.id or 'pending')
     )
     bot.say(
         "Case opened: {opened} ({opened_ago}), updated: {updated} ({updated_ago})"
@@ -419,12 +511,13 @@ def cmd_quote(bot, trigger):
     # FIXME: Rats/temprats/etc isn't really handled yet.
     if rescue.rats:
         bot.say("Assigned rats: " + ", ".join(rescue.rats))
-    if rescue.tempRats:
-        bot.say("Assigned tempRats: " + ", ".join(rescue.tempRats))
+    if rescue.unidentifiedRats:
+        bot.say("Assigned unidentifiedRats: " + ", ".join(rescue.unidentifiedRats))
     for ix, quote in enumerate(rescue.quotes):
         bot.say('[{ix}]{quote}'.format(ix=ix, quote=quote))
 
 @commands('clear', 'close')
+@ratlib.sopel.filter_output
 def cmd_clear(bot, trigger):
     """
     Mark a case as closed.
@@ -433,66 +526,80 @@ def cmd_clear(bot, trigger):
     if trigger.group(3) is None:
         return bot.reply('Usage: {} <client or case number>'.format(trigger.group(1)))
 
+    board = bot.memory['ratbot']['board']
     # TODO: Start attempted case refresh here.
     # ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
-    rescue = bot.memory['ratbot']['board'].find(trigger.group(3), create=False)
+    rescue = board.find(trigger.group(3), create=False)
     if not rescue:
         return bot.reply('Could not find a case with that name or number.')
 
     rescue.open = False
     rescue.active = False
-    # Stats are fun!
-    if rescue.createdAt:
-        delta = ratlib.format_timedelta(datetime.datetime.now(tz=datetime.timezone.utc) - rescue.createdAt)
-        return bot.reply("{client}'s case closed.  (Time: {time}".format(client=rescue.client_name, time=delta))
-    return bot.reply("{client}'s case closed.".format(client=rescue.client_name))
+    future = save_case(bot, rescue)
+    with board:
+        board.remove(rescue)
+    bot.reply("Cleared case {0.boardindex} ({0.client_names}).".format(rescue))
+
+    try:
+        result = future.result(timeout=10)
+    except concurrent.futures.TimeoutError:
+        bot.notice("API is still not done with clearing case {!r}; continuing in background.".format(trigger.group(3)))
+
 
 @commands('list')
-def listCases(bot, trigger):
+@ratlib.sopel.filter_output
+def cmd_list(bot, trigger):
     """
-    List the currently active cases.
-    If -i parameter is specified, also show the inactive, but still open, cases.
-    Otherwise, just show the amount of inactive, but still open cases.
+    List the currently active, open cases.
+
+    Supported parameters:
+        -i: Also show inactive (but still open) cases.
+        -@: Show full case IDs.  (LONG)
     """
-    if trigger.group(3) == '-i':
-        showInactive = True
-    else:
-        showInactive = False
+    params = trigger.group(3)
+    if not params or params[0] != '-':
+        params = '-'
 
-    # Ask the API for all open cases.
-    query = dict(open=True)
-    try:
-        ans = callAPI(bot, 'GET', 'api/search/rescues', query)
-        ret = ans['data']
-    except api.APIError as ex:
-        return bot.reply(str(ex))
+    show_ids = '@' in params
+    show_inactive = 'i' in params
 
-    if len(ret) == 0:
-        return bot.reply('No open cases.')
+    board = bot.memory['ratbot']['board']
+    pool = bot.memory['ratbot']['queue']
 
-    # We have cases, sort them.
-    actives = set()
-    inactives = set()
-    for case in ret:
-        # Grab ID from the bot's memory
-        index = bot.memory['ratbot']['cases'][Identifier(case['client']['nickname'])]['index']
+    def _keyfn(rescue):
+        return not rescue.codeRed, rescue.boardindex
 
-        if case['codeRed']:
-            name = color(case['client']['CMDRname'], colors.RED)
-        else:
-            name = case['client']['CMDRname']
-        if case['active'] == True:
-            actives.add('[{0}]{1}'.format(index,name))
-        else:
-            inactives.add('[{0}]{1}'.format(index,name))
+    with board:
+        actives = list(filter(lambda x: x.active, board.rescues))
+        actives.sort(key=_keyfn)
+        inactives = list(filter(lambda x: not x.active, board.rescues))
+        inactives.sort(key=_keyfn)
 
-    # Print to IRC.
-    if showInactive:
-        return bot.reply('{0} active case(s): {1}. {2} inactive: {3}.'.format(
-            len(actives), ', '.join(actives), len(inactives), ', '.join(inactives)))
-    else:
-        return bot.reply('{0} active case(s): {1} (+ {2} inactive).'.format(
-            len(actives), ', '.join(actives), len(inactives)))
+    def format_rescue(rescue):
+        cr = color("(CR)", colors.RED) if rescue.codeRed else ''
+        id = ""
+        if show_ids:
+            id = "@" + (rescue.id if rescue.id is not None else "none")
+        return "[{boardindex}{id}]{client}{cr}".format(
+            boardindex=rescue.boardindex,
+            id=id,
+            client=rescue.client.get('nickname') or rescue.client.get('CMDRname') or '<unknown>',
+            cr=cr
+        )
+
+    output = []
+    for name, cases, expand in (('active', actives, True), ('inactive', inactives, show_inactive)):
+        if not cases:
+            output.append("No {name} cases".format(name=name))
+            continue
+        num = len(cases)
+        s = 's' if num != 1 else ''
+        t = "{num} {name} case{s}".format(num=num, name=name, s=s)
+        if expand:
+            t += ": " + ", ".join(format_rescue(rescue) for rescue in cases)
+        output.append(t)
+    bot.reply("; ".join(output))
+
 
 @commands('grab')
 def grabLine(bot, trigger):
