@@ -450,7 +450,7 @@ def rule_history(bot, trigger):
     return NOLIMIT  #This should NOT trigger rate limit, EVER.
 
 
-@rule(r'\s*(testsignal)(.*)')
+@rule(r'\s*(ratsignal)(.*)')
 @priority('high')
 @ratlib.sopel.filter_output
 def rule_ratsignal(bot, trigger):
