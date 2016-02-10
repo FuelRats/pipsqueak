@@ -352,6 +352,7 @@ def refresh_cases(bot, rescue=None):
             if case:
                 board.remove(case)
 
+
 def save_case(bot, rescue):
     """
     Begins saving changes to a case.  Returns the future.
@@ -376,6 +377,7 @@ def save_case(bot, rescue):
         return rescue
 
     return bot.memory['ratbot']['queue'].submit(task)
+
 
 def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_platform=True):
     """
@@ -425,7 +427,7 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
     rescue.quotes.extend(newlines)
     return rescue, newlines
 
-# Maintain a log of the last thing anyone in channel said.
+
 @rule('.*')
 @priority('low')
 @require_chanmsg
@@ -471,6 +473,7 @@ def rule_ratsignal(bot, trigger):
             "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick)
         )
 
+
 @commands('quote')
 @ratlib.sopel.filter_output
 def cmd_quote(bot, trigger):
@@ -513,6 +516,7 @@ def cmd_quote(bot, trigger):
         bot.say("Assigned unidentifiedRats: " + ", ".join(rescue.unidentifiedRats))
     for ix, quote in enumerate(rescue.quotes):
         bot.say('[{ix}]{quote}'.format(ix=ix, quote=quote))
+
 
 @commands('clear', 'close')
 @ratlib.sopel.filter_output
@@ -879,10 +883,12 @@ def cmd_platform(bot, trigger, platform=None):
         "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
     )
 
+
 # For some reason, this can't be tricked with functools.partial.
 @commands('pc')
 def cmd_platform_pc(bot, trigger):
     return cmd_platform(bot, trigger, 'pc')
+
 
 @commands('xbox', 'xb', 'xb1', 'xbone')
 def cmd_platform_xb(bot, trigger):
