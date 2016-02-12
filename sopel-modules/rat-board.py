@@ -16,6 +16,7 @@ import itertools
 import contextlib
 import warnings
 import functools
+import inspect
 
 #Sopel imports
 from sopel.formatting import bold, color, colors
@@ -51,10 +52,7 @@ def setup(bot):
     refresh_cases(bot)
 
 
-# This regex gets pre-compiled, so we can easily re-use it later.
-ratsignal = re.compile('ratsignal', re.IGNORECASE)
-
-
+FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
 class RescueBoard:
     """
     Manages all attached cases, including API calls.
@@ -175,14 +173,14 @@ class RescueBoard:
 
         :param create: Whether to create a case that's not found.  Even if True, this only applies for certain types of
         searches.
-        :return: The case (if found or created), or None if no case was found.
+        :return: A FindRescueResult tuple of (rescue, created), both of which will be None if no case was found.
 
         If `int(search)` does not raise, `search` is treated as a boardindex.  This will never create a case.
 
         Otherwise, if `search` begins with `"@"`, it is treated as an ID from the API.  This will never create a case.
 
         Otherwise, `search` is treated as a client nickname or a commander name (in that order).  If this still does
-        not have a result, a new case is returned (if `create` is True), otherwise returns None.
+        not have a result, a new case is returned (if `create` is True).
         """
         try:
             if search and isinstance(search, str) and search[0] == '#':
@@ -192,23 +190,25 @@ class RescueBoard:
         except ValueError:
             pass
         else:
-            return self.indexes['boardindex'].get(index, None)
+            rescue = self.indexes['boardindex'].get(index, None)
+            return FindRescueResult(rescue, False if rescue else None)
 
         if not search:
-            return None
+            return None, None
 
         if search[0] == '@':
-            return self.indexes['id'].get(search[1:], None)
+            rescue = self.indexes['id'].get(search[1:], None),
+            return FindRescueResult(rescue, False if rescue else None)
 
-        result = self.indexes['clientnick'].get(search.lower()) or self.indexes['clientcmdr'].get(search.lower())
-        if result or not create:
-            return result
+        rescue = self.indexes['clientnick'].get(search.lower()) or self.indexes['clientcmdr'].get(search.lower())
+        if rescue or not create:
+            return FindRescueResult(rescue, False if rescue else None)
 
         rescue = Rescue()
         rescue.client['CMDRname'] = search
         rescue.client['nickname'] = search
         self.add(rescue)
-        return rescue
+        return FindRescueResult(rescue, True)
 
     @property
     def rescues(self):
@@ -226,11 +226,14 @@ class Rescue(TrackedBase):
     rats = SetProperty(default=lambda: set())
     unidentifiedRats = SetProperty(default=lambda: set())
     quotes = ListProperty(default=lambda: [])
-    platform = TrackedProperty(default='pc')
+    platform = TrackedProperty(default='unknown')
     open = TypeCoercedProperty(default=True, coerce=bool)
     epic = TypeCoercedProperty(default=False, coerce=bool)
     codeRed = TypeCoercedProperty(default=False, coerce=bool)
     client = DictProperty(default=lambda: {})
+    system = TrackedProperty(default=None)
+    successful = TypeCoercedProperty(default=None, coerce=bool)
+    epic = TypeCoercedProperty(default=False, coerce=bool)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -306,6 +309,7 @@ class Rescue(TrackedBase):
         else:
             return "<unknown client>"
 
+
 def refresh_cases(bot, rescue=None):
     """
     Grab all open cases from the API so we can work with them.
@@ -356,6 +360,9 @@ def refresh_cases(bot, rescue=None):
 def save_case(bot, rescue):
     """
     Begins saving changes to a case.  Returns the future.
+
+    :param bot: Bot instance
+    :param rescue: Rescue to save.
     """
     with rescue.change():
         data = rescue.save(full=(rescue.id is None))
@@ -379,53 +386,248 @@ def save_case(bot, rescue):
     return bot.memory['ratbot']['queue'].submit(task)
 
 
-def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_platform=True):
+def save_case_later(bot, rescue, message=None, timeout=10):
+    """
+    Schedules a case to be saved and waits up to timeout seconds for a result.  Outputs message as a notice if the
+    timeout expires.
+
+    :param bot: Bot instance.
+    :param rescue: Rescue to save
+    :param message: Timeout message.  Determined automagically if None.
+    :param timeout: Timeout.
+    :return:
+    """
+    future = save_case(bot, rescue)
+    try:
+        result = future.result(timeout=timeout)
+    except concurrent.futures.TimeoutError:
+        if message is None:
+            message = (
+                "API is still not done updating case for ({rescue.client_name}}; continuing in background."
+                .format(rescue=rescue)
+            )
+        bot.notice(message)
+    return result
+
+
+class AppendQuotesResult:
+    """
+    Result information from append_quotes
+    """
+    def __init__(self, rescue=None, created=False,
+                 added_lines=None, autocorrected=False, detected_platform=None, detected_system=None
+                 ):
+        """
+        Creates a new AppendQuotesResult
+
+        :param rescue: The rescue that was found/created, or None if no such rescue.
+        :param created: True if the rescue was freshly created.
+        :param added_lines: Lines that were added to the new case after any relevant transformations.
+        :param autocorrected: True if system name autocorrection triggered.
+        :param detected_platform: Set to the detected platform, or False if no platform was detected.
+        :param detected_system: Set to the detected system, or False if no system was detected.
+        """
+        self.rescue = rescue
+        self.created = created
+        self.added_lines = added_lines or []
+        self.autocorrected = autocorrected
+        self.detected_platform = detected_platform
+        self.detected_system = detected_system
+
+    def __bool__(self):
+        return self.rescue is not None
+
+    def tags(self):
+        """Convenience method."""
+        if not self:
+            return []
+        rv = ["Case " + str(self.rescue.boardindex)]
+        if self.detected_platform:
+            rv.append(self.detected_platform.upper())
+        if self.detected_system:
+            rv.append(self.detected_system)
+        if self.autocorrected:
+            rv.append("Autocorrected")
+        return rv
+
+
+
+def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_platform=True, detect_system=True):
     """
     Appends lines to a (possibly newly created) case.  Returns a tuple of (Rescue, appended_lines).
 
     If autocorrect is True, performs system autocorrection first.  In this case, appended_lines may not match the input.
     :param bot: IRC bot handle.
-    :param search: Client name, case ID, boardindex, or a Rescue object.
+    :param search: Client name, case ID, boardindex, a Rescue object, or a FindRescueResult.
     :param lines: Line(s) to append.  If this is a string it is coerced to a list of strings.
     :param autocorrect: Whether to perform system autocorrection.
     :param create: Whether this is allowed to create a new case.  Passed to `Board.find()`
     :param detect_platform: If True, attempts to parse a platform out of the first line.
-    :return:
+    :param detect_system: If True, attempts system name autodetection.  (Not Yet Implemented)
+    :return: A AppendQuotesResult representing the actions that happened.
     """
+    rv = AppendQuotesResult()
+    if isinstance(search, Rescue):
+        rv.rescue = search
+        rv.created = False
+    elif isinstance(search, FindRescueResult):
+        rv.rescue = search.rescue
+        rv.created = search.created
+    else:
+        rv.rescue, rv.created = bot.memory['ratbot']['board'].find(search, create=create)
+    if not rv:
+        return rv
+
     if isinstance(lines, str):
         lines = [lines]
     if autocorrect:
-        newlines = []
+        rv.added_lines = []
         for line in lines:
             result = correct(line)
-            newlines.append(result.output)
+            rv.added_lines.append(result.output)
             if result.fixed:
+                rv.autocorrected = True
                 originals = ", ".join('"...{name}"'.format(name=system) for system in result.corrections)
                 if result.fixed > 1:
-                    newlines.append("[Autocorrected system names, originals were {}]".format(originals))
+                    rv.added_lines.append("[Autocorrected system names, originals were {}]".format(originals))
                 else:
-                    newlines.append("[Autocorrected system name, original was {}]".format(originals))
+                    rv.added_lines.append("[Autocorrected system name, original was {}]".format(originals))
     else:
-        newlines = lines  # No alterations
+        rv.added_lines = lines
 
-    if isinstance(search, Rescue):
-        rescue = search
-    else:
-        rescue = bot.memory['ratbot']['board'].find(search, create=create)
-    if not rescue:
-        return None
-    if detect_platform and not rescue.quotes:
+    if detect_platform and rv.rescue.platform == 'unknown':
         platforms = set()
-        for line in lines:
-            if re.search(r'\bpc\b', line, flags=re.IGNORECASE):
+        for line in rv.added_lines:
+            if re.search(
+                r"""
+                (?:[^\w-]|\A)  # Beginning of line, or non-hyphen word boundary
+                pc             # ... followed by "PC"
+                (?:[^\w-]|\Z)  # End of line, or non-hyphen word boundary
+                """, line, flags=re.IGNORECASE | re.VERBOSE
+            ):
                 platforms.add('pc')
-            if re.search(r'\bxb(ox|one|1)?\b', line, flags=re.IGNORECASE):
+
+            if re.search(
+                r"""
+                (?:[^\w-]|\A)  # Beginning of line, or non-hyphen word boundary
+                xb(?:ox)?      # ... followed by "XB" or "XBOX"
+                (?:-?(?:1|one))?  # ... maybe followed by 1/one, possibly w/ leading hyphen
+                (?:[^\w-]|\Z)  # End of line, or non-hyphen word boundary
+                """, line, flags=re.IGNORECASE | re.VERBOSE
+            ):
                 platforms.add('xb')
         if len(platforms) == 1:
-            rescue.platform = platforms.pop()
+            rv.rescue.platform = platforms.pop()
+            rv.detected_platform = rv.rescue.platform
 
-    rescue.quotes.extend(newlines)
-    return rescue, newlines
+    if detect_system and rv.rescue.system is None:
+        # Not Yet Implemented
+        pass
+
+    rv.rescue.quotes.extend(rv.added_lines)
+    return rv
+
+
+class UsageError(ValueError):
+    pass
+
+
+def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
+    """
+    Returns a decorator that wraps a function into a structure that's easier to work with in commands.
+    Works around some issues with Sopel's argument parsing and makes things much more convenient.
+
+    :param params: Sequence of parameter types to parse.
+    :param usage: Usage instructions displayed on error.  Automatically prepended by "Usage: <command name>"
+    :param split: Function accepting (string, maxsplit) and returning the split string.
+
+    The first two arguments to the wrapped function will be 'bot' and 'trigger' as normal.  Additional arguments will
+    be added on based on splitting the trigger text into words and mapping them against the characters appearing in
+    'params', as follows:
+
+    'r': Parameter will be the case found by board.find(..., create=False).  Outputs an error message instead of
+    calling the wrapped function if the case is not found.
+    'R': As above, but the case can be created.
+    'f': Like 'r', but the parameter will be the entire find() result tuple (rescue, created)
+    'F': Like 'R', but the parameter will be the entire find() result tuple (rescue, created)
+    'w': Parameter will be a single word.
+
+    The following must be the final parameter if they are present:
+    '*': Produces one parameter for each word remaining in the line.
+    '+': Produces one parameter for each word remaining in the line, which must be at least one word.
+    't': Parameter will be the entire remainder of the line.
+    'T': As per 't', but extraneous whitespace is removed.
+
+    Any remaining 'words' in the argument will be passed to the wrapped function as additional parameters, as params
+    contained enough 'w's to pad to the end of the argument list.
+
+    If the resulting call does not match the function signature, usage instructions are displayed instead.  These usage
+    instructions can also be displayed by raising UsageError() from the wrapped function.
+
+    Optional parameters can be specified by making them optional on the function call itself (e.g. by assigning
+    default values)
+    """
+
+    # Input validation
+    maxsplit = 0
+    if len(params):
+        result = re.search(r'[tT*+]', params[:-1])
+        if result:
+            raise ValueError("{!r} must be the last parameter if it is present.", result.group(0))
+        if params[-1] in 'tT':
+            maxsplit = len(params) - 1
+            if not maxsplit:
+                # Only accepts one parameter and it's t/T?
+                # We can't use the normal split mechanics, because they treat maxsplit=0 as unlimited splits.  So
+                # replace the split function with a dummy instead.
+                split = lambda x, maxsplit: [x] if x else []
+        result = re.search(r'[^rRfFwtT*+]', params)
+        if result:
+            raise ValueError("{!r} is an unknown parameter type.".format(result.group(0)))
+
+    def decorator(fn):
+        sig = inspect.signature(fn)
+
+        @functools.wraps(fn)
+        def wrapper(bot, trigger):
+            args = []
+            if trigger.group(2) is not None:
+                for param, value in itertools.zip_longest(params, split(trigger.group(2), maxsplit), fillvalue=None):
+                    if param == '+' and value is None:
+                        raise UsageError()
+                    if value is None:
+                        break
+                    if param in 'rRfF':
+                        value = bot.memory['ratbot']['board'].find(value, create=param in 'RF')
+                        if not value[0]:
+                            return bot.reply('Could not find a case with that name or number.')
+                        if param in 'rR':
+                            value = value[0]
+                    # 'w' and 't' don't require any special handling, the split takes care of them.
+                    # '*' doesn't require any special handling, it's just syntactic sugar.
+                    # '+' already had its special handling done.
+                    if param == 'T':
+                        value = value.strip()
+                    args.append(value)
+            try:
+                try:
+                    bound = sig.bind(bot, trigger, *args)
+                except TypeError:
+                    raise UsageError()
+                else:
+                    return fn(*bound.args, **bound.kwargs)
+            except UsageError:
+                if usage is None:
+                    return bot.reply("Incorrect format for command {}".format(trigger.group(1)))
+                else:
+                    return bot.reply("Usage: {} {}".format(trigger.group(1), usage))
+        return wrapper
+    return decorator
+
+
+# Convenience function
+def requires_case(fn):
+    return parameterize('r', "<client or case number>")(fn)
 
 
 @rule('.*')
@@ -452,47 +654,36 @@ def rule_history(bot, trigger):
     return NOLIMIT  #This should NOT trigger rate limit, EVER.
 
 
-@rule(r'\s*(ratsignal)(.*)')
+@rule(r'\s*(ratsignal|testsignal)(.*)')
 @priority('high')
 @ratlib.sopel.filter_output
 def rule_ratsignal(bot, trigger):
     """Light the rat signal, somebody needs fuel."""
     line = trigger.group()
     client = Identifier(trigger.nick)
-    rescue, lines = append_quotes(bot, trigger.nick, [line], create=True)
+    result = append_quotes(bot, trigger.nick, [line], create=True)
     bot.say(
-        "Received RATSIGNAL from {nick}.  Calling all available rats!  (Case {index})"
-        .format(nick=trigger.nick, index=rescue.boardindex if rescue else "<unknown>")
+        "Received RATSIGNAL from {nick}.  Calling all available rats!  ({tags})"
+        .format(nick=trigger.nick, tags=", ".join(result.tags()) if result else "<unknown>")
     )
     bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
-    future = save_case(bot, rescue)
-    try:
-        result = future.result(timeout=10)
-    except concurrent.futures.TimeoutError:
-        bot.notice(
-            "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick)
-        )
+    save_case_later(
+        bot, result.rescue,
+        "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick)
+    )
 
 
 @commands('quote')
 @ratlib.sopel.filter_output
-def cmd_quote(bot, trigger):
+@requires_case
+def cmd_quote(bot, trigger, rescue):
     """
-    Recite all case information
-    required parameters: client name.
+    Recites all known information for the specified rescue
+    Required parameters: client name or case number.
     """
-    if trigger.group(3) is None:
-        return bot.reply('Usage: {} <client or case number>'.format(trigger.group(1)))
-
-    # TODO: Start attempted case refresh here.
-    # ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
-    rescue = bot.memory['ratbot']['board'].find(trigger.group(3), create=False)
-    if not rescue:
-        return bot.reply('Could not find a case with that name or number.')
-
     datefmt = "%b %d %H:%M:%S UTC"
+    tags = ['unknown platform' if not rescue.platform or rescue.platform == 'unknown' else rescue.platform.upper()]
 
-    tags = [rescue.platform.upper() if rescue.platform else 'unknown platform']
     if rescue.epic:
         tags.append("epic")
     if rescue.codeRed:
@@ -520,37 +711,26 @@ def cmd_quote(bot, trigger):
 
 @commands('clear', 'close')
 @ratlib.sopel.filter_output
-def cmd_clear(bot, trigger):
+@requires_case
+def cmd_clear(bot, trigger, rescue):
     """
     Mark a case as closed.
-    required parameters: client name.
+    Required parameters: client name or case number.
     """
-    if trigger.group(3) is None:
-        return bot.reply('Usage: {} <client or case number>'.format(trigger.group(1)))
-
-    board = bot.memory['ratbot']['board']
-    # TODO: Start attempted case refresh here.
-    # ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
-    rescue = board.find(trigger.group(3), create=False)
-    if not rescue:
-        return bot.reply('Could not find a case with that name or number.')
-
     rescue.open = False
     rescue.active = False
-    future = save_case(bot, rescue)
-    with board:
-        board.remove(rescue)
-    bot.reply("Cleared case {0.boardindex} ({0.client_names}).".format(rescue))
-
-    try:
-        result = future.result(timeout=10)
-    except concurrent.futures.TimeoutError:
-        bot.notice("API is still not done with clearing case {!r}; continuing in background.".format(trigger.group(3)))
+    # FIXME: Should have better messaging
+    bot.say("Case {rescue.client_name} is cleared".format(rescue=rescue))
+    save_case_later(
+        bot, rescue,
+        "API is still not done with clearing case {!r}; continuing in background.".format(trigger.group(3))
+    )
 
 
 @commands('list')
 @ratlib.sopel.filter_output
-def cmd_list(bot, trigger):
+@parameterize('w', usage="[-i@]")
+def cmd_list(bot, trigger, params=''):
     """
     List the currently active, open cases.
 
@@ -558,7 +738,6 @@ def cmd_list(bot, trigger):
         -i: Also show inactive (but still open) cases.
         -@: Show full case IDs.  (LONG)
     """
-    params = trigger.group(3)
     if not params or params[0] != '-':
         params = '-'
 
@@ -566,7 +745,6 @@ def cmd_list(bot, trigger):
     show_inactive = 'i' in params
 
     board = bot.memory['ratbot']['board']
-    pool = bot.memory['ratbot']['queue']
 
     def _keyfn(rescue):
         return not rescue.codeRed, rescue.boardindex
@@ -605,16 +783,13 @@ def cmd_list(bot, trigger):
 
 @commands('grab')
 @ratlib.sopel.filter_output
-def cmd_grab(bot, trigger):
+@parameterize('w', usage='<client name>')
+def cmd_grab(bot, trigger, client):
     """
     Grab the last line the client said and add it to the case.
     required parameters: client name.
     """
-    if trigger.group(3) is None:
-        return bot.reply('I need a case name to grab to.')
-
-    client = Identifier(trigger.group(3))
-
+    client = Identifier(client)
     lock, log = bot.memory['ratbot']['log']
     with lock:
         line = log.get(client)
@@ -624,79 +799,66 @@ def cmd_grab(bot, trigger):
         # After all, why make a case with no information?
         return bot.reply(client + ' has not spoken recently.')
 
-    rescue, lines = append_quotes(bot, client, line, create=True)
-    created = len(lines) == len(rescue.quotes)  # Dirty hack for now
-    future = save_case(bot, rescue)
+    result = append_quotes(bot, client, line, create=True)
+    if not result:
+        return bot.reply("Case was not found and could not be created.")
 
-    if created:
-        fmt = "{rescue.client_name}'s case opened with: \"{line}\"  (Case {rescue.boardindex})"
-    else:
-        fmt = "{rescue.client_name}'s case updated with: \"{line}\"  (Case {rescue.boardindex})"
-    bot.say(fmt.format(rescue=rescue, line=lines[0]))
-    try:
-        result = future.result(timeout=10)
-    except concurrent.futures.TimeoutError:
-        bot.notice(
-            "API is still not done with grab for {rescue.client_name}}; continuing in background.".format(rescue=rescue)
+    bot.say(
+        "{rescue.client_name}'s case {verb} with: \"{line}\"  ({tags})"
+        .format(
+            rescue=result.rescue, verb='opened' if result.created else 'updated', tags=", ".join(result.tags()),
+            line=result.added_lines[0]
         )
+    )
+    save_case_later(
+        bot, result.rescue,
+        "API is still not done with grab for {rescue.client_name}}; continuing in background.".format(rescue=rescue)
+    )
 
 
+@ratlib.sopel.filter_output
 @commands('inject')
-def cmd_inject(bot, trigger):
+@parameterize('FT', usage='<client or case number> <text to add>')
+def cmd_inject(bot, trigger, find_result, line):
     """
     Inject a custom line of text into the client's case.
-    required parameters: client name, text to inject.
+    required parameters: Client name or case number, quote to add.
     """
-    parts = re.split(r'\s+', trigger.group(2) or '', 1)
-    if len(parts) != 2:
-        return bot.reply('Usage: {} <client or case number> <text of message>'.format(trigger.group(1)))
-    client, line = parts
-    rescue, lines = append_quotes(bot, client, line, create=True)
+    if not line:
+        raise UsageError()
+    result = append_quotes(bot, find_result, line, create=True)
 
-    created = len(lines) == len(rescue.quotes)  # Dirty hack for now
-    future = save_case(bot, rescue)
-
-    if created:
-        fmt = "Created case for {rescue.client_name}.  (Case {rescue.boardindex})"
-    else:
-        fmt = "Added line to {rescue.client_name}.  (Case {rescue.boardindex})"
-    bot.reply(fmt.format(rescue=rescue))
-    try:
-        result = future.result(timeout=10)
-    except concurrent.futures.TimeoutError:
-        bot.notice(
-            "API is still not done with inject for {rescue.client_name}}; continuing in background.".format(rescue=rescue)
+    bot.reply(
+        "{rescue.client_name}'s case {verb} with: \"{line}\"  ({tags})"
+        .format(
+            rescue=result.rescue, verb='opened' if result.created else 'updated', tags=", ".join(result.tags()),
+            line=result.added_lines[0]
         )
+    )
+
+    save_case_later(
+        bot, result.rescue,
+        "API is still not done with inject for {rescue.client_name}}; continuing in background.".format(rescue=rescue)
+    )
 
 
 @commands('sub')
-def cmd_sub(bot, trigger):
+@ratlib.sopel.filter_output
+@parameterize('rwT', usage='<client or case number> <line number> [<replacement text>]')
+def cmd_sub(bot, trigger, rescue, lineno, line=None):
     """
-    Substitute or delete an existing line of text to the client's case.
-    required parameters: client name, line number.
-    optional parameter: new text
+    Substitute or delete an existing line of text to the client's case.  Does not perform autocorrection/autodetection
+    required parameters: client name or case number, line number
+    optional parameter: replacement text
     """
-    parts = re.split(r'\s+', trigger.group(2) or '', 2)
-    if len(parts) < 2:
-        return bot.reply('Usage: {} <client or case number> <line> [<replacement>]'.format(trigger.group(1)))
-    line = None
-    if len(parts) == 3:
-        line = parts.pop()
-    client, lineno = parts
     try:
         lineno = int(lineno)
     except ValueError:
         return bot.reply('Line number must be an integer.')
     if lineno < 0:
         return bot.reply('Line number cannot be negative.')
-
-    board = bot.memory['ratbot']['board']
-    rescue = board.find(client, create=False)
-    if not rescue:
-        return bot.reply("No such case.")
     if lineno >= len(rescue.quotes):
         return bot.reply('Case only has {} line(s)'.format(len(rescue.quotes)))
-
     if not line:
         rescue.quotes.pop(lineno)
         bot.reply("Deleted line {}".format(lineno))
@@ -704,192 +866,100 @@ def cmd_sub(bot, trigger):
         rescue.quotes[lineno] = line
         bot.reply("Updated line {}".format(lineno))
 
-    future = save_case(bot, rescue)
-    try:
-        result = future.result(timeout=10)
-    except concurrent.futures.TimeoutError:
-        bot.notice(
-            "API is still not done updating case for ({rescue.client_name}}; continuing in background.".format(rescue=rescue)
-        )
+    save_case_later(bot, rescue)
 
 
 @commands('active', 'activate', 'inactive', 'deactivate')
-def cmd_active(bot, trigger):
+@ratlib.sopel.filter_output
+@requires_case
+def cmd_active(bot, trigger, rescue):
     """
     Toggle a case active/inactive
     required parameters: client name.
     """
-    if trigger.group(3) is None:
-        return bot.reply('I need a case name to set (in)active.')
-    board = bot.memory['ratbot']['board']
-    rescue = board.find(trigger.group(3), create=False)
-    if rescue is None:
-        return bot.reply('No such case.')
     rescue.active = not rescue.active
-
-    future = save_case(bot, rescue)
-    try:
-        result = future.result(timeout=10)
-    except concurrent.futures.TimeoutError:
-        bot.notice(
-            "API is still not done updating case for ({rescue.client_name}}; continuing in background.".format(rescue=rescue)
-        )
-    return bot.say(
-        "{rescue.client_name}'s case is now {active}".format(rescue=rescue, active=bold('active' if a else 'inactive'))
+    bot.say(
+        "{rescue.client_name}'s case is now {active}".format(rescue=rescue, active=bold('active' if rescue.active else 'inactive'))
     )
+    save_case_later(bot, rescue)
+
 
 @commands('assign', 'add', 'go')
-def addRats(bot, trigger):
+@ratlib.sopel.filter_output
+@parameterize('r+', usage="<client or case number> <rats...>")
+def cmd_assign(bot, trigger, rescue, *rats):
     """
     Assign rats to a client's case.
     required parameters: client name, rat name(s).
     """
-    # I need at least 2 parameters
-    if trigger.group(4) == None:
-        return bot.reply('I need a case and at least 1 rat name.')
-
-    # Does this client exist?
-    client, caseID = getID(bot, trigger.group(3))
-    if caseID == None:
-        return bot.reply('Case not found.')
-
-    # List of rats
-    rats = trigger.group(2)[len(trigger.group(3))+1:].split(' ')
-    newrats = rats[:]
-
-    # Grab the current rats
-    try:
-        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
-        ret = ans['data']
-    except APIError as ex:
-        return bot.reply(str(ex))
-    webrats = ret['rats']
-
-    # Add the current rats to the list of new rats.
-    for rat in webrats:
-        # Don't allow empty names.
-        if len(rat.strip()) < 1:
-            continue
-        # Don't allow duplicates.
-        if rat not in rats:
-            rats.append(rat)
-
-    # Upload new list.
-    query = dict(rats=rats)
-    try:
-        ret = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-        # Success
-        bot.say('Added "{0}" to {1}\'s case.'.format(line, client))
-    except APIError as ex:
-        bot.reply(str(ex))
-    return bot.say(client+', Please add the following rat(s) to your friends list: '+', '.join(newrats))
+    rescue.rats |= set(rats)
+    bot.say(
+        "{rescue.client_name}: Please add the following rat(s) to your friends list: {rats}"
+        .format(rescue=rescue, rats=", ".join(rats))
+    )
+    save_case_later(bot, rescue)
 
 
-@commands('unassign', 'rm', 'remove', 'stdn', 'standdown')
-def rmRats(bot, trigger):
+@commands('unassign', 'deassign', 'rm', 'remove', 'standdown')
+@ratlib.sopel.filter_output
+@parameterize('r+', usage="<client or case number> <rats...>")
+def cmd_unassign(bot, trigger, rescue, *rats):
     """
     Remove rats from a client's case.
     """
-    # I need at least 2 parameters
-    if trigger.group(4) == None:
-        return bot.reply('I need a case and at least 1 rat name.')
-
-    # Does this client exist?
-    client, caseID = getID(bot, trigger.group(3))
-    if caseID == None:
-        return bot.reply('Case not found.')
-
-    removedRats = trigger.group(2)[len(trigger.group(3))+1:].split(' ')
-    try:
-        ans = callAPI(bot, 'GET', 'api/rescues/'+caseID)
-        ret = ans['data']
-    except APIError as ex:
-        return bot.reply(str(ex))
-
-    rats = ret['rats']
-
-    for rat in removedRats:
-        if len(rat.strip()) < 1:
-            # Empty rats
-            removedRats.remove(rat)
-            continue
-        try:
-            rats.remove(rat)
-        except ValueError:
-            # This rat wasn't assigned here in the first place!
-            continue
-
-    query = dict(rats=rats)
-    try:
-        ans = callAPI(bot, 'PUT', 'api/rescues/'+caseID, query)
-        ret = ans['data']
-    except APIError as ex:
-        return bot.reply(str(ex))
-
-    return bot.say(
-        'Removed rats from {0}\'s case: {1}'.format(
-            client, ', '.join(removedRats)))
+    rescue.rats -= set(rats)
+    bot.say(
+        "Removed from {rescue.client_name}'s case: {rats}"
+        .format(rescue=rescue, rats=", ".join(rats))
+    )
+    save_case_later(bot, rescue)
 
 
 @commands('codered', 'casered', 'cr')
-def cmd_codered(bot, trigger):
+@ratlib.sopel.filter_output
+@requires_case
+def cmd_codered(bot, trigger, rescue):
     """
     Toggles the code red status of a case.
     A code red is when the client is so low on fuel that their life support
     system has failed, indicated by the infamous blue timer on their HUD.
     """
-    if trigger.group(3) is None:
-        return bot.reply('I need a case name to set (in)active.')
-    board = bot.memory['ratbot']['board']
-    rescue = board.find(trigger.group(3), create=False)
-    if rescue is None:
-        return bot.reply('No such case.')
     rescue.codeRed = not rescue.codeRed
-    future = save_case(bot, rescue)
-    try:
-        result = future.result(timeout=10)
-    except concurrent.futures.TimeoutError:
-        bot.notice(
-            "API is still not done updating case for ({rescue.client_name}}; continuing in background.".format(rescue=rescue)
-        )
     if rescue.codeRed:
-        bot.say('CODE RED! {rescue.client_name} is on emergency oxygen.'.format(rescue=rescue))
+        bot.say('CODE RED! {rescue.client_name} is on emergency oxygen.'.format(rescue=rescue), transform=False)
         if rescue.rats:
-            bot.say(", ".join(rats) + ": This is your case!")
+            bot.say(", ".join(rescue.rats) + ": This is your case!")
     else:
         bot.say('{rescue.client_name}\'s case is no longer CR.'.format(rescue=rescue))
 
+    save_case_later(bot, rescue)
 
-def cmd_platform(bot, trigger, platform=None):
+
+def cmd_platform(bot, trigger, rescue, platform=None):
     """
     Sets a case platform to PC or xbox.
     """
-    if trigger.group(3) is None:
-        return bot.reply('I need a case name to set (in)active.')
-    board = bot.memory['ratbot']['board']
-    rescue = board.find(trigger.group(3), create=False)
-    if rescue is None:
-        return bot.reply('No such case.')
-
     rescue.platform = platform
-    future = save_case(bot, rescue)
-    try:
-        result = future.result(timeout=10)
-    except concurrent.futures.TimeoutError:
-        bot.notice(
-            "API is still not done updating platform for ({rescue.client_name}}; continuing in background.".format(rescue=rescue)
-        )
-    return bot.say(
+    bot.say(
         "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
+    )
+    save_case_later(
+        bot, rescue,
+        (
+            "API is still not done updating platform for ({rescue.client_name}}; continuing in background."
+            .format(rescue=rescue)
+        )
     )
 
 
 # For some reason, this can't be tricked with functools.partial.
 @commands('pc')
-def cmd_platform_pc(bot, trigger):
-    return cmd_platform(bot, trigger, 'pc')
+@requires_case
+def cmd_platform_pc(bot, trigger, rescue):
+    return cmd_platform(bot, trigger, rescue, 'pc')
 
 
-@commands('xbox', 'xb', 'xb1', 'xbone')
-def cmd_platform_xb(bot, trigger):
-    return cmd_platform(bot, trigger, 'xb')
+@commands('xb(?:ox)?(?:-(?:1|one))?')
+@requires_case
+def cmd_platform_xb(bot, trigger, rescue):
+    return cmd_platform(bot, trigger, rescue, 'xb')

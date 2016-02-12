@@ -332,12 +332,22 @@ class InstrumentedSet(EventEmitter, set):
 
     @EventEmitter.emits(EventEmitter.CHANGED)
     def update(self, *iterables):
-        logged = None
         items = itertools.chain(*iterables)
         if not self.replace:
-            logged, items = itertools.tee(items, n=2)
-            self.changes.update((item, True) for item in logged)
-        return super().extend(items)
+            copy, items = itertools.tee(items, 2)
+            self.changes.update((item, True) for item in copy)
+        return super().update(items)
+
+    def __ior__(self, other):
+        self.update(other)
+        return self
+
+    @EventEmitter.emits(EventEmitter.CHANGED)
+    def __isub__(self, other):
+        if not self.replace:
+            copy, other = itertools.tee(other, 2)
+            self.changes.update((item, False) for item in copy)
+        return super().__isub__(other)
 
     @EventEmitter.emits(EventEmitter.CHANGED)
     def discard(self, item):
@@ -352,7 +362,8 @@ class InstrumentedSet(EventEmitter, set):
         if not self.replace:
             self.changes[item] = False
         return result
-for attr in "__iand__ __ior__ __isub__ __ixor__ clear difference_update intersection_update symmetric_difference_update pop".split(" "):
+
+for attr in "__iand__ __ixor__ clear difference_update intersection_update symmetric_difference_update pop".split(" "):
     make_wrapper(InstrumentedSet, attr, InstrumentedSet._notify)
 
 
