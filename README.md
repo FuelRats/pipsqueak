@@ -42,31 +42,50 @@ downloaded from EDSM, if no list present this will fail.
 
 # rat-board.py
 ## Commands
+
+*ref* in the below table refers to a reference to a case.  This can be: the client's nickname, the client's CMDR name (if known), a case number, or a case API ID (beginning with an `@`-sign)
+
+Commands that add quotes to a case will create a new case when *ref* looks like a nickname or CMDR name and no active case can be found.  
+ 
 Command | Parameters | Explanation
 --- | --- | ---
-`quote` | Nick | Recites all information on `Nick`'s case.
-`clear`/`close` | Nick | Mark `Nick`'s case as closed.
+`quote` | *ref* | Recites all information on `Nick`'s case.
+`clear`/`close` | *ref* | Mark the referenced case as closed.
 `list` | | List the currently active cases.
  | -i | Also list open, inactive cases.
-`grab` | Nick | Grabs the last message `Nick` said and add it to their case.
-`inject` | Nick, message | Injects a custom message into a nick's grab list
-`sub` | Nick, index, [message] | Substitute or delete line `index` to the `Nick`'s case.
-`active`| Nick | Toggle `Nick`'s case active/inactive.
-`assign`| Nick, rats   | Assigns `rats` to `Nick`'s case.
-`codered` / `cr` | Nick | Toggle the code red status of `Nick`'s case.
-`pc` | Nick | Set `nick`'s case to be in the PC universe.
-`xbox`/`xb`/`xb1`/`xbone`| Nick | Set `nick`'s case to be in the Xbox One universe.
-
-## Config
-Name | Purpose | Example
---- | --- | ---
-urlapi | Determining the host at which the API is hosted. | http://api.fuelrats.com/
+ | -@ | Show API IDs in the list in addition to case numbers.
+`grab` | Nick | Grabs the last message `Nick` said and add it to their case, creating one if it didn't already exist.
+`inject` | *ref*, message | Injects a custom message into the referenced case's quotes.  Creates the case if it doesn't already exist.
+`sub` | *ref*, index, [message] | Substitute or delete line `index` to the referenced case.
+`active`/`activate`/`inactive`/`deactivate`| *ref* | Toggle the referenced case between inactive and active.  Despite the command names, all of these perform the same action (e.g. `deactivate` will happily re-activate an inactive case) 
+`assign`/`add`/`go` | *ref*, rats... | Assigns `rats` to the referenced case.  Separate rats with spaces.
+`unassign`/`deassign`/`rm`/`remove`/`standdown` | *ref*, rats... | Removes `rats` from the referenced case if they were assigned to it.
+`cr`/`codered`/`casered` | *ref* | Toggle the code red status of the referenced case.
+`pc` | *ref* | Sets the referenced case to be in the PC universe.
+`xbox`/`xb`/`xb1`/`xbone`/`xbox1` | *ref* | Set the referenced case to be in the Xbox One universe.
 
 ## Detailed module information
 pipsqueak includes a tool to keep track of the current board of rescues, called 'cases'.
 
 Every message that starts with the word 'ratsignal' (case insensitive) is
 automatically used to create a new case.
+
+## Bonus Features
+
+Ratsignals and lines added with `inject` perform some behind-the-scenes magic when they add lines to a case:
+
+- If the system coordinates trigger System Name Autocorrection, the system name is automatically corrected and an
+  additional line is added to the case indicating the correction.  This fixes simple cases of accidental letter/number 
+  substitution in procedurally-generated system names, but does not otherwise guarantee the system name is correct.
+- If the platform is unknown and a new line contains 'PC' as a whole word somewhere, the platform is automatically set
+  to PC.  If a new line contains XB, XBox, XB1, Xbone, XboxOne, Xbox1, XB-1, or any of several other variations, the
+  platform is automatically set to XBox.  If a line matches both the PC and XBox patterns, the platform is unchanged.
+
+In all situations where this magic occurs, the bot' confirmation message will tell you about it.  For instance, a new
+case where the system name was corrected and platform autodetected will end with something like 
+`(Case 4, autocorrected, XB)`
+
+`sub` does *not* perform any of this magic, and may be used to correct the bot in the unlikely case of false positives.
 
 # rat-facts.py
 
@@ -81,21 +100,19 @@ Command | Parameters | Explanation
 
 ## Privileged Commands
 Commands listed here are only usable if you have halfop or op on any channel the bot is joined to.
-You need not be in that channel when you send the command.
+You do not need to send the command from that channel, but must be currently joined to it.
 
 Command | Parameters | Explanation
 --- | --- | ---
 `fact` / `facts` | (add|set) *fact*-*lang* *message* | Adds a new fact to the database, replacing the old version if it already existed.
 `fact` / `facts` | (del[ete]|remove) set *fact*-*lang* | Deletes a fact from the database.
-`fact` / `facts` | rescan | Updates the bot's cached knowledge of known facts and languages.  Only needed if the database is modified externally while the bot is running.
 `fact` / `facts` | import | Tells the bot to (re)import legacy JSON files into the database.  This will not overwrite existing facts.
 
 ## Config
 Name | Purpose | Example
 --- | --- | ---
 filename | the name (and absolute path) to the JSON file containing the facts, or a directory containing .json files.  Any files found will be imported to the database on startup | /home/pipsqueak/facts.json
-table | Name of the table in Sopel's SQLite database that facts will be stored in. | ratfacts
-language | Comma-separated list of languages to search for facts when no language specifier is present. | en,es,de,ru
+lang | Comma-separated list of languages to search for facts when no language specifier is present. | en,es,de,ru
 
 ## Detailed module information
 Scans incoming message that start with ! for keywords specified in the database and replies with the appropriate response.  Also allows online editing of facts.
@@ -105,7 +122,7 @@ If the language search order is "en,es":
 * `!xwing-es`: Searches for the 'xwing' fact in Spanish first.  If this fails, falls back to the default search order.
 * `!xwing-ru`: Searches for the 'xwing' fact in Russian first.  If this fails, falls back to the default search order.
 
-When adding or deleting facts the full fact+language specifier must be used (`xwing-en` rather than `xwing`)
+When adding or deleting facts the full fact+language specifier must be used (`xwing-en` rather than `xwing`).  `fact` will tell you this if you forget.
 
 # rat-drill.py
 ## Commands

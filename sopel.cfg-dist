@@ -34,10 +34,23 @@ log_raw = True
 ## Common configuration to all rat modules.
 # If running sopel in a read-only location, make sure it has write access to workdir
 workdir = run
+
+## Development API
 apiurl = http://dev.api.fuelrats.com
+## Production API
+# apiurl = http://dev.api.fuelrats.com
 
-[ratboard]
+## Configuration file for Alembic (used for schema migrations)
+alembic = alembic.ini
 
+## Uncomment this to make SQLAlchemy echo lots of noise.
+# debug_sql = true
 
 [ratfacts]
+## Filename or directory that will be searched for facts to add to the database on startup.
+## This will not override existing facts.
 filename = facts.json
+
+## Language search order for facts with no language or where the specified language is not found
+## Comma-separated list
+lang = en

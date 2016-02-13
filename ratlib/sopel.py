@@ -5,16 +5,39 @@ Sopel-specific ratlib constructs.
 """
 from sopel.config import StaticSection, types
 from sopel.tools import SopelMemory
-
 import os.path
 import re
+import ratlib.db
 
 __all__ = ['RatbotConfigurationSection', 'configure', 'setup', 'makepath']
+
+
+class BooleanAttribute(types.ChoiceAttribute):
+    """
+    Sopel somehow lacks a BooleanAttribute for configuration, so add our own.
+
+    This is really just a bastardization of ChoiceAttribute with some coercion.
+    """
+    TRUTH = {
+        '0': False, 'off': False, 'n': False, 'no': False, 'f': False, 'false': False,
+        '1': True, 'on': True, 'y': True, 'yes': True, 't': True, 'true': True
+    }
+
+    def __init__(self, name, default=None):
+        super().__init__(name, set(self.TRUTH.keys()), default=default)
+
+    def parse(self, value):
+        return self.TRUTH.get(super().parse(value.lower()), False)
+
+    def serialize(self, value):
+        return 'true' if value else 'false'
 
 
 class RatbotConfigurationSection(StaticSection):
     apiurl = types.ValidatedAttribute('apiurl', str, default='http://api.fuelrats.com/')
     workdir = types.FilenameAttribute('workdir', directory=True, default='run')
+    alembic = types.FilenameAttribute('alembic', directory=False, default='alembic.ini')
+    debug_sql = BooleanAttribute('debug_sql', default=False)
 
 
 def configure(config):
@@ -29,6 +52,8 @@ def configure(config):
     config.define_section('ratbot', RatbotConfigurationSection)
     config.ratbot.configure_setting('apiurl', "The URL of the API to talk to.")
     config.ratbot.configure_setting('workdir', "Work directory for dynamically modified data.")
+    config.ratbot.configure_setting('alembic', "Path to alembic.ini for database upgrades.")
+    config.ratbot.configure_setting('debug_sql', "True if SQLAlchemy should echo query information.")
 
 
 def setup(bot):
@@ -39,6 +64,7 @@ def setup(bot):
     """
     if 'ratbot' not in bot.memory:
         bot.memory['ratbot'] = SopelMemory()
+        bot.memory['ratbot']['sqla'] = ratlib.db.setup(bot)
 
 
 def makepath(dir, filename):
