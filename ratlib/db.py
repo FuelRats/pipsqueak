@@ -13,59 +13,6 @@ import alembic.command
 import alembic.config
 
 
-def normalize_url(url, _parse=urllib.parse.urlparse):
-    """
-    Normalizes database connection strings for SQLite.
-
-    This resolves a few issues with connection strings coming from multiple sources being used by SQLAlchemy.  Mainly,
-
-    * Sopel gives database filenames as "sqlite://path/to/database.db", but SQLA wants three slashes.
-    * Config files won't include a connection string at all, just a filename.
-
-    :param url: URL or path to database file.
-    :param _parse: URL parser function to use.
-    :return: Normalized URL
-    """
-    scheme, netloc, path, *unused = _parse(url)
-    if not path:
-        path = netloc
-    if not path:
-        raise ValueError("path cannot be empty")
-    if not scheme:
-        # No sqlite:// scheme, so we're probably dealing with a simple pathname.
-        return "sqlite:///" + path
-    if scheme != 'sqlite':
-        raise ValueError("scheme must be sqlite if present.")
-    scheme += "://"
-    if path[0] == '/':
-        # Path has a leading /, which means scheme + path has the three slashes SQLA wants.
-        return scheme + path
-    return scheme + "/" + path
-
-
-def setup_engine(url, *args, **kwargs):
-    engine = sa.create_engine(url, *args, **kwargs)
-
-    @sa.event.listens_for(engine, "connect")
-    def do_connect(dbapi_connection, connection_record):
-        # disable pysqlite's emitting of the BEGIN statement entirely.
-        # also stops it from emitting COMMIT before any DDL.
-        dbapi_connection.isolation_level = None
-        try:
-            c = dbapi_connection.cursor()
-            c.execute("PRAGMA journal_mode=WAL")
-            c.execute("PRAGMA synchronous=NORMAL")
-            c.execute("PRAGMA journal_size_limit=8388608")
-        finally:
-            c.close()
-
-    @sa.event.listens_for(engine, "begin")
-    def do_begin(conn):
-        # emit our own BEGIN
-        conn.execute("BEGIN")
-    return engine
-
-
 def setup(bot):
     """
     Initial SQLAlchemy setup for this bot session.  Also performs in-place db upgrades.
@@ -73,20 +20,20 @@ def setup(bot):
     :param bot: Sopel bot
     :return: Nothing
     """
-    # Determine SQLAlchemy URL
-    url = normalize_url(bot.db.get_uri())
+    url = bot.config.ratbot.database
+    if not url:
+        raise ValueError("Database is not configured.")
 
     # Schema migration/upgrade
     cfg = alembic.config.Config(bot.config.ratbot.alembic or "alembic.ini")
     cfg.set_main_option("sqlalchemy.url", url)
     alembic.command.upgrade(cfg, "head")
-    bot.memory['ratbot']['db'] = orm.sessionmaker(setup_engine(url + "?timeout=60"))
+    bot.memory['ratbot']['db'] = orm.scoped_session(orm.sessionmaker(sa.create_engine(url)))
 
     db = get_session(bot)
-    # db.connection().execute("PRAGMA journal_mode=WAL")
     status = get_status(db)
     if status is None:
-        status = Status(id=1, starsystem_generation=0, starsystem_refreshed=None)
+        status = Status(id=1, starsystem_refreshed=None)
         db.add(status)
         db.commit()
     db.close()
@@ -94,7 +41,7 @@ def setup(bot):
 
 def get_session(bot):
     """
-    Returns a specific database session.
+    Returns a database session.
 
     :param bot: Bot to examine
     """
@@ -135,9 +82,10 @@ class Base:
         Generate table names by replacing every occurrence of e.g. "aA" with "a_a".  This effectively converts
         camelCase and TitleCase to underscore_separated.
 
-        Also prefixes all names with ratbot_
+        Also prefixes all names with 
         """
-        return "ratbot_" + re.sub(r'([^A-Z])([A-Z])', r'\1_\2', cls.__name__).lower()
+        return re.sub(r'([^A-Z])([A-Z])', r'\1_\2', cls.__name__).lower()
+
 
 def _listify(x):
     if not x:
@@ -226,23 +174,20 @@ class Fact(Base):
 
 class Status(Base):
     id = sa.Column(sa.Integer, primary_key=True)
-    starsystem_generation = sa.Column(sa.Integer, nullable=False)  # Generation
     starsystem_refreshed = sa.Column(sa.Integer, nullable=True)  # Time of last refresh
 
 
 class StarsystemPrefix(Base):
-    generation = sa.Column(sa.Integer, nullable=False)
     id = sa.Column(sa.Integer, primary_key=True)
     first_word = sa.Column(sa.Text, nullable=False)
     word_ct = sa.Column(sa.Integer, nullable=False)
     const_words = sa.Column(sa.Text, nullable=True)
 StarsystemPrefix.__table__.append_constraint(schema.Index(
-    'ratbot_starsystem_prefix__unique_words', 'generation', 'first_word', 'word_ct', unique=True
+    'starsystem_prefix__unique_words', 'first_word', 'word_ct', unique=True
 ))
 
 
 class Starsystem(Base):
-    generation = sa.Column(sa.Integer, nullable=False)
     id = sa.Column(sa.Integer, primary_key=True)
     name_lower = sa.Column(sa.Text, nullable=False)
     name = sa.Column(sa.Text, nullable=False)
@@ -255,8 +200,8 @@ class Starsystem(Base):
         sa.ForeignKey(StarsystemPrefix.id, onupdate='cascade', ondelete='set null'), nullable=True
     )
     prefix = orm.relationship(StarsystemPrefix, backref=orm.backref('systems', lazy=True), lazy=True)
-Starsystem.__table__.append_constraint(schema.Index('ratbot_starsystem__prefix_id', 'prefix_id'))
-Starsystem.__table__.append_constraint(schema.Index('ratbot_starsystem__name_lower', 'name_lower'))
+Starsystem.__table__.append_constraint(schema.Index('starsystem__prefix_id', 'prefix_id'))
+Starsystem.__table__.append_constraint(schema.Index('starsystem__name_lower', 'name_lower'))
 
 
 def get_status(db):

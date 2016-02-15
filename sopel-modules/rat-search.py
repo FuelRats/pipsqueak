@@ -22,10 +22,13 @@ from sopel.formatting import bold
 from sopel.module import commands, example, NOLIMIT
 from sopel.tools import SopelMemory
 
+from sqlalchemy import sql, orm
+
 import ratlib.sopel
 from ratlib.db import with_session, Starsystem, StarsystemPrefix
-from ratlib.starsystem import refresh_database, get_generation
-from sqlalchemy import sql, orm
+from ratlib.starsystem import refresh_database
+from ratlib.autocorrect import correct
+import re
 
 def configure(config):
     ratlib.sopel.configure(config)
@@ -36,131 +39,60 @@ def setup(bot):
     bot.memory['ratbot']['searches'] = SopelMemory()
     bot.memory['ratbot']['systemFile'] = ratlib.sopel.makepath(bot.config.ratbot.workdir, 'systems.json')
 
-def findSystems(systemfile, refresh, system):
-    """ EDSM interfacing and system list fuzzy searches. """
-    # Refresh the systems list
-    if refresh:
-        # Determine list age.
-        try:
-            age = time() - os.path.getmtime(systemfile)
-        except:
-            # 404 - File not Found.. probably.
-            age = 99999 # So make it too old for us to care.
-
-        if age < 12*3600: #12 hours
-            refreshResult = (False, 'List too young.')
-        else:
-            # Old enough, contact EDSM
-            try:
-                query_url = "http://edsm.net/api-v1/systems?coords=1"
-                answer = json.loads(web.get(query_url, timeout=300))
-                # All good, apply new list.
-                try:
-                    with open(systemfile, 'w') as f:
-                        json.dump(answer, f)
-                    refreshResult = (True, '')
-                except IOError as e:
-                    refreshResult = (False, 'File error.'+e)
-            except:
-                refreshResult = (False, 'API error.')
-    else:
-        refreshResult = (False, 'refresh not requested.')
-
-    #Execute search
-    name = system.lower()
-    l = len(system)
-    best = [None, None, None]
-    # Load the system list.
-    try:
-        with open(systemfile) as f:
-            candidates = json.load(f)
-    except IOError as e:
-        if not refreshResult[0]:
-            return ('I can\'t read the systems list, try again with -r.',
-                ), refreshResult
-        else:
-            return ('Something went wrong with the systems list, please try again.',
-                ), refreshresult
-    for candidate in candidates:
-        #Grab some info on this candidate
-        cname = candidate['name'].lower()
-        cl = len(cname)
-
-        # How similar?
-        candidate['ratio'] = fuzz.ratio(name, cname)
-
-        # Put it in the top3, if applicable.
-        if best[0] is None or candidate['ratio'] > best[0]['ratio']:
-            best[2] = best[1]
-            best[1] = best[0]
-            best[0] = candidate
-        elif best[1] is None or candidate['ratio'] > best[1]['ratio']:
-            best[2] = best[1]
-            best[1] = candidate
-        elif best[2] is None or candidate['ratio'] > best[2]['ratio']:
-            best[2] = candidate
-
-    searchResults = ['Fuzzy searching \'%s\' for against system list, full matching:' % (system, ), None, None, None]
-    resultTemplate = 'Found system %s (Matching %s percent.) %s'
-    for i in range(3):
-        try:
-            location = 'at [%s:%s:%s].' % (int(best[i]['coords']['x']),
-                int(best[i]['coords']['y']), int(best[i]['coords']['z']))
-        except KeyError as e:
-            location = ', location unknown.'
-        searchResults[i+1] = resultTemplate % (bold(best[i]['name']),
-                best[i]['ratio'], location)
-
-    # Return results.
-    return searchResults, refreshResult
 
 @commands('search')
 @example('!search lave','')
-def search(bot, trigger):
+@with_session
+def search(bot, trigger, db=None):
     """
     Searches for system name matches.
-    -r to refresh the local System List (12 hour cooldown)
     """
-    # Argument parsing
-    if trigger.group(3) == '-r':
-        search = trigger.group(2)[3:]
-        refresh = True
-    else:
-        search = trigger.group(2)
-        refresh = False
 
-    # Empty search
-    if search == None or len(search) == 0:
-        # Returning NOLIMIT makes the rate-limiter ignore this command.
-        return NOLIMIT
+    system = trigger.group(2)
+    if system:
+        system = re.sub(r'\s\s+', ' ', system.strip())
+    if not system:
+        bot.reply("Usage: {} <name of system>".format(trigger.group(1)))
 
-    # Search cooldown.
-    if search.lower() in bot.memory['ratbot']['searches']:
-        if time() - bot.memory['ratbot']['searches'][search.lower()] < 1800:
-            return bot.say('I''m sorry %s, I\'m afraid I can\'t let you search there again so soon.' % (trigger.nick,))
-    bot.memory['ratbot']['searches'][search.lower()] = time()
+    if len(system) > 100:
+        # Postgres has a hard limit of 255, but this is long enough.
+        bot.reply("System name is too long.")
 
-    #Do the search
-    searchResults, refreshResult = findSystems(
-        bot.memory['ratbot']['systemFile'], refresh, search)
+    # Try autocorrection first.
+    result = correct(system)
+    if result.fixed:
+        system = result.output
+    system_name = '"{}"'.format(system)
+    if result.fixed:
+        system_name += " (autocorrected)"
 
-    # Refresh results
-    if refresh:
-        if refreshResult[0]:
-            bot.reply('System list updated successfully.')
-        else:
-            bot.reply('System list '+bold('not')+' updated: '+refreshResult[1])
+    system = system.lower()
 
-    # Search results
-    for res in searchResults:
-        if res != None:
-            bot.say(res.replace(' percent.', '%'))
+    # Levenshtein expression
+    max_distance = 10
+    max_results = 4
+    expr = sql.func.levenshtein_less_equal(Starsystem.name_lower, system, max_distance)
+
+    # Query
+    result = (
+        db.query(Starsystem, expr.label("distance"))
+        .filter(expr <= max_distance)
+        .order_by(expr.asc())
+    )[:max_results]
+
+
+    if result:
+        return bot.reply("Nearest matches for {system_name} are: {matches}".format(
+            system_name=system_name,
+            matches=", ".join('"{0.Starsystem.name}" [{0.distance}]'.format(row) for row in result)
+        ))
+    return bot.reply("No similar results for {system_name}".format(system_name=system_name))
+
 
 @commands('sysstats')
 @with_session
 def cmd_sysstats(bot, trigger, db=None):
-    generation = get_generation(db=db)
-    ct = lambda t: db.query(sql.func.count()).select_from(t).filter(t.generation == generation)
+    ct = lambda t: db.query(sql.func.count()).select_from(t)
     bot.reply(
         "{num_systems} starsystems under {num_prefixes} unique prefixes."
         "  {one_word} single word systems.  {mixed} mixed-length prefixes."
@@ -176,4 +108,4 @@ def cmd_sysstats(bot, trigger, db=None):
 
 @commands('sysrefresh')
 def cmd_sysrefresh(bot, trigger, db=None):
-    refresh_database(bot)
+    refresh_database(bot, trigger.group(2) and trigger.group(2) == '-f')

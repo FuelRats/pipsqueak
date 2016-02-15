@@ -18,7 +18,7 @@ import sqlalchemy as sa
 
 def upgrade():
     op.create_table(
-        'ratbot_fact',
+        'fact',
         sa.Column('name', sa.Text, primary_key=True),
         sa.Column('lang', sa.Text, primary_key=True),
         sa.Column('message', sa.Text, nullable=False),
@@ -27,4 +27,4 @@ def upgrade():
 
 
 def downgrade():
-    op.drop_table('ratbot_fact')
+    op.drop_table('fact')

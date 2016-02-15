@@ -18,48 +18,45 @@ import sqlalchemy as sa
 
 def upgrade():
     op.create_table(
-        'ratbot_status',
+        'status',
         sa.Column('id', sa.Integer, primary_key=True),
-        sa.Column('starsystem_generation', sa.Integer, nullable=False),  # Generation
         sa.Column('starsystem_refreshed', sa.Integer, nullable=True)  # Time of last refresh
     )
 
     # Starsystem stats.
     op.create_table(
-        'ratbot_starsystem_prefix',
-        sa.Column('generation', sa.Integer, nullable=False),  # Generation
+        'starsystem_prefix',
         sa.Column('id', sa.Integer, primary_key=True),
         sa.Column('first_word', sa.Text, nullable=False),  # First word of star system name, lowercased.
         sa.Column('word_ct', sa.Integer, nullable=False),  # Minimum number of words in system name.
         sa.Column('const_words', sa.Text, nullable=True),  # Constant words that always occur after the first word.
     )
     op.create_index(
-        'ratbot_starsystem_prefix__unique_words', 'ratbot_starsystem_prefix',
-        ['generation', 'first_word', 'word_ct'],
+        'starsystem_prefix__unique_words', 'starsystem_prefix',
+        ['first_word', 'word_ct'],
         unique=True
     )
 
     op.create_table(
-        'ratbot_starsystem',
-        sa.Column('generation', sa.Integer, nullable=False),  # Generation
+        'starsystem',
         sa.Column('id', sa.Integer, primary_key=True),  # Starsystem name, lowercased
         sa.Column('name_lower', sa.Text, nullable=False),  # Starsystem name, normalized
-        sa.Column('name', sa.Text, nullable=False),  # Normalized name
+        sa.Column('name', sa.Text, nullable=False),  # Name with proper capitalization
         sa.Column('word_ct', sa.Integer, nullable=False),  # Number of words in name
         sa.Column('x', sa.Float),  # x-coordinate
         sa.Column('y', sa.Float),  # y-coordinate
         sa.Column('z', sa.Float),  # z-coordinate
         sa.Column(
             'prefix_id', sa.Integer,
-            sa.ForeignKey("ratbot_starsystem_prefix.id", ondelete='set null', onupdate='cascade'),
+            sa.ForeignKey("starsystem_prefix.id", ondelete='set null', onupdate='cascade'),
             nullable=True
         )
     )
-    op.create_index('ratbot_starsystem__name_lower', 'ratbot_starsystem', ['generation', 'name_lower'])
-    op.create_index('ratbot_starsystem__prefix_id', 'ratbot_starsystem', ['generation', 'prefix_id'])
+    op.create_index('starsystem__name_lower', 'starsystem', ['name_lower'])
+    op.create_index('starsystem__prefix_id', 'starsystem', ['prefix_id'])
 
 
 def downgrade():
-    op.drop_table('ratbot_status')
-    op.drop_table('ratbot_starsystem')
-    op.drop_table('ratbot_starsystem_prefix')
+    op.drop_table('status')
+    op.drop_table('starsystem')
+    op.drop_table('starsystem_prefix')

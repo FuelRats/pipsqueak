@@ -38,116 +38,65 @@ def chunkify(it, size):
         yield _gen()
 
 
-def get_generation(bot=None, db=None):
-    if db is None:
-        db = get_session(bot)
-    status = get_status(db)
-    return status.starsystem_generation
-
-
-def prune_database(bot=None, db=None):
-    if db is None:
-        db = get_session(bot)
-    generation = get_generation(db=db)
-    db.query(Starsystem).filter(Starsystem.generation != generation).delete()
-    db.query(StarsystemPrefix).filter(StarsystemPrefix.generation != generation).delete()
-    db.commit()
-    db.close()
-    return generation
-
-
 @with_session
 def refresh_database(bot, refresh=False, db=None):
-    def _count(table):
-        return (
-            db.query(sql.func.count()).select_from(table).filter(table.generation == generation).scalar()
-        )
-
     edsm_url = bot.config.ratbot.edsm_url or "http://edsm.net/api-v1/systems?coords=1"
-    # kvp = bot.memory['ratbot']['sqldict']
-    #
-    # updated = kvp.get('starsystems_updated')
-    # if updated is None:
-    #     refresh = True
-    # else:
-    #     edsm_maxage = bot.config.ratbot.maxage
-    #     if edsm_maxage is None:
-    #         edsm_maxage = 60*12*12
-    #     age = time() - int(updated)
-    #     if age > edsm_maxage:
-    #         refresh = True
-    #
-    # if not refresh:
-    #     return
+    status = get_status(db)
 
-    bot.notice("[starsystems] Starting refresh")
+    edsm_maxage = bot.config.ratbot.maxage or 60*12*12
+    if not (refresh or not status.starsystem_refreshed or time() - status.starsystem_refreshed > edsm_maxage):
+        # No refresh needed.
+        return
 
-    # data = requests.get(edsm_url).json()
-    with open('run/systems.json') as f:
-        import json
-        data = json.load(f)
+    data = requests.get(edsm_url).json()
+    # with open('run/systems.json') as f:
+    #     import json
+    #     data = json.load(f)
 
-    bot.notice("[starsystems] ... beginning initial load")
-
-    # Clean out old remnants and increment generation
-    generation = prune_database(db=db) + 1
-
+    db.query(Starsystem).delete()  # Wipe all old data
+    db.query(StarsystemPrefix).delete()  # Wipe all old data
     # Pass 1: Load JSON data into stats table.
     systems = []
     ct = 0
+
+    def _format_system(s):
+        nonlocal ct
+        ct += 1
+        name, word_ct = re.subn(r'\s+', ' ', s['name'].strip())
+        return {
+            'name_lower': name.lower(),
+            'name': name,
+            'x': s.get('x'), 'y': s.get('y'), 'z': s.get('z'),
+            'word_ct': word_ct
+        }
+
     for chunk in chunkify(data, 5000):
-        systems = []
-        for system in chunk:
-            ct += 1
-            words = re.split(r'\s+', system['name'].strip())
-            name = " ".join(words)
-            systems.append({
-                'generation': generation,
-                'name_lower': name.lower(),
-                'name': name,
-                'x': system.get('x'), 'y': system.get('y'), 'z': system.get('z'),
-                'word_ct': len(words)
-            })
+        db.bulk_insert_mappings(Starsystem, [_format_system(s) for s in chunk])
         print(ct)
-        db.bulk_insert_mappings(Starsystem, systems)
-        db.commit()
-        print(' OK')
-
-    db.connection().execute("ANALYZE " + Starsystem.__tablename__)
-    db.commit()
-    print("Added {} starsystems.".format(_count(Starsystem)))
-
-    # Reclaim memory
-    del systems
     del data
+    db.connection().execute("ANALYZE " + Starsystem.__tablename__)
 
     # Pass 2: Calculate statistics.
     # 2A: Quick insert of prefixes for single-name systems
     db.connection().execute(
         sql.insert(StarsystemPrefix).from_select(
-            (StarsystemPrefix.generation, StarsystemPrefix.first_word, StarsystemPrefix.word_ct),
-            db.query(
-                sql.column(str(generation)).label("generation"),
-                Starsystem.name_lower,
-                sql.column("1").label("word_ct")
-            )
+            (StarsystemPrefix.first_word, StarsystemPrefix.word_ct),
+            db.query(Starsystem.name_lower, Starsystem.word_ct).filter(Starsystem.word_ct == 1)
+
         )
     )
-    ct = db.query(sql.func.count()).select_from(StarsystemPrefix).scalar()
-    print("Fast-added {} single-word system prefixes.".format(_count(StarsystemPrefix)))
-    db.commit()
 
     def _gen():
-        for system in (
+        for s in (
             db.query(Starsystem)
             .order_by(Starsystem.word_ct, Starsystem.name_lower)
-            .filter(Starsystem.generation == generation, Starsystem.word_ct > 1)
+            .filter(Starsystem.word_ct > 1)
         ):
-            first_word, *words = system.name_lower.split(" ")
-            yield (first_word, system.word_ct), words, system
+            first_word, *words = s.name_lower.split(" ")
+            yield (first_word, s.word_ct), words, s
 
     ct = 0
-    for chunk in chunkify(itertools.groupby(_gen(), operator.itemgetter(0)), 50):
+    for chunk in chunkify(itertools.groupby(_gen(), operator.itemgetter(0)), 100):
         pending = {}
         for (first_word, word_ct), group in chunk:
             ct += 1
@@ -163,25 +112,25 @@ def refresh_database(bot, refresh=False, db=None):
                             const_words = const_words[:ix]
                             break
             prefix = StarsystemPrefix(
-                generation=generation, first_word=first_word, word_ct=word_ct, const_words=" ".join(const_words)
+                first_word=first_word, word_ct=word_ct, const_words=" ".join(const_words)
             )
             db.add(prefix)
             pending[prefix] = systems
         print(ct)
         db.flush()
-        for prefix, systems in pending.items():
-            for chunk in chunkify(systems, 500):
-                (
-                    db.query(Starsystem).filter(Starsystem.id.in_(chunk))
-                    .update({Starsystem.prefix_id: prefix.id}, synchronize_session=False)
-                )
-        db.commit()
-        print(" OK")
-    print("Analyzed {} system prefixes.".format(_count(StarsystemPrefix)))
+    db.connection().execute(
+        sql.update(
+            Starsystem, values={
+                Starsystem.prefix_id: db.query(StarsystemPrefix.id).filter(
+                    StarsystemPrefix.first_word == sql.func.split_part(Starsystem.name_lower, ' ', 1),
+                    StarsystemPrefix.word_ct == Starsystem.word_ct
+                ).as_scalar()
+            }
+        )
+    )
 
-    # Update generation
+    # Update refresh time
     status = get_status(db)
-    status.starsystem_generation = generation
+    status.starsystem_refreshed = time()
     db.add(status)
     db.commit()
-    prune_database(db=db)

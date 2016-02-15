@@ -26,7 +26,7 @@ import ratlib.sopel
 
 class RatfactsSection(StaticSection):
     filename = ValidatedAttribute('filename', str, default='')
-    lang = ListAttribute('lang', str, default=['en'])
+    lang = ListAttribute('lang', default=['en'])
 
 
 def configure(config):
@@ -60,7 +60,7 @@ def import_facts(bot, merge=False, db=None):
     if not filename:
         return
     try:
-        lang = bot.config.ratfacts.lang[0]
+        lang = bot.memory['ratfacts']['lang'][0]
     except:
         lang = 'en'
 
@@ -88,14 +88,13 @@ def import_facts(bot, merge=False, db=None):
 
 def setup(bot):
     ratlib.sopel.setup(bot)
-    try:
-        lang = bot.config.ratfacts.lang
-    except:
+    lang = bot.config.ratfacts.lang
+    if lang is None:
         lang = ['en']
-    else:
-        if not lang:
-            lang = ['en']
-    bot.config.ratfacts.lang = lang
+    lang = list(x.strip() for x in lang.split(","))
+    bot.memory['ratfacts'] = SopelMemory()
+    bot.memory['ratfacts']['lang'] = lang
+
 
     # Import facts
     import_facts(bot)
@@ -126,7 +125,7 @@ def load_fact_json(path, recurse=True):
 
 @with_session
 def find_fact(bot, text, exact=False, db=None):
-    lang_search = bot.config.ratfacts.lang
+    lang_search = bot.memory['ratfacts']['lang']
 
     fact = Fact.find(db, name=text, lang=lang_search[0] if exact else lang_search)
     if fact:
@@ -211,7 +210,7 @@ def cmd_fact(bot, trigger, db=None):
             return bot.reply("Not authorized.")
         if not trigger.is_privmsg:
             bot.reply("Messaging you the complete fact database.")
-        pm("Language search order is {}".format(", ".join(bot.config.ratfacts.lang)))
+        pm("Language search order is {}".format(", ".join(bot.memory['ratfacts']['lang'])))
         for fact in Fact.findall(db):
             pm(format_fact(fact))
         pm("-- End of list --")
@@ -226,7 +225,7 @@ def cmd_fact(bot, trigger, db=None):
         if '-' not in option:
             bot.reply(
                 "Fact must include a language specifier.  (Perhaps you meant '{name}-{lang}'?)"
-                .format(name=option, lang=bot.config.ratfacts.lang[0])
+                .format(name=option, lang=bot.memory['ratfacts']['lang'][0])
             )
             return NOLIMIT
         name, lang = option.rsplit('-', 1)
