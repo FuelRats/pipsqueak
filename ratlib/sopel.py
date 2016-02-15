@@ -8,7 +8,7 @@ from sopel.tools import SopelMemory
 import os.path
 import re
 import ratlib.db
-
+import ratlib.starsystem
 __all__ = ['RatbotConfigurationSection', 'configure', 'setup', 'makepath']
 
 
@@ -71,6 +71,7 @@ def setup(bot):
     if 'ratbot' not in bot.memory:
         bot.memory['ratbot'] = SopelMemory()
         ratlib.db.setup(bot)
+        ratlib.starsystem.refresh_bloom(bot)
 
 
 def makepath(dir, filename):

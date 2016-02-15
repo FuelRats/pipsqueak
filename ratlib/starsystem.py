@@ -18,7 +18,7 @@ import requests
 import sqlalchemy as sa
 from sqlalchemy import sql, orm, schema
 from ratlib.db import get_status, get_session, with_session, Starsystem, StarsystemPrefix
-
+from ratlib.bloom import BloomFilter
 
 def chunkify(it, size):
     if not isinstance(it, collections_abc.Iterator):
@@ -40,13 +40,19 @@ def chunkify(it, size):
 
 @with_session
 def refresh_database(bot, refresh=False, db=None):
+    """
+    Refreshes the database of starsystems.  Also rebuilds the bloom filter.
+    :param bot: Bot instance
+    :param refresh: True to force refresh
+    :param db: Database handle
+    """
     edsm_url = bot.config.ratbot.edsm_url or "http://edsm.net/api-v1/systems?coords=1"
     status = get_status(db)
 
     edsm_maxage = bot.config.ratbot.maxage or 60*12*12
     if not (refresh or not status.starsystem_refreshed or time() - status.starsystem_refreshed > edsm_maxage):
         # No refresh needed.
-        return
+        return False
 
     data = requests.get(edsm_url).json()
     # with open('run/systems.json') as f:
@@ -63,6 +69,7 @@ def refresh_database(bot, refresh=False, db=None):
         nonlocal ct
         ct += 1
         name, word_ct = re.subn(r'\s+', ' ', s['name'].strip())
+        word_ct += 1
         return {
             'name_lower': name.lower(),
             'name': name,
@@ -81,8 +88,7 @@ def refresh_database(bot, refresh=False, db=None):
     db.connection().execute(
         sql.insert(StarsystemPrefix).from_select(
             (StarsystemPrefix.first_word, StarsystemPrefix.word_ct),
-            db.query(Starsystem.name_lower, Starsystem.word_ct).filter(Starsystem.word_ct == 1)
-
+            db.query(Starsystem.name_lower, Starsystem.word_ct).filter(Starsystem.word_ct == 1).distinct()
         )
     )
 
@@ -134,3 +140,30 @@ def refresh_database(bot, refresh=False, db=None):
     status.starsystem_refreshed = time()
     db.add(status)
     db.commit()
+    refresh_bloom(bot)
+    return True
+
+
+@with_session
+def refresh_bloom(bot, db):
+    """
+    Refreshes the bloom filter.
+
+    :param bot: Bot storing the bloom filter
+    :param db: Database handle
+    :return: New bloom filter.
+    """
+    # Get filter planning statistics
+    count = db.query(sql.func.count(sql.distinct(StarsystemPrefix.first_word))).scalar()
+    bits, hashes = BloomFilter.suggest_size_and_hashes(rate=0.01, count=count, max_hashes=10)
+    bloom = BloomFilter(bits, BloomFilter.extend_hashes(hashes))
+    start = time()
+    bloom.update(x[0] for x in db.query(StarsystemPrefix.first_word).distinct())
+    end = time()
+    print(
+        "Recomputing bloom filter took {} seconds.  {}/{} bits, {} hashes, {} false positive chance"
+        .format(end-start, bloom.setbits, bloom.bits, hashes, bloom.false_positive_chance())
+    )
+    bot.memory['ratbot']['starsystem_bloom'] = bloom
+    return bloom
+

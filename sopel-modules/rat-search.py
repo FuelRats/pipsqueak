@@ -108,4 +108,9 @@ def cmd_sysstats(bot, trigger, db=None):
 
 @commands('sysrefresh')
 def cmd_sysrefresh(bot, trigger, db=None):
-    refresh_database(bot, trigger.group(2) and trigger.group(2) == '-f')
+    result = refresh_database(bot, trigger.group(2) and trigger.group(2) == '-f')
+    if result:
+        bot.reply("System database refreshed.")
+    else:
+        bot.reply("System is already up to date.")
+
