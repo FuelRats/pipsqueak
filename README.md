@@ -14,6 +14,8 @@ In addition to Python 3.4 itself, pipsqueak uses the following modules which wil
 - **alembic** for database schema creation/migration across updates.
 - **psycopg2** for PostgreSQL database support in SQLAlchemy and Alembic.
 
+You may need to install the development versions of the PostgreSQL client libraries to build psycopg2 on your platform.
+
 ## PostgreSQL
 All testing has been performed with version 9.5.1.  Versions as low as 9.1 should theoretically work.  Versions earlier
  then that may also work with some updates to the query used by bot's !search command.
