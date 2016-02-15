@@ -85,19 +85,19 @@ Commands that add quotes to a case will create a new case when *ref* looks like 
 Command | Parameters | Explanation
 --- | --- | ---
 `quote` | *ref* | Recites all information on `Nick`'s case.
-`clear`/`close` | *ref* | Mark the referenced case as closed.
+`clear`, `close` | *ref* | Mark the referenced case as closed.
 `list` | | List the currently active cases.
  | -i | Also list open, inactive cases.
  | -@ | Show API IDs in the list in addition to case numbers.
 `grab` | Nick | Grabs the last message `Nick` said and add it to their case, creating one if it didn't already exist.
 `inject` | *ref*, message | Injects a custom message into the referenced case's quotes.  Creates the case if it doesn't already exist.
 `sub` | *ref*, index, [message] | Substitute or delete line `index` to the referenced case.
-`active`/`activate`/`inactive`/`deactivate`| *ref* | Toggle the referenced case between inactive and active.  Despite the command names, all of these perform the same action (e.g. `deactivate` will happily re-activate an inactive case) 
-`assign`/`add`/`go` | *ref*, rats... | Assigns `rats` to the referenced case.  Separate rats with spaces.
-`unassign`/`deassign`/`rm`/`remove`/`standdown` | *ref*, rats... | Removes `rats` from the referenced case if they were assigned to it.
-`cr`/`codered`/`casered` | *ref* | Toggle the code red status of the referenced case.
+`active`, `activate`, `inactive`, `deactivate`| *ref* | Toggle the referenced case between inactive and active.  Despite the command names, all of these perform the same action (e.g. `deactivate` will happily re-activate an inactive case) 
+`assign`, `add`, `go` | *ref*, rats... | Assigns `rats` to the referenced case.  Separate rats with spaces.
+`unassign`, `deassign`, `rm`, `remove`, `standdown` | *ref*, rats... | Removes `rats` from the referenced case if they were assigned to it.
+`cr`, `codered`, `casered` | *ref* | Toggle the code red status of the referenced case.
 `pc` | *ref* | Sets the referenced case to be in the PC universe.
-`xbox`/`xb`/`xb1`/`xbone`/`xbox1` | *ref* | Set the referenced case to be in the Xbox One universe.
+`xbox`, `xb`, `xb1`, `xbone`, `xbox1` | *ref* | Set the referenced case to be in the Xbox One universe.
 
 ## Detailed module information
 pipsqueak includes a tool to keep track of the current board of rescues, called 'cases'.
