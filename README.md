@@ -1,6 +1,37 @@
 # pipsqueak
 ED Fuel rats [sopel](http://sopel.chat) module package
 
+# Requirements
+
+## Python 3.4
+In addition to Python 3.4 itself, pipsqueak uses the following modules which will be installed
+ for you during part of the setup process:
+ 
+- **Sopel** for the bot framework itself
+- **requests** for API calls and fetching EDSM system data.
+- **iso8601** for date parsing.
+- **sqlalchemy** for database access.
+- **alembic** for database schema creation/migration across updates.
+- **psycopg2** for PostgreSQL database support in SQLAlchemy and Alembic.
+
+## PostgreSQL
+All testing has been performed with version 9.5.1.  Versions as low as 9.1 should theoretically work.  Versions earlier
+ then that may also work with some updates to the query used by bot's !search command.
+ 
+PostgreSQL will need:
+- A user account for the bot.
+- A database instance owned by that user.
+- The [fuzzystrmatch](http://www.postgresql.org/docs/9.5/static/fuzzystrmatch.html) extension loaded into the bot's 
+  database.  This is included with PostgreSQL, it can be added by any superuser with `CREATE EXTENSION fuzzystrmatch;`
+
+### Alternate database options
+Theoretically, another database can be used instead of PostgreSQL provided that SQLAlchemy and Alembic support it.
+Using another database will require adjusting the query used in !search to use an appropriate fuzzy-matching function,
+and has some possible issues when refreshing the systemlist.
+
+There are potential locking issues with SQLite and possibly MySQL, notably during the couple of minutes it takes to
+refresh the starsystem list.
+
 # Installation instructions
 Requires Sopel to be installed, for more information on this see [Sopel's website](http://sopel.chat/download.html).  Following the virtualenv setup procedure should install sopel.
 
@@ -31,11 +62,15 @@ Requires Sopel to be installed, for more information on this see [Sopel's websit
 
 # rat-search.py
 ## Commands
-Command | Parameters | Explanation
+Command    | Parameters | Explanation
 --- | --- | ---
-`search` | System | Searches for the given system in EDSM's system list and then finds coordinates
- | -r | Download a new system list (Will only execute if list is over 12 hours old.)
-
+`search`     | System     | Searches for the given system in the system database.
+`sysstats`   |            | Returns some statistics on the current system database.  (Temporary command for debugging)
+`sysrefresh` |            | Rebuilds the system database by pulling new data from EDSM, provided the existing data is old enough (12 hours by default).
+             | -f         | Does the above, regardless of the age of the existing data.
+             
+sysstats and sysrefresh exist mainly for debugging and will probably go away or be redesigned in a later build.
+             
 ## Detailed module information
 The system search compares the input with a large list of systems,
 downloaded from EDSM, if no list present this will fail.
