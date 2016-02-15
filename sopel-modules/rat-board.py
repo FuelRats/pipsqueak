@@ -316,6 +316,8 @@ def refresh_cases(bot, rescue=None):
     :param bot: Sopel bot
     :param rescue: Individual rescue to refresh.
     """
+    return  # Skip the entire function here in no API mode.
+
     uri = urljoin(bot.config.ratbot.apiurl, '/api/search/rescues')
     if rescue is not None:
         if rescue.id is None:
@@ -375,12 +377,13 @@ def save_case(bot, rescue):
         method = "POST"
 
     def task():
-        result = call(method, uri, data=data)
+        # result = call(method, uri, data=data)
         rescue.commit()
-        if 'data' not in result or not result['data']:
-            raise RuntimeError("API response returned unusable data.")
-        with rescue.change():
-            rescue.refresh(result['data'])
+        # NOAPI Disabled this
+        # if 'data' not in result or not result['data']:
+        #     raise RuntimeError("API response returned unusable data.")
+        # with rescue.change():
+        #     rescue.refresh(result['data'])
         return rescue
 
     return bot.memory['ratbot']['queue'].submit(task)
@@ -597,7 +600,7 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
                         raise UsageError()
                     if value is None:
                         break
-                    if param in 'rRfF':
+                    if param and param in 'rRfF':
                         value = bot.memory['ratbot']['board'].find(value, create=param in 'RF')
                         if not value[0]:
                             return bot.reply('Could not find a case with that name or number.')
@@ -721,6 +724,7 @@ def cmd_clear(bot, trigger, rescue):
     rescue.active = False
     # FIXME: Should have better messaging
     bot.say("Case {rescue.client_name} is cleared".format(rescue=rescue))
+    rescue.board.remove(rescue)
     save_case_later(
         bot, rescue,
         "API is still not done with clearing case {!r}; continuing in background.".format(trigger.group(3))
@@ -812,12 +816,12 @@ def cmd_grab(bot, trigger, client):
     )
     save_case_later(
         bot, result.rescue,
-        "API is still not done with grab for {rescue.client_name}}; continuing in background.".format(rescue=rescue)
+        "API is still not done with grab for {rescue.client_name}}; continuing in background.".format(rescue=result.rescue)
     )
 
 
-@ratlib.sopel.filter_output
 @commands('inject')
+@ratlib.sopel.filter_output
 @parameterize('FT', usage='<client or case number> <text to add>')
 def cmd_inject(bot, trigger, find_result, line):
     """
@@ -838,7 +842,7 @@ def cmd_inject(bot, trigger, find_result, line):
 
     save_case_later(
         bot, result.rescue,
-        "API is still not done with inject for {rescue.client_name}}; continuing in background.".format(rescue=rescue)
+        "API is still not done with inject for {rescue.client_name}; continuing in background.".format(rescue=result.rescue)
     )
 
 

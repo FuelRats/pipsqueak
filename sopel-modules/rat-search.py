@@ -13,12 +13,7 @@ import json
 import os
 from time import time
 
-#Fuzzywuzzy import
-from fuzzywuzzy import fuzz
-
 #Sopel imports
-from sopel import web
-from sopel.formatting import bold
 from sopel.module import commands, example, NOLIMIT
 from sopel.tools import SopelMemory
 
@@ -108,7 +103,7 @@ def cmd_sysstats(bot, trigger, db=None):
 
 @commands('sysrefresh')
 def cmd_sysrefresh(bot, trigger, db=None):
-    result = refresh_database(bot, trigger.group(2) and trigger.group(2) == '-f')
+    result = refresh_database(bot)
     if result:
         bot.reply("System database refreshed.")
     else:
