@@ -196,6 +196,8 @@ class BloomFilter:
         :param rounding: If non-None, the returned size is rounded up to the nearest multiple of this.
         :return:
         """
+        if not (count > 0 and hashes > 0):
+            raise ValueError("count and hashes must be positive")
         r = rate
         k = hashes
         n = count
