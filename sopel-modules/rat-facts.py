@@ -20,7 +20,7 @@ from sopel.config.types import StaticSection, ValidatedAttribute, ListAttribute
 from sopel.tools import SopelMemory, Identifier
 from sqlalchemy import exc, inspect
 
-from ratlib.db import Fact, with_db
+from ratlib.db import Fact, with_session
 import ratlib.sopel
 
 
@@ -48,7 +48,7 @@ def configure(config):
     )
 
 
-@with_db
+@with_session
 def import_facts(bot, merge=False, db=None):
     """
     Import json data into the fact database
@@ -78,7 +78,8 @@ def import_facts(bot, merge=False, db=None):
                 if merge:
                     fact = db.merge(fact)
                 else:
-                    fact = db.add(fact)
+                    db.add(fact)
+                db.flush()
         except exc.DatabaseError:
             if merge:  # Shouldn't have errors in this case
                 raise
@@ -123,7 +124,7 @@ def load_fact_json(path, recurse=True):
     return facts
 
 
-@with_db
+@with_session
 def find_fact(bot, text, exact=False, db=None):
     lang_search = bot.config.ratfacts.lang
 
@@ -162,7 +163,7 @@ def cmd_recite_fact(bot, trigger):
 
 
 @commands('fact', 'facts')
-@with_db
+@with_session
 def cmd_fact(bot, trigger, db=None):
     """
     Lists known facts, list details on a fact, or rescans the fact database.

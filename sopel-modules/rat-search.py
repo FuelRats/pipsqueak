@@ -23,6 +23,9 @@ from sopel.module import commands, example, NOLIMIT
 from sopel.tools import SopelMemory
 
 import ratlib.sopel
+from ratlib.db import with_session, Starsystem, StarsystemPrefix
+from ratlib.starsystem import refresh_database, get_generation
+from sqlalchemy import sql, orm
 
 def configure(config):
     ratlib.sopel.configure(config)
@@ -152,3 +155,25 @@ def search(bot, trigger):
     for res in searchResults:
         if res != None:
             bot.say(res.replace(' percent.', '%'))
+
+@commands('sysstats')
+@with_session
+def cmd_sysstats(bot, trigger, db=None):
+    generation = get_generation(db=db)
+    ct = lambda t: db.query(sql.func.count()).select_from(t).filter(t.generation == generation)
+    bot.reply(
+        "{num_systems} starsystems under {num_prefixes} unique prefixes."
+        "  {one_word} single word systems.  {mixed} mixed-length prefixes."
+        .format(
+            num_systems=ct(Starsystem).scalar(),
+            num_prefixes=ct(StarsystemPrefix).scalar(),
+            one_word=ct(StarsystemPrefix).filter(StarsystemPrefix.word_ct == 1).scalar(),
+            mixed='unknown'
+
+
+        )
+    )
+
+@commands('sysrefresh')
+def cmd_sysrefresh(bot, trigger, db=None):
+    refresh_database(bot)

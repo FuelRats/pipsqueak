@@ -46,6 +46,12 @@ alembic = alembic.ini
 ## Uncomment this to make SQLAlchemy echo lots of noise.
 # debug_sql = true
 
+# URL to use to retrieve starsystem data.
+edsm_url = http://edsm.net/api-v1/systems?coords=1
+
+# Maximum age of data in seconds before we refresh.
+edsm_maxage = 43200
+
 [ratfacts]
 ## Filename or directory that will be searched for facts to add to the database on startup.
 ## This will not override existing facts.

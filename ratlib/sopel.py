@@ -38,6 +38,9 @@ class RatbotConfigurationSection(StaticSection):
     workdir = types.FilenameAttribute('workdir', directory=True, default='run')
     alembic = types.FilenameAttribute('alembic', directory=False, default='alembic.ini')
     debug_sql = BooleanAttribute('debug_sql', default=False)
+    edsm_url = types.ValidatedAttribute('edsm_url', str, default="http://edsm.net/api-v1/systems?coords=1")
+    edsm_maxage = types.ValidatedAttribute('edsm_maxage', int, default=60*60*12)
+    edsm_db = types.ValidatedAttribute('edsm_db', str, default="systems.db")
 
 
 def configure(config):
@@ -54,6 +57,9 @@ def configure(config):
     config.ratbot.configure_setting('workdir', "Work directory for dynamically modified data.")
     config.ratbot.configure_setting('alembic', "Path to alembic.ini for database upgrades.")
     config.ratbot.configure_setting('debug_sql', "True if SQLAlchemy should echo query information.")
+    config.ratbot.configure_setting('edsm_url', "URL for EDSM system data")
+    config.ratbot.configure_setting('edsm_maxage', "Maximum age of EDSM system data in seconds")
+    config.ratbot.configure_setting('edsm_db', "EDSM Database path (relative to workdir)")
 
 
 def setup(bot):
@@ -64,7 +70,7 @@ def setup(bot):
     """
     if 'ratbot' not in bot.memory:
         bot.memory['ratbot'] = SopelMemory()
-        bot.memory['ratbot']['sqla'] = ratlib.db.setup(bot)
+        ratlib.db.setup(bot)
 
 
 def makepath(dir, filename):
