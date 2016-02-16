@@ -95,7 +95,7 @@ class TrackedProperty:
         """
         Read json data and update the instance.
         """
-        instance._data[self.name] = self.load(json[self.remote_name])
+        instance._data[self.name] = self.load(json.get(self.remote_name))
         instance._changed.discard(self)
 
     def has(self, instance, json):
@@ -303,6 +303,7 @@ class InstrumentedSet(EventEmitter, set):
     def commit(self, _event=EventEmitter.COMMITTED):
         self.changes = {}
         self.replace = False
+
         self.emit(_event)
 
     def merge(self, other):
@@ -315,7 +316,7 @@ class InstrumentedSet(EventEmitter, set):
                 super().add(item)
             else:
                 super().discard(item)
-        super().extend(self.appends)
+        super().update(k for k, v in self.changes.items() if v)
         self.commit(EventEmitter.MERGED)
         return self
 

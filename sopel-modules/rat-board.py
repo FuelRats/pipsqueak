@@ -813,7 +813,7 @@ def cmd_grab(bot, trigger, client):
     )
     save_case_later(
         bot, result.rescue,
-        "API is still not done with grab for {rescue.client_name}}; continuing in background.".format(rescue=result.rescue)
+        "API is still not done with grab for {rescue.client_name}; continuing in background.".format(rescue=result.rescue)
     )
 
 
@@ -947,7 +947,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     save_case_later(
         bot, rescue,
         (
-            "API is still not done updating platform for ({rescue.client_name}}; continuing in background."
+            "API is still not done updating platform for ({rescue.client_name}; continuing in background."
             .format(rescue=rescue)
         )
     )
