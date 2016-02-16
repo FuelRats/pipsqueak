@@ -34,7 +34,7 @@ class BooleanAttribute(types.ChoiceAttribute):
 
 
 class RatbotConfigurationSection(StaticSection):
-    apiurl = types.ValidatedAttribute('apiurl', str, default='http://api.fuelrats.com/')
+    apiurl = types.ValidatedAttribute('apiurl', str, default='')
     workdir = types.FilenameAttribute('workdir', directory=True, default='run')
     alembic = types.FilenameAttribute('alembic', directory=False, default='alembic.ini')
     debug_sql = BooleanAttribute('debug_sql', default=False)
@@ -53,7 +53,7 @@ def configure(config):
         return
 
     config.define_section('ratbot', RatbotConfigurationSection)
-    config.ratbot.configure_setting('apiurl', "The URL of the API to talk to.")
+    config.ratbot.configure_setting('apiurl', "The URL of the API to talk to, or blank for offline mode.")
     config.ratbot.configure_setting('workdir', "Work directory for dynamically modified data.")
     config.ratbot.configure_setting('alembic', "Path to alembic.ini for database upgrades.")
     config.ratbot.configure_setting('debug_sql', "True if SQLAlchemy should echo query information.")

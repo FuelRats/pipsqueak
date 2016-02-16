@@ -41,6 +41,8 @@ database = postgresql://username:password@localhost/databasename
 ## Uncomment this to make SQLAlchemy echo lots of queries.
 # debug_sql = true
 
+## API Selection.
+# If no API URL is defined, Mecha will operate in offline mode.
 ## Development API
 apiurl = http://dev.api.fuelrats.com
 ## Production API

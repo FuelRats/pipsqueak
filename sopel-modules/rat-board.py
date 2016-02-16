@@ -317,6 +317,9 @@ def refresh_cases(bot, rescue=None):
     :param bot: Sopel bot
     :param rescue: Individual rescue to refresh.
     """
+    if not bot.config.ratbot.apiurl:
+        warnings.warn("No API URL configured.  Operating in offline mode.")
+        return  # API disabled.
     uri = urljoin(bot.config.ratbot.apiurl, '/api/search/rescues')
     if rescue is not None:
         if rescue.id is None:
@@ -368,6 +371,10 @@ def save_case(bot, rescue):
     with rescue.change():
         data = rescue.save(full=(rescue.id is None))
         rescue.commit()
+
+    if not bot.config.ratbot.apiurl:
+        return None  # API Disabled
+
     uri = urljoin(bot.config.ratbot.apiurl, '/api/rescues')
     if rescue.id:
         method = "PUT"
@@ -399,8 +406,11 @@ def save_case_later(bot, rescue, message=None, timeout=10):
     :return:
     """
     future = save_case(bot, rescue)
+    if not future:
+        return None
     try:
         result = future.result(timeout=timeout)
+
     except concurrent.futures.TimeoutError:
         if message is None:
             message = (
