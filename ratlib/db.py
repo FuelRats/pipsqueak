@@ -182,6 +182,8 @@ class StarsystemPrefix(Base):
     first_word = sa.Column(sa.Text, nullable=False)
     word_ct = sa.Column(sa.Integer, nullable=False)
     const_words = sa.Column(sa.Text, nullable=True)
+    ratio = sa.Column('ratio', sa.Float())
+    cume_ratio = sa.Column('cume_ratio', sa.Float())
 StarsystemPrefix.__table__.append_constraint(schema.Index(
     'starsystem_prefix__unique_words', 'first_word', 'word_ct', unique=True
 ))

@@ -8,7 +8,6 @@ from time import time
 import itertools
 import re
 import operator
-import os
 try:
     import collections.abc as collections_abc
 except ImportError:
@@ -103,13 +102,10 @@ def refresh_database(bot, refresh=False, db=None):
 
     ct = 0
     for chunk in chunkify(itertools.groupby(_gen(), operator.itemgetter(0)), 100):
-        pending = {}
         for (first_word, word_ct), group in chunk:
             ct += 1
-            systems = []
             const_words = None
             for _, words, system in group:
-                systems.append(system.id)
                 if const_words is None:
                     const_words = words.copy()
                 else:
@@ -121,7 +117,6 @@ def refresh_database(bot, refresh=False, db=None):
                 first_word=first_word, word_ct=word_ct, const_words=" ".join(const_words)
             )
             db.add(prefix)
-            pending[prefix] = systems
         print(ct)
         db.flush()
     db.connection().execute(
@@ -134,6 +129,27 @@ def refresh_database(bot, refresh=False, db=None):
             }
         )
     )
+    db.connection().execute(
+        """
+        UPDATE {sp} SET ratio=t.ratio, cume_ratio=t.cume_ratio
+        FROM (
+            SELECT t.id, ct/SUM(ct) OVER w AS ratio, SUM(ct) OVER p/SUM(ct) OVER w AS cume_ratio
+            FROM (
+                SELECT sp.*, COUNT(*) AS ct
+                FROM
+                    {sp} AS sp
+                    INNER JOIN {s} AS s ON s.prefix_id=sp.id
+                GROUP BY sp.id
+                HAVING COUNT(*) > 0
+            ) AS t
+            WINDOW
+            w AS (PARTITION BY t.first_word ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING),
+            p AS (PARTITION BY t.first_word ORDER BY t.word_ct ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
+        ) AS t
+        WHERE t.id=starsystem_prefix.id
+        """.format(sp=StarsystemPrefix.__tablename__, s=Starsystem.__tablename__)
+    )
+
 
     # Update refresh time
     status = get_status(db)
@@ -167,3 +183,75 @@ def refresh_bloom(bot, db):
     bot.memory['ratbot']['starsystem_bloom'] = bloom
     return bloom
 
+
+def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
+    """
+    Scans for system names that might occur in the line of text.
+
+    :param bot: Bot
+    :param line: Line of text
+    :param min_ratio: Minimum cumulative ratio to consider an acceptable match.
+    :param min_length: Minimum length of the word matched on a single-word match.
+    :return: Set of matched systems.
+
+    min_ratio explained:
+
+    There's one StarsystemPrefix for each distinct combination of (first word, word count).  Each prefix has a
+    'ratio': the % of starsystems belonging to it as related the total number of starsystems owned by all other
+    prefixes sharing the same first_word.  That is:
+        count(systems with the same first word and word count) / count(systems with the same first word, any word count)
+
+    Additionally, there's a 'cume_ratio' (Cumulative Ratio) that is: The sum of this prefix's ratio and all other
+    related prefixes with a lower word count.
+
+    min_ratio excludes prefixes with a cume_ratio below min_ratio.  The main reason for this is to exclude certain
+    matches that might be made as a result of a typo -- e.g. matching a sector name rather than sector+coords because
+    the coordinates were mistyped or the system in question isn't in EDSM yet.
+    """
+    # Split line into words.
+    #
+    # Rather than use a complicated regex (which we end up needing to filter anyways), we split on any combination of:
+    # 0+ non-word characters, followed by 1+ spaces, followed by 0+ non-word characters.
+    # This filters out grammar like periods at ends of sentences and commas between words, without filtering out things
+    # like a hyphen in a system name (since there won't be a space in the right place.)
+    words = list(filter(None, re.split(r'\W*\s+\W*', ' ' + line.lower() + ' ')))
+
+    # Check for words that are in the bloom filter.  Make a note of their location in the word list.
+    bloom = bot.memory['ratbot']['starsystem_bloom']
+    candidates = {}
+    for ix, word in enumerate(words):
+        if word in candidates:
+            candidates[word].append(ix)
+        elif word in bloom:
+            candidates[word] = [ix]
+
+    # No candidates; bail.
+    if not candidates:
+        return set()
+
+    # Still here, so find prefixes in the database
+    db = get_session(bot)
+    results = {}
+    try:
+        # Find matching prefixes
+        for prefix in db.query(StarsystemPrefix).filter(
+                StarsystemPrefix.first_word.in_(candidates.keys()),
+                StarsystemPrefix.cume_ratio >= min_ratio,
+                sql.or_(StarsystemPrefix.word_ct > 1, sql.func.length(StarsystemPrefix.first_word) >= min_length)
+        ):
+            # Look through matching words.
+            for ix in candidates[prefix.first_word]:
+                # Bail if there's not enough room for the rest of this prefix.
+                # (e.g. last word of the line was "MCC", with no room for a possible "811")
+                endix = ix + prefix.word_ct
+                if endix > len(words):
+                    break
+                # Try to find the actual system.
+                check = " ".join(words[ix:endix])
+                system = db.query(Starsystem).filter(Starsystem.name_lower == check).first()
+                if not system or (prefix.first_word in results and len(results[prefix.first_word]) > len(system.name)):
+                    continue
+                results[prefix.first_word] = system.name
+        return set(results.values())
+    finally:
+        db.rollback()

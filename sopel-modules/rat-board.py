@@ -30,6 +30,7 @@ import concurrent.futures
 
 import ratlib
 from ratlib.autocorrect import correct
+from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
 import ratlib.api.http as api
 call = api.call
@@ -451,7 +452,6 @@ class AppendQuotesResult:
         return rv
 
 
-
 def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_platform=True, detect_system=True):
     """
     Appends lines to a (possibly newly created) case.  Returns a tuple of (Rescue, appended_lines).
@@ -463,7 +463,7 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
     :param autocorrect: Whether to perform system autocorrection.
     :param create: Whether this is allowed to create a new case.  Passed to `Board.find()`
     :param detect_platform: If True, attempts to parse a platform out of the first line.
-    :param detect_system: If True, attempts system name autodetection.  (Not Yet Implemented)
+    :param detect_system: If True, attempts system name autodetection.
     :return: A AppendQuotesResult representing the actions that happened.
     """
     rv = AppendQuotesResult()
@@ -494,7 +494,11 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
                     rv.added_lines.append("[Autocorrected system name, original was {}]".format(originals))
     else:
         rv.added_lines = lines
-
+    if rv.added_lines and detect_system and not rv.rescue.system:
+        systems = scan_for_systems(bot, rv.added_lines[0])
+        if len(systems) == 1:
+            rv.detected_system = systems.pop()
+            rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
     if detect_platform and rv.rescue.platform == 'unknown':
         platforms = set()
         for line in rv.added_lines:
