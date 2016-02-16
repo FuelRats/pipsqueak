@@ -154,8 +154,8 @@ def refresh_bloom(bot, db):
     :return: New bloom filter.
     """
     # Get filter planning statistics
-    count = db.query(sql.func.count(sql.distinct(StarsystemPrefix.first_word))).scalar()
-    bits, hashes = BloomFilter.suggest_size_and_hashes(rate=0.01, count=count, max_hashes=10)
+    count = db.query(sql.func.count(sql.distinct(StarsystemPrefix.first_word))).scalar() or 0
+    bits, hashes = BloomFilter.suggest_size_and_hashes(rate=0.01, count=max(32, count), max_hashes=10)
     bloom = BloomFilter(bits, BloomFilter.extend_hashes(hashes))
     start = time()
     bloom.update(x[0] for x in db.query(StarsystemPrefix.first_word).distinct())

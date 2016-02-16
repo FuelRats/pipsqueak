@@ -13,12 +13,7 @@ import json
 import os
 from time import time
 
-#Fuzzywuzzy import
-from fuzzywuzzy import fuzz
-
 #Sopel imports
-from sopel import web
-from sopel.formatting import bold
 from sopel.module import commands, example, NOLIMIT
 from sopel.tools import SopelMemory
 
