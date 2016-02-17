@@ -24,7 +24,7 @@ PostgreSQL will need:
 - A user account for the bot.
 - A database instance owned by that user.
 - The [fuzzystrmatch](http://www.postgresql.org/docs/9.5/static/fuzzystrmatch.html) extension loaded into the bot's 
-  database.  This is included with PostgreSQL, it can be added by any superuser with `CREATE EXTENSION fuzzystrmatch;`
+  database.  This is included with PostgreSQL, though it may require installation of your platform's postgresql-contrib package or similar.  It can be added by any superuser with `CREATE EXTENSION fuzzystrmatch;`
 
 ### Alternate database options
 Theoretically, another database can be used instead of PostgreSQL provided that SQLAlchemy and Alembic support it.
