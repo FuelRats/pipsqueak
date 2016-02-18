@@ -174,7 +174,7 @@ class Fact(Base):
 
 class Status(Base):
     id = sa.Column(sa.Integer, primary_key=True)
-    starsystem_refreshed = sa.Column(sa.Integer, nullable=True)  # Time of last refresh
+    starsystem_refreshed = sa.Column(sa.DateTime(timezone=True), nullable=True)  # Time of last refresh
 
 
 class StarsystemPrefix(Base):

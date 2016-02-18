@@ -5,9 +5,13 @@ This is specifically named 'starsystem' rather than 'system' for reasons that sh
 """
 
 from time import time
+import datetime
 import itertools
 import re
 import operator
+import threading
+
+
 try:
     import collections.abc as collections_abc
 except ImportError:
@@ -18,6 +22,7 @@ import sqlalchemy as sa
 from sqlalchemy import sql, orm, schema
 from ratlib.db import get_status, get_session, with_session, Starsystem, StarsystemPrefix
 from ratlib.bloom import BloomFilter
+
 
 def chunkify(it, size):
     if not isinstance(it, collections_abc.Iterator):
@@ -37,23 +42,60 @@ def chunkify(it, size):
         yield _gen()
 
 
-@with_session
-def refresh_database(bot, refresh=False, db=None):
+class ConcurrentOperationError(RuntimeError):
+    pass
+
+
+def refresh_database(bot, force=False, limit_one=True, _lock=threading.Lock()):
     """
     Refreshes the database of starsystems.  Also rebuilds the bloom filter.
     :param bot: Bot instance
-    :param refresh: True to force refresh
-    :param db: Database handle
+    :param force: True to force refresh regardless of age.
+    :param limit_one: If True, prevents multiple concurrent refreshes.
+    :param _lock: Internal lock against multiple calls.
+    :returns: True if a refresh occured, False if one was not yet due.
+    :raises: ConcurrentOperationError if a refresh was already ongoing and limit_one is True.
     """
+    release = False  # Whether to release the lock we did (not?) acquire.
+
+    try:
+        if limit_one:
+            release = _lock.acquire(blocking=False)
+            if not release:
+                raise ConcurrentOperationError('refresh_database call already in progress')
+        return _refresh_database(bot, force)
+    finally:
+        if release:
+            _lock.release()
+
+
+@with_session
+def _refresh_database(bot, force=False, db=None):
+    """
+    Actual implementation of refresh_database.
+
+    Refreshes the database of starsystems.  Also rebuilds the bloom filter.
+    :param bot: Bot instance
+    :param force: True to force refresh
+    :param db: Database handle
+    :paran onlyone: If True (default), prevents more than one instance of refresh_database from running.
+    """
+    start = time()
     edsm_url = bot.config.ratbot.edsm_url or "http://edsm.net/api-v1/systems?coords=1"
     status = get_status(db)
 
     edsm_maxage = bot.config.ratbot.maxage or 60*12*12
-    if not (refresh or not status.starsystem_refreshed or time() - status.starsystem_refreshed > edsm_maxage):
+    if not (
+        force or
+        not status.starsystem_refreshed or
+        (datetime.datetime.now(tz=datetime.timezone.utc) - status.starsystem_refreshed).total_seconds() > edsm_maxage
+    ):
         # No refresh needed.
         return False
 
+    fetch_start = time()
     data = requests.get(edsm_url).json()
+    fetch_end = time()
     # with open('run/systems.json') as f:
     #     import json
     #     data = json.load(f)
@@ -75,13 +117,15 @@ def refresh_database(bot, refresh=False, db=None):
             'x': s.get('x'), 'y': s.get('y'), 'z': s.get('z'),
             'word_ct': word_ct
         }
-
+    load_start = time()
     for chunk in chunkify(data, 5000):
         db.bulk_insert_mappings(Starsystem, [_format_system(s) for s in chunk])
-        print(ct)
+        # print(ct)
     del data
     db.connection().execute("ANALYZE " + Starsystem.__tablename__)
+    load_end = time()
 
+    stats_start = time()
     # Pass 2: Calculate statistics.
     # 2A: Quick insert of prefixes for single-name systems
     db.connection().execute(
@@ -117,7 +161,7 @@ def refresh_database(bot, refresh=False, db=None):
                 first_word=first_word, word_ct=word_ct, const_words=" ".join(const_words)
             )
             db.add(prefix)
-        print(ct)
+        # print(ct)
         db.flush()
     db.connection().execute(
         sql.update(
@@ -149,14 +193,24 @@ def refresh_database(bot, refresh=False, db=None):
         WHERE t.id=starsystem_prefix.id
         """.format(sp=StarsystemPrefix.__tablename__, s=Starsystem.__tablename__)
     )
-
+    stats_end = time()
 
     # Update refresh time
     status = get_status(db)
-    status.starsystem_refreshed = time()
+    status.starsystem_refreshed = sql.func.now()
     db.add(status)
     db.commit()
+    bloom_start = time()
     refresh_bloom(bot)
+    bloom_end = time()
+    end = time()
+    stats = {
+        'stats': stats_end - stats_start, 'load': load_end - load_start, 'fetch': fetch_end - fetch_start,
+        'bloom': bloom_end - bloom_start
+    }
+    stats['misc'] = (end - start) - sum(stats.values())
+    stats['all'] = end - start
+    bot.memory['ratbot']['stats']['starsystem_refresh'] = stats
     return True
 
 
@@ -176,11 +230,12 @@ def refresh_bloom(bot, db):
     start = time()
     bloom.update(x[0] for x in db.query(StarsystemPrefix.first_word).distinct())
     end = time()
-    print(
-        "Recomputing bloom filter took {} seconds.  {}/{} bits, {} hashes, {} false positive chance"
-        .format(end-start, bloom.setbits, bloom.bits, hashes, bloom.false_positive_chance())
-    )
+    # print(
+    #     "Recomputing bloom filter took {} seconds.  {}/{} bits, {} hashes, {} false positive chance"
+    #     .format(end-start, bloom.setbits, bloom.bits, hashes, bloom.false_positive_chance())
+    # )
     bot.memory['ratbot']['starsystem_bloom'] = bloom
+    bot.memory['ratbot']['stats']['starsystem_bloom'] = {'entries': count, 'time': end - start}
     return bloom
 
 

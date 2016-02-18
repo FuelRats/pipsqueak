@@ -87,6 +87,7 @@ def setup(bot):
     """
     if 'ratbot' not in bot.memory:
         bot.memory['ratbot'] = SopelMemory()
+        bot.memory['ratbot']['stats'] = SopelMemory()
         ratlib.db.setup(bot)
         ratlib.starsystem.refresh_bloom(bot)
 
