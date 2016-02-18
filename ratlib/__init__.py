@@ -1,6 +1,7 @@
 # Utility functions
-
 import datetime
+
+_zerodelta=datetime.timedelta()
 def friendly_timedelta(delta):
     """
     Given a datetime.timedelta or a datetime.datetime, gives a human-readable explanation of time differences
@@ -8,11 +9,11 @@ def friendly_timedelta(delta):
     Assumes negative values are in the past, positive values in the future.
     """
     if isinstance(delta, datetime.datetime):
-        return friendly_timedelta(delta - datetime.datetime.now(tz=datetime.timezone.utc))
+        return friendly_timedelta(delta - datetime.datetime.now(tz=delta.tzinfo))
     if isinstance(delta, datetime.date):
         return friendly_timedelta(delta - datetime.date.today())
 
-    if delta < datetime.timedelta():
+    if delta < _zerodelta:
         # Delta is in the past
         delta = delta * -1  # Invert it to simplify math
         fmt = "{} ago"
@@ -50,11 +51,11 @@ def format_timedelta(delta):
     Given a datetime.timedelta or a datetime.datetime, gives an exact(ish) representation of time difference
     """
     if isinstance(delta, datetime.datetime):
-        return friendly_timedelta(delta - datetime.datetime.now(tz=datetime.timezone.utc))
+        return friendly_timedelta(delta - datetime.datetime.now(tz=delta.tzinfo))
     if isinstance(delta, datetime.date):
         return friendly_timedelta(delta - datetime.date.today())
 
-    if delta < datetime.timedelta():
+    if delta < _zerodelta:
         # Delta is in the past
         delta = delta * -1  # Invert it to simplify math
         fmt = "-{}"
@@ -75,3 +76,18 @@ def format_timedelta(delta):
         result = "{}m{:02}s".format(m, s)
 
     return fmt.format(result)
+
+
+def format_timestamp(ts):
+    if isinstance(ts, datetime.timedelta):
+        return format_timedelta(ts)
+    if isinstance(ts, datetime.datetime):
+        if datetime.tzinfo is datetime.timezone.utc:
+            return ts.strftime("%b %d %H:%M:%S UTC")
+        elif datetime.tzinfo is None:
+            return ts.strftime("%b %d %H:%M:%S")
+        else:
+            return ts.strftime("%b %d %H:%M:%S %Z")
+    if isinstance(ts, datetime.date):
+        return ts.strftime("%b %d, %Y")
+    return ts.strftime("%H:%M:%S")

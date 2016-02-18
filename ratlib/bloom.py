@@ -253,3 +253,13 @@ class BloomFilter:
             salt = str(function(str(salt).encode())).encode()
             result.append(lambda data, _salt=salt, _fn=function: _fn(_salt + data))
         return result
+
+    @property
+    def k(self):
+        """k is the standard term used to describe the number of hash functions in a bloom filter."""
+        return len(self.functions)
+
+    @property
+    def m(self):
+        """m is the standard term used to describe the number of bits in a bloom filter."""
+        return self.bits
