@@ -9,6 +9,9 @@ import os.path
 import re
 import ratlib.db
 import ratlib.starsystem
+from sopel.tools import Identifier
+
+
 __all__ = ['RatbotConfigurationSection', 'configure', 'setup', 'makepath']
 
 
@@ -41,6 +44,20 @@ class RatbotConfigurationSection(StaticSection):
     edsm_url = types.ValidatedAttribute('edsm_url', str, default="http://edsm.net/api-v1/systems?coords=1")
     edsm_maxage = types.ValidatedAttribute('edsm_maxage', int, default=60*60*12)
     edsm_db = types.ValidatedAttribute('edsm_db', str, default="systems.db")
+
+
+def best_channel_mode(bot, nickname):
+    """
+    Returns a combination of all channel privileges the given nickname has across all channel modes.
+    :param bot:
+    :param nickname:
+    :return:
+    """
+    access = 0
+    nickname = Identifier(nickname)
+    for channel in bot.privileges.values():
+        access |= channel.get(nickname, 0)
+    return access
 
 
 def configure(config):

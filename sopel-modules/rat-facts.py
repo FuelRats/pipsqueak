@@ -19,7 +19,6 @@ from sopel.module import commands, NOLIMIT, HALFOP, OP
 from sopel.config.types import StaticSection, ValidatedAttribute, ListAttribute
 from sopel.tools import SopelMemory, Identifier
 from sqlalchemy import exc, inspect
-
 from ratlib.db import Fact, with_session
 import ratlib.sopel
 
@@ -172,7 +171,7 @@ def cmd_fact(bot, trigger, db=None):
     !fact LANGUAGE [full] - Shows detailed stats on the specified language.  'full' dumps all facts to a PM.
 
     The following commands require privileges:
-    !fact import - Reimports JSON data and triggers rescan
+    !fact import - Reimports JSON data.
     !fact full - Dumps all facts, all languages to a PM.
     !fact add <id> <text> - Creates a new fact or updates an existing one.  <id> must be of the format <factname>-<lang>
         Aliases: set
@@ -187,9 +186,7 @@ def cmd_fact(bot, trigger, db=None):
 
     access = 0
     if command in('full', 'rescan', 'import', 'add', 'del', 'delete', 'set', 'remove'):
-        nick = Identifier(trigger.nick)
-        for channel in bot.privileges.values():
-            access |= channel.get(nick, 0)
+        access = ratlib.sopel.best_channel_mode(bot, trigger.nick)
 
 
     if not command:
