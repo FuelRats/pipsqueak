@@ -28,7 +28,8 @@ import threading
 import operator
 import concurrent.futures
 
-import ratlib
+from ratlib import friendly_timedelta, format_timestamp
+
 from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
@@ -310,6 +311,18 @@ class Rescue(TrackedBase):
         else:
             return "<unknown client>"
 
+    def touch(self, when=None):
+        """
+        Updates modification (and potentially creation time) of this case.  Should only be used when API-less
+        :param when: Time to set.  Should be a UTC timestamp
+        """
+        if not when:
+            when = datetime.datetime.now(tz=datetime.timezone.utc)
+        if not self.createdAt:
+            self.createdAt = when
+        self.lastModified = when
+        return when
+
 
 def refresh_cases(bot, rescue=None):
     """
@@ -405,6 +418,9 @@ def save_case_later(bot, rescue, message=None, timeout=10):
     :param timeout: Timeout.
     :return:
     """
+    if not bot.config.ratbot.apiurl:
+        rescue.touch()
+
     future = save_case(bot, rescue)
     if not future:
         return None
@@ -695,7 +711,6 @@ def cmd_quote(bot, trigger, rescue):
     Recites all known information for the specified rescue
     Required parameters: client name or case number.
     """
-    datefmt = "%b %d %H:%M:%S UTC"
     tags = ['unknown platform' if not rescue.platform or rescue.platform == 'unknown' else rescue.platform.upper()]
 
     if rescue.epic:
@@ -703,16 +718,19 @@ def cmd_quote(bot, trigger, rescue):
     if rescue.codeRed:
         tags.append(bold(color('CR', colors.RED)))
 
-    bot.reply(
-        "{client}'s case #{index} ({tags}) opened {opened} ({opened_ago}), last updated {updated} ({updated_ago})  @{id}"
-        .format(
-            client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags), id=rescue.id or 'pending',
-            opened=rescue.createdAt.strftime(datefmt) if rescue.createdAt else '<unknown>',
-            updated=rescue.lastModified.strftime(datefmt) if rescue.lastModified else '<unknown>',
-            opened_ago=ratlib.friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
-            updated_ago=ratlib.friendly_timedelta(rescue.lastModified) if rescue.lastModified else '???',
-        )
-    )
+    fmt = (
+        "{client}'s case #{index} ({tags}) opened {opened} ({opened_ago}),"
+        " last updated {updated} ({updated_ago})"
+    ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
+
+    bot.reply(fmt.format(
+        client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags),
+        opened=format_timestamp(rescue.createdAt) if rescue.createdAt else '<unknown>',
+        updated=format_timestamp(rescue.lastModified) if rescue.lastModified else '<unknown>',
+        opened_ago=friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
+        updated_ago=friendly_timedelta(rescue.lastModified) if rescue.lastModified else '???',
+        id=rescue.id or 'pending',
+    ))
 
     # FIXME: Rats/temprats/etc isn't really handled yet.
     if rescue.rats:
@@ -756,7 +774,7 @@ def cmd_list(bot, trigger, params=''):
     if not params or params[0] != '-':
         params = '-'
 
-    show_ids = '@' in params
+    show_ids = '@' in params and bot.config.ratbot.apiurl is not None
     show_inactive = 'i' in params
 
     board = bot.memory['ratbot']['board']
