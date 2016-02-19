@@ -231,7 +231,7 @@ def cmd_fact(bot, trigger, db=None):
             if not message:
                 bot.reply("Can't add a blank fact.")
                 return NOLIMIT
-            fact = db.merge(Fact(name=name, lang=lang, message=extra, author=trigger.nick))
+            fact = db.merge(Fact(name=name, lang=lang, message=extra, author=str(trigger.nick)))
             is_new = not inspect(fact).persistent
             db.commit()
             bot.reply(("Added " if is_new else "Updated ") + format_fact(fact))
