@@ -525,6 +525,7 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
         if len(systems) == 1:
             rv.detected_system = systems.pop()
             rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
+            rv.rescue.system = rv.detected_system
     if detect_platform and rv.rescue.platform == 'unknown':
         platforms = set()
         for line in rv.added_lines:
@@ -549,10 +550,6 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
         if len(platforms) == 1:
             rv.rescue.platform = platforms.pop()
             rv.detected_platform = rv.rescue.platform
-
-    if detect_system and rv.rescue.system is None:
-        # Not Yet Implemented
-        pass
 
     rv.rescue.quotes.extend(rv.added_lines)
     return rv
