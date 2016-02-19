@@ -82,9 +82,9 @@ def format_timestamp(ts):
     if isinstance(ts, datetime.timedelta):
         return format_timedelta(ts)
     if isinstance(ts, datetime.datetime):
-        if datetime.tzinfo is datetime.timezone.utc:
+        if ts.tzinfo == datetime.timezone.utc:
             return ts.strftime("%b %d %H:%M:%S UTC")
-        elif datetime.tzinfo is None:
+        elif ts.tzinfo is None:
             return ts.strftime("%b %d %H:%M:%S")
         else:
             return ts.strftime("%b %d %H:%M:%S %Z")
