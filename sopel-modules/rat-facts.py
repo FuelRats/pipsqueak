@@ -90,7 +90,8 @@ def setup(bot):
     lang = bot.config.ratfacts.lang
     if lang is None:
         lang = ['en']
-    lang = list(x.strip() for x in lang.split(","))
+    else:
+        lang = list(x.strip() for x in lang.split(","))
     bot.memory['ratfacts'] = SopelMemory()
     bot.memory['ratfacts']['lang'] = lang
 
