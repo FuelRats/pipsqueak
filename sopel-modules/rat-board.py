@@ -621,25 +621,25 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
         @functools.wraps(fn)
         def wrapper(bot, trigger):
             args = []
-            if trigger.group(2) is not None:
-                for param, value in itertools.zip_longest(params, split(trigger.group(2), maxsplit), fillvalue=None):
-                    if param == '+' and value is None:
-                        raise UsageError()
-                    if value is None:
-                        break
-                    if param and param in 'rRfF':
-                        value = bot.memory['ratbot']['board'].find(value, create=param in 'RF')
-                        if not value[0]:
-                            return bot.reply('Could not find a case with that name or number.')
-                        if param in 'rR':
-                            value = value[0]
-                    # 'w' and 't' don't require any special handling, the split takes care of them.
-                    # '*' doesn't require any special handling, it's just syntactic sugar.
-                    # '+' already had its special handling done.
-                    if param == 'T':
-                        value = value.strip()
-                    args.append(value)
             try:
+                if trigger.group(2) is not None:
+                    for param, value in itertools.zip_longest(params, split(trigger.group(2), maxsplit), fillvalue=None):
+                        if param == '+' and value is None:
+                            raise UsageError()
+                        if value is None:
+                            break
+                        if param and param in 'rRfF':
+                            value = bot.memory['ratbot']['board'].find(value, create=param in 'RF')
+                            if not value[0]:
+                                return bot.reply('Could not find a case with that name or number.')
+                            if param in 'rR':
+                                value = value[0]
+                        # 'w' and 't' don't require any special handling, the split takes care of them.
+                        # '*' doesn't require any special handling, it's just syntactic sugar.
+                        # '+' already had its special handling done.
+                        if param == 'T':
+                            value = value.strip()
+                        args.append(value)
                 try:
                     bound = sig.bind(bot, trigger, *args)
                 except TypeError:
