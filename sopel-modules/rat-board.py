@@ -34,6 +34,7 @@ from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
 import ratlib.api.http as api
+import ratlib.db
 call = api.call
 urljoin = api.urljoin
 
@@ -381,6 +382,7 @@ def save_case(bot, rescue):
     :param bot: Bot instance
     :param rescue: Rescue to save.
     """
+
     with rescue.change():
         data = rescue.save(full=(rescue.id is None))
         rescue.commit()
@@ -425,8 +427,7 @@ def save_case_later(bot, rescue, message=None, timeout=10):
     if not future:
         return None
     try:
-        result = future.result(timeout=timeout)
-
+        future.result(timeout=timeout)
     except concurrent.futures.TimeoutError:
         if message is None:
             message = (
@@ -434,7 +435,7 @@ def save_case_later(bot, rescue, message=None, timeout=10):
                 .format(rescue=rescue)
             )
         bot.notice(message)
-    return result
+    # return future
 
 
 class AppendQuotesResult:
@@ -667,10 +668,6 @@ def rule_history(bot, trigger):
     else:
         line = trigger.group()
 
-    ## Make sure we don't accidentally signal again.
-    ## This is now replaced by filtering our output to not include ratsignal, rather than filtering input.
-    # ratsignal.sub('R@signal', line)
-
     lock, log = bot.memory['ratbot']['log']
     nick = Identifier(trigger.nick)
     with lock:
@@ -716,8 +713,8 @@ def cmd_quote(bot, trigger, rescue):
         tags.append(bold(color('CR', colors.RED)))
 
     fmt = (
-        "{client}'s case #{index} ({tags}) opened {opened} ({opened_ago}),"
-        " last updated {updated} ({updated_ago})"
+        "{client}'s case #{index} at {system} ({tags}) opened {opened} ({opened_ago}),"
+        " updated {updated} ({updated_ago})"
     ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
 
     bot.reply(fmt.format(
@@ -727,6 +724,7 @@ def cmd_quote(bot, trigger, rescue):
         opened_ago=friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
         updated_ago=friendly_timedelta(rescue.lastModified) if rescue.lastModified else '???',
         id=rescue.id or 'pending',
+        system=rescue.system or 'an unknown system'
     ))
 
     # FIXME: Rats/temprats/etc isn't really handled yet.
@@ -976,7 +974,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     save_case_later(
         bot, rescue,
         (
-            "API is still not done updating platform for ({rescue.client_name}; continuing in background."
+            "API is still not done updating platform for {rescue.client_name}; continuing in background."
             .format(rescue=rescue)
         )
     )
@@ -993,3 +991,34 @@ def cmd_platform_pc(bot, trigger, rescue):
 @requires_case
 def cmd_platform_xb(bot, trigger, rescue):
     return cmd_platform(bot, trigger, rescue, 'xb')
+
+
+@commands('sys', 'system', 'loc', 'location')
+@ratlib.sopel.filter_output
+@parameterize('rT', usage='<client or case number> <system name>')
+@ratlib.db.with_session
+def cmd_system(bot, trigger, rescue, system, db=None):
+    """
+    Sets a case's system.
+    required parameters: Client name or case number, system location
+    """
+    if not system:
+        raise UsageError()
+
+    # Try to find the system in EDSM.
+    fmt = "Location of {rescue.client_name} set to {rescue.system}"
+
+    result = db.query(ratlib.db.Starsystem).filter(ratlib.db.Starsystem.name_lower == system.lower()).first()
+    if result:
+        system = result.name
+    else:
+        fmt += "  (not in EDSM)"
+    rescue.system = system
+    bot.reply(fmt.format(rescue=rescue))
+    save_case_later(
+        bot, rescue,
+        (
+            "API is still not done updating system for {rescue.client_name}; continuing in background."
+            .format(rescue=rescue)
+        )
+    )
