@@ -938,7 +938,24 @@ def cmd_active(bot, trigger, rescue):
     """
     rescue.active = not rescue.active
     bot.say(
-        "{rescue.client_name}'s case is now {active}".format(rescue=rescue, active=bold('active' if rescue.active else 'inactive'))
+        "{rescue.client_name}'s case is now {active}"
+        .format(rescue=rescue, active=bold('active') if rescue.active else 'inactive')
+    )
+    save_case_later(bot, rescue)
+
+
+@commands('epic')
+@ratlib.sopel.filter_output
+@requires_case
+def cmd_epic(bot, trigger, rescue):
+    """
+    Toggle a case epic/not epic
+    required parameters: client name.
+    """
+    rescue.epic = not rescue.epic
+    bot.say(
+        "{rescue.client_name}'s case is now {epic}"
+        .format(rescue=rescue, epic=bold('epic') if rescue.epic else 'not as epic')
     )
     save_case_later(bot, rescue)
 
