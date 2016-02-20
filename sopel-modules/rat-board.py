@@ -66,7 +66,6 @@ def setup(bot):
     ratlib.sopel.setup(bot)
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['board'] = RescueBoard()
-    bot.memory['ratbot']['queue'] = concurrent.futures.ThreadPoolExecutor(max_workers=10)  # Immediate tasks
 
     if not hasattr(bot.config, 'ratboard') or not bot.config.ratboard.signal:
         signal = 'ratsignal'
@@ -466,7 +465,7 @@ def save_case(bot, rescue):
             rescue.refresh(result['data'])
         return rescue
 
-    return bot.memory['ratbot']['queue'].submit(task)
+    return bot.memory['ratbot']['executor'].submit(task)
 
 
 def save_case_later(bot, rescue, message=None, timeout=10):
@@ -1098,5 +1097,20 @@ def cmd_system(bot, trigger, rescue, system, db=None):
         (
             "API is still not done updating system for {rescue.client_name}; continuing in background."
             .format(rescue=rescue)
+        )
+    )
+
+
+# This should go elsewhere, but here for now.
+@commands('version', 'uptime')
+def cmd_version(bot, trigger):
+    from ratlib import format_timedelta, format_timestamp
+    started = bot.memory['ratbot']['stats']['started']
+    bot.say(
+        "Version {version}, up {delta} since {time}"
+        .format(
+            version=bot.memory['ratbot']['version'],
+            delta=format_timedelta(datetime.datetime.now(tz=started.tzinfo) - started),
+            time=format_timestamp(started)
         )
     )

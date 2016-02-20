@@ -14,7 +14,7 @@ import os
 import datetime
 
 #Sopel imports
-from sopel.module import commands, example, NOLIMIT, HALFOP, OP
+from sopel.module import commands, interval, example, NOLIMIT, HALFOP, OP
 from sopel.tools import SopelMemory
 
 from sqlalchemy import sql, orm
@@ -37,6 +37,10 @@ def setup(bot):
 
     bot.memory['ratbot']['searches'] = SopelMemory()
     bot.memory['ratbot']['systemFile'] = ratlib.sopel.makepath(bot.config.ratbot.workdir, 'systems.json')
+
+    frequency = int(bot.config.ratbot.edsm_autorefresh or 0)
+    if frequency > 0:
+        interval(frequency)(task_sysrefresh)
 
 
 @commands('search')
@@ -156,6 +160,12 @@ def cmd_sysstats(bot, trigger, db=None):
                 .format(k=bloom.k, m=bloom.m, pct=bloom.false_positive_chance(), numset=bloom.setbits, **stats)
             )
 
+def task_sysrefresh(bot):
+    try:
+        refresh_database(bot, background=True, callback=lambda: print("Starting background EDSM refresh."))
+    except ConcurrentOperationError:
+        pass
+
 
 @commands('sysrefresh')
 @with_session
@@ -171,7 +181,11 @@ def cmd_sysrefresh(bot, trigger, db=None):
 
     if privileged:
         try:
-            refreshed = refresh_database(bot, access & OP and trigger.group(2) and trigger.group(2) == '-f')
+            refreshed = refresh_database(
+                bot,
+                force=access & OP and trigger.group(2) and trigger.group(2) == '-f',
+                callback=lambda: bot.reply("Starting starsystem refresh...")
+            )
             if refreshed:
                 bot.reply(refresh_time_stats(bot))
                 return

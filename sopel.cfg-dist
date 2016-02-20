@@ -33,6 +33,7 @@ logdir = logs
 verbose = verbose
 log_raw = True
 
+
 [ratbot]
 ## Common configuration to all rat modules.
 # If running sopel in a read-only location, make sure it has write access to workdir
@@ -40,6 +41,9 @@ workdir = run
 
 # Database connection string.  See SQLAlchemy documentation.
 database = postgresql://username:password@localhost/databasename
+
+## Configuration file for Alembic (used for database schema creation and upgrades)
+alembic = alembic.ini
 
 ## Uncomment this to make SQLAlchemy echo lots of queries.
 # debug_sql = true
@@ -55,14 +59,29 @@ apiurl = http://dev.api.fuelrats.com
 ## If this is 'stdout' or 'stderr', logs to stdout/stderr instead.
 # apidebug = logs/api.log
 
-## Configuration file for Alembic (used for schema creation/migrations)
-alembic = alembic.ini
-
 # URL to use to retrieve starsystem data.
 edsm_url = http://edsm.net/api-v1/systems?coords=1
 
-# If starsystem data is older than this (in seconds), we refresh it.
+# If starsystem data is older than this (in seconds), !sysrefresh can refresh it.
 edsm_maxage = 43200
+
+# Check to see if the starsystem data needs to be refreshed every N seconds.  This can be set to a smaller number than
+# edsm_maxage to do things like "check if refresh is needed every 4 hours, but only actually refresh every 12", e.g. to
+# allow retries in the event one attempt fails.  Set to 0 to disable
+edsm_autorefresh = 14400
+
+## Ratbot will try to determine its version number on startup for some informational commands.
+## It will do so by trying the following, in order:
+## - Read the version_string setting
+## - Read the first line of version_file
+## - Execute version_cmd and read the first line of its stdout.  This is interpreted using the shell.
+## - Execute git describe --tags --long --always from one of its source directories.  The path to git can be changed
+##   with 'version_git'
+## The default behavior is usually fine, but uncomment one of these if you wish to change it
+#version_string = some-magical-version
+#version_file = version.txt
+#version_cmd = get_version.sh
+#version_git = /usr/bin/git
 
 
 [ratfacts]

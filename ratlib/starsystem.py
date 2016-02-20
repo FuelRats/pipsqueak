@@ -46,14 +46,19 @@ class ConcurrentOperationError(RuntimeError):
     pass
 
 
-def refresh_database(bot, force=False, limit_one=True, _lock=threading.Lock()):
+def refresh_database(bot, force=False, limit_one=True, callback=None, background=False, _lock=threading.Lock()):
     """
     Refreshes the database of starsystems.  Also rebuilds the bloom filter.
     :param bot: Bot instance
     :param force: True to force refresh regardless of age.
     :param limit_one: If True, prevents multiple concurrent refreshes.
+    :param callback: Optional function that is called as soon as the system determines a refresh is needed.
+        If running in the background, the function will be called immediately prior to the background task being
+        scheduled.
+    :param background: If True and a refresh is needed, it is submitted as a background task rather than running
+        immediately.
     :param _lock: Internal lock against multiple calls.
-    :returns: True if a refresh occured, False if one was not yet due.
+    :returns: False if no refresh was needed.  Otherwise, a Future if background is True or True if a refresh occurred.
     :raises: ConcurrentOperationError if a refresh was already ongoing and limit_one is True.
     """
     release = False  # Whether to release the lock we did (not?) acquire.
@@ -63,22 +68,28 @@ def refresh_database(bot, force=False, limit_one=True, _lock=threading.Lock()):
             release = _lock.acquire(blocking=False)
             if not release:
                 raise ConcurrentOperationError('refresh_database call already in progress')
-        return _refresh_database(bot, force)
+        result = _refresh_database(bot, force, callback, background)
+        if result and background and release:
+            result.add_done_callback(lambda *a, **kw: _lock.release())
+            release = False
+        return result
     finally:
         if release:
             _lock.release()
 
 
 @with_session
-def _refresh_database(bot, force=False, db=None):
+def _refresh_database(bot, force=False, callback=None, background=False, db=None):
     """
     Actual implementation of refresh_database.
 
     Refreshes the database of starsystems.  Also rebuilds the bloom filter.
     :param bot: Bot instance
     :param force: True to force refresh
+    :param callback: Optional function that is called as soon as the system determines a refresh is needed.
+    :param background: If True and a refresh is needed, it is submitted as a background task rather than running
+        immediately.
     :param db: Database handle
-    :paran onlyone: If True (default), prevents more than one instance of refresh_database from running.
     """
     start = time()
     edsm_url = bot.config.ratbot.edsm_url or "http://edsm.net/api-v1/systems?coords=1"
@@ -92,6 +103,14 @@ def _refresh_database(bot, force=False, db=None):
     ):
         # No refresh needed.
         return False
+
+    if callback:
+        callback()
+
+    if background:
+        return bot.memory['ratbot']['executor'].submit(
+            _refresh_database, bot, force=True, callback=None, background=False
+        )
 
     fetch_start = time()
     data = requests.get(edsm_url).json()
@@ -197,7 +216,7 @@ def _refresh_database(bot, force=False, db=None):
 
     # Update refresh time
     status = get_status(db)
-    status.starsystem_refreshed = sql.func.now()
+    status.starsystem_refreshed = sql.func.clock_timestamp()
     db.add(status)
     db.commit()
     bloom_start = time()

@@ -3,16 +3,25 @@ Sopel-specific ratlib constructs.
 
 :author: Daniel Grace
 """
-from sopel.config import StaticSection, types
-from sopel.tools import SopelMemory
+import datetime
 import os.path
 import re
+import concurrent.futures
+import functools
+
 import ratlib.db
 import ratlib.starsystem
+from sopel.config import StaticSection, types
 from sopel.tools import Identifier
+from sopel.tools import SopelMemory
 
 
-__all__ = ['RatbotConfigurationSection', 'configure', 'setup', 'makepath']
+__all__ = [
+    'BooleanAttribute', 'RatbotConfigurationSection', 'configure', 'setup',  # Sopel setup
+    'best_channel_mode', 'OutputFilterWrapper', 'filter_output',  # IRC utility
+    'makepath',  # General utility
+    'cmd_version'
+]
 
 
 class BooleanAttribute(types.ChoiceAttribute):
@@ -42,7 +51,8 @@ class RatbotConfigurationSection(StaticSection):
     alembic = types.FilenameAttribute('alembic', directory=False, default='alembic.ini')
     debug_sql = BooleanAttribute('debug_sql', default=False)
     edsm_url = types.ValidatedAttribute('edsm_url', str, default="http://edsm.net/api-v1/systems?coords=1")
-    edsm_maxage = types.ValidatedAttribute('edsm_maxage', int, default=60*60*12)
+    edsm_maxage = types.ValidatedAttribute('edsm_maxage', int, default=12*60*60)
+    edsm_autorefresh = types.ValidatedAttribute('edsm_autorefresh', int, default=4*60*60)
     edsm_db = types.ValidatedAttribute('edsm_db', str, default="systems.db")
 
 
@@ -76,6 +86,7 @@ def configure(config):
     config.ratbot.configure_setting('debug_sql', "True if SQLAlchemy should echo query information.")
     config.ratbot.configure_setting('edsm_url', "URL for EDSM system data")
     config.ratbot.configure_setting('edsm_maxage', "Maximum age of EDSM system data in seconds")
+    config.ratbot.configure_setting('edsm_autorefresh', "EDSM autorefresh frequency in seconds (0=disable)")
     config.ratbot.configure_setting('edsm_db', "EDSM Database path (relative to workdir)")
 
 
@@ -85,12 +96,50 @@ def setup(bot):
 
     :param bot: Sopel bot being setup.
     """
-    if 'ratbot' not in bot.memory:
-        bot.memory['ratbot'] = SopelMemory()
-        bot.memory['ratbot']['stats'] = SopelMemory()
-        ratlib.db.setup(bot)
-        ratlib.starsystem.refresh_bloom(bot)
+    if 'ratbot' in bot.memory:
+        return
 
+    # Attempt to determine some semblance of a version number.
+    version = None
+    try:
+        if bot.config.ratbot.version_string:
+            version = bot.config.ratbot.version_string
+        elif bot.config.ratbot.version_file:
+            with open(bot.config.ratbot.version_file, 'r') as f:
+                version = f.readline().strip()
+        else:
+            import shlex
+            import os.path
+            import inspect
+            import subprocess
+
+            path = os.path.abspath(os.path.dirname(inspect.getframeinfo(inspect.currentframe()).filename))
+
+            if bot.config.ratbot.version_cmd:
+                cmd = bot.config.ratbot.version_cmd
+            else:
+                cmd = shlex.quote(bot.config.ratbot.version_git or 'git') + " describe --tags --long --always"
+            output = subprocess.check_output(cmd, cwd=path, shell=True, universal_newlines=True)
+            version = output.strip().split('\n')[0].strip()
+    except Exception as ex:
+        print("Failed to determine version: " + str(ex))
+    if not version:
+        version = '<unknown>'
+
+    print("Starting Ratbot version " + version)
+
+    bot.memory['ratbot'] = SopelMemory()
+    bot.memory['ratbot']['executor'] = concurrent.futures.ThreadPoolExecutor(max_workers=10)  # Queue
+    bot.memory['ratbot']['version'] = version
+    bot.memory['ratbot']['stats'] = SopelMemory()
+    bot.memory['ratbot']['stats']['started'] = datetime.datetime.now(tz=datetime.timezone.utc)
+    ratlib.db.setup(bot)
+    ratlib.starsystem.refresh_bloom(bot)
+    ratlib.starsystem.refresh_database(
+        bot,
+        callback=lambda: print("EDSM database is out of date.  Starting background refresh."),
+        background=True
+    )
 
 def makepath(dir, filename):
     """
@@ -166,6 +215,7 @@ def filter_output(fn):
     :param fn: Function to wrap
     :return: Wrapped function
     """
+    @functools.wraps(fn)
     def wrapper(bot, trigger):
         bot = OutputFilterWrapper(bot)
         return fn(bot, trigger)
