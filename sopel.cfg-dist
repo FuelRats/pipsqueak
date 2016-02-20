@@ -1,6 +1,9 @@
 [core]
 ## Bot presence and identity
 nick = mechasqueak-test
+## Channels for the bot to join, separated by commas
+## If a channel has a password, use "#channel pasword"
+## e.g. channels=#public,#private topsecret
 # channels = #rattest,#botabuse
 host = irc.mibbit.com
 use_ssl = true
