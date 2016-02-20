@@ -643,7 +643,7 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
     '*': Produces one parameter for each word remaining in the line.
     '+': Produces one parameter for each word remaining in the line, which must be at least one word.
     't': Parameter will be the entire remainder of the line.
-    'T': As per 't', but extraneous whitespace is removed.
+    'T': Same as 't'.  Backwards compatibility.
 
     Any remaining 'words' in the argument will be passed to the wrapped function as additional parameters, as params
     contained enough 'w's to pad to the end of the argument list.
@@ -679,8 +679,9 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
         def wrapper(bot, trigger, *args, **kwargs):
             args = list(args)
             try:
-                if trigger.group(2) is not None:
-                    for param, value in itertools.zip_longest(params, split(trigger.group(2), maxsplit), fillvalue=None):
+                line = (trigger.group(2) or '').strip()
+                if line:
+                    for param, value in itertools.zip_longest(params, split(line, maxsplit), fillvalue=None):
                         if param == '+' and value is None:
                             raise UsageError()
                         if value is None:
@@ -691,11 +692,9 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
                                 return bot.reply('Could not find a case with that name or number.')
                             if param in 'rR':
                                 value = value[0]
-                        # 'w' and 't' don't require any special handling, the split takes care of them.
+                        # 'w' and 't'/'T' don't require any special handling, the split takes care of them.
                         # '*' doesn't require any special handling, it's just syntactic sugar.
                         # '+' already had its special handling done.
-                        if param == 'T':
-                            value = value.strip()
                         args.append(value)
                 try:
                     bound = sig.bind(bot, trigger, *args, **kwargs)
