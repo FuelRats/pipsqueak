@@ -677,8 +677,8 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
         sig = inspect.signature(fn)
 
         @functools.wraps(fn)
-        def wrapper(bot, trigger):
-            args = []
+        def wrapper(bot, trigger, *args, **kwargs):
+            args = list(args)
             try:
                 if trigger.group(2) is not None:
                     for param, value in itertools.zip_longest(params, split(trigger.group(2), maxsplit), fillvalue=None):
@@ -699,7 +699,7 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
                             value = value.strip()
                         args.append(value)
                 try:
-                    bound = sig.bind(bot, trigger, *args)
+                    bound = sig.bind(bot, trigger, *args, **kwargs)
                 except TypeError:
                     raise UsageError()
                 else:
@@ -1040,6 +1040,7 @@ def cmd_codered(bot, trigger, rescue):
     save_case_later(bot, rescue)
 
 
+@requires_case
 def cmd_platform(bot, trigger, rescue, platform=None):
     """
     Sets a case platform to PC or xbox.
@@ -1059,15 +1060,15 @@ def cmd_platform(bot, trigger, rescue, platform=None):
 
 # For some reason, this can't be tricked with functools.partial.
 @commands('pc')
-@requires_case
-def cmd_platform_pc(bot, trigger, rescue):
-    return cmd_platform(bot, trigger, rescue, 'pc')
+def cmd_platform_pc(bot, trigger):
+    """Sets a case's platform to PC"""
+    return cmd_platform(bot, trigger, platform='pc')
 
 
-@commands('xb(?:ox)?(?:-(?:1|one))?')
-@requires_case
-def cmd_platform_xb(bot, trigger, rescue):
-    return cmd_platform(bot, trigger, rescue, 'xb')
+@commands('xb(?:ox)?(?:-?(?:1|one))?')
+def cmd_platform_xb(bot, trigger):
+    """Sets a case's platform to XB"""
+    return cmd_platform(bot, trigger, platform='xb')
 
 
 @commands('sys', 'system', 'loc', 'location')
