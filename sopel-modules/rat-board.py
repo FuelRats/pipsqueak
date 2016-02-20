@@ -364,10 +364,10 @@ class Rescue(TrackedBase):
         cmdrname = self.client.get('CMDRname')
         if nickname:
             if cmdrname and nickname.lower() != cmdrname.lower():
-                return "{nickname} (CMDR {cmdrname})".format(nickname, cmdrname)
+                return "{} (CMDR {})".format(nickname, cmdrname)
             return nickname
         elif cmdrname:
-            return "CMDR {cmdrname}".format(cmdrname)
+            return "CMDR {}".format(cmdrname)
         else:
             return "<unknown client>"
 
@@ -777,7 +777,7 @@ def cmd_quote(bot, trigger, rescue):
     ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
 
     bot.reply(fmt.format(
-        client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags),
+        client=rescue.client_names, index=rescue.boardindex, tags=", ".join(tags),
         opened=format_timestamp(rescue.createdAt) if rescue.createdAt else '<unknown>',
         updated=format_timestamp(rescue.lastModified) if rescue.lastModified else '<unknown>',
         opened_ago=friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
@@ -816,13 +816,14 @@ def cmd_clear(bot, trigger, rescue):
 
 @commands('list')
 @ratlib.sopel.filter_output
-@parameterize('w', usage="[-i@]")
+@parameterize('w', usage="[-in@]")
 def cmd_list(bot, trigger, params=''):
     """
     List the currently active, open cases.
 
     Supported parameters:
         -i: Also show inactive (but still open) cases.
+        -n: Show all known names (e.g. CMDR names).
         -@: Show full case IDs.  (LONG)
     """
     if not params or params[0] != '-':
@@ -830,6 +831,7 @@ def cmd_list(bot, trigger, params=''):
 
     show_ids = '@' in params and bot.config.ratbot.apiurl is not None
     show_inactive = 'i' in params
+    attr = 'client_names' if 'n' in params else 'client_name'
 
     board = bot.memory['ratbot']['board']
 
@@ -850,7 +852,7 @@ def cmd_list(bot, trigger, params=''):
         return "[{boardindex}{id}]{client}{cr}".format(
             boardindex=rescue.boardindex,
             id=id,
-            client=rescue.client.get('nickname') or rescue.client.get('CMDRname') or '<unknown>',
+            client=getattr(rescue, attr),
             cr=cr
         )
 
@@ -1092,6 +1094,31 @@ def cmd_system(bot, trigger, rescue, system, db=None):
         fmt += "  (not in EDSM)"
     rescue.system = system
     bot.reply(fmt.format(rescue=rescue))
+    save_case_later(
+        bot, rescue,
+        (
+            "API is still not done updating system for {rescue.client_name}; continuing in background."
+            .format(rescue=rescue)
+        )
+    )
+
+
+@commands('cmdr', 'commander')
+@ratlib.sopel.filter_output
+@parameterize('rT', usage='<client or case number> <commander namename>')
+@ratlib.db.with_session
+def cmd_commander(bot, trigger, rescue, commander, db=None):
+    """
+    Sets a client's in-game commander name.
+    required parameters: Client name or case number, commander name
+    """
+    if not commander:
+        raise UsageError()
+
+    with rescue.change():
+        rescue.client['CMDRname'] = commander
+
+    bot.say("Client for case {rescue.boardindex} is now CMDR {commander}".format(rescue=rescue, commander=commander))
     save_case_later(
         bot, rescue,
         (
