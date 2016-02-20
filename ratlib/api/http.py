@@ -109,6 +109,7 @@ def call(method, uri, data=None, statuses=None, log=None, **kwargs):
             when=when, method=method.upper(), uri=uri, data=json.dumps(data, sort_keys=True, indent=" "*4)
         )
     )
+    response = None
     try:
         if method in request_methods:
             response = request_methods[method](uri, json=data)
@@ -122,18 +123,23 @@ def call(method, uri, data=None, statuses=None, log=None, **kwargs):
     except exc.HTTPError as ex:
         raise HTTPError(code=ex.response.status_code, details=str(ex)) from ex
     except exc.RequestException as ex:
-        raise BadResponseError from ex
-    finally:
-        delta = (datetime.datetime.now() - timestamp).total_seconds()
         try:
-            body = response.text
-        except:
-            body = '(unable to decode body)'
-        logprint(
-            "[{when}] status={response.status_code} in {delta} sec.\n{body}\n{d}".format(
-                when=when, response=response, body=body, delta=delta, d='-'*10
-            ),
-        )
+            logprint(str(ex.args[0]))
+        except (AttributeError, IndexError):
+            logprint(str(ex))
+        raise BadResponseError() from ex
+    finally:
+        if response is not None:
+            delta = (datetime.datetime.now() - timestamp).total_seconds()
+            try:
+                body = response.text
+            except:
+                body = '(unable to decode body)'
+            logprint(
+                "[{when}] status={response.status_code} in {delta} sec.\n{body}\n{d}".format(
+                    when=when, response=response, body=body, delta=delta, d='-'*10
+                ),
+            )
     try:
         result = response.json()
     except ValueError as ex:

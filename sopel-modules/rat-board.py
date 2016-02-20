@@ -101,7 +101,12 @@ def setup(bot):
         bot.memory['ratbot']['apilock'] = threading.Lock()
         print("Logging API calls to " + bot.config.ratbot.apidebug)
 
-    refresh_cases(bot)
+    try:
+        refresh_cases(bot)
+    except ratlib.api.http.BadResponseError as ex:
+        warnings.warn("Failed to perform initial sync against the API")
+        import traceback
+        traceback.print_exc()
 
 
 def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
