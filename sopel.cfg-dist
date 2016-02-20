@@ -66,3 +66,12 @@ filename = facts.json
 ## Language search order for facts with no language or where the specified language is not found
 ## Comma-separated list
 lang = en
+
+
+[ratboard]
+# Set the pattern that much be matched in order to trigger a ratsignal.  This follows normal regular expression syntax
+# The actual pattern be (?!PREFIX).*SIGNAL.*, where PREFIX is the command prefix and PATTERN is the value here.
+# (In other words, SIGNAL can be anywhere in the text, and the text must not begin with the command prefix)
+# Default: ratsignal
+# Use drillsignal for drillsqueak, testsignal for debugging
+signal = ratsignal

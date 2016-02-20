@@ -33,6 +33,7 @@ from ratlib import friendly_timedelta, format_timestamp
 from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
+from sopel.config.types import StaticSection, ValidatedAttribute
 import ratlib.api.http as api
 import ratlib.db
 call = api.call
@@ -43,8 +44,20 @@ HISTORY_MAX = 10000  # Max number of nicks we'll remember history for at once.
 
 
 ## Start setup section ###
+class RatboardSection(StaticSection):
+    signal = ValidatedAttribute('signal', str, default='ratsignal')
+
+
 def configure(config):
     ratlib.sopel.configure(config)
+    config.define_section('ratboard', RatboardSection)
+    config.ratboard.configure_setting(
+        'signal',
+        (
+            "When a message from a user contains this regex and does not begin with the command prefix, it will"
+            " be treated as an incoming ratsignal."
+        )
+    )
 
 
 def setup(bot):
@@ -52,6 +65,24 @@ def setup(bot):
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['board'] = RescueBoard()
     bot.memory['ratbot']['queue'] = concurrent.futures.ThreadPoolExecutor(max_workers=10)  # Immediate tasks
+
+    if not hasattr(bot.config, 'ratboard') or not bot.config.ratboard.signal:
+        signal = 'ratsignal'
+    else:
+        signal = bot.config.ratboard.signal
+
+    # Build regular expression pattern.
+    pattern = '(?!{prefix}).*{signal}.*'.format(prefix=bot.config.core.prefix, signal=signal)
+    try:
+        re.compile(pattern, re.IGNORECASE)  # Test the pattern, but we don't care about the result just the exception.
+    except re.error:
+        warnings.warn(
+            "Failed to compile ratsignal regex; pattern was {!r}.  Falling back to old pattern."
+            .format(pattern)
+        )
+        pattern = re.compile(r'\s*ratsignal.*')
+    rule(pattern)(rule_ratsignal)
+
     refresh_cases(bot)
 
 
@@ -678,7 +709,7 @@ def rule_history(bot, trigger):
     return NOLIMIT  #This should NOT trigger rate limit, EVER.
 
 
-@rule(r'\s*(ratsignal|testsignal)(.*)')
+# @rule(r'\s*(ratsignal|testsignal)(.*)')
 @priority('high')
 @ratlib.sopel.filter_output
 def rule_ratsignal(bot, trigger):
