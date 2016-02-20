@@ -13,10 +13,12 @@ import re
 import datetime
 import collections
 import itertools
-import contextlib
 import warnings
 import functools
 import inspect
+import sys
+import contextlib
+
 
 #Sopel imports
 from sopel.formatting import bold, color, colors
@@ -34,10 +36,10 @@ from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
 from sopel.config.types import StaticSection, ValidatedAttribute
-import ratlib.api.http as api
+import ratlib.api.http
 import ratlib.db
-call = api.call
-urljoin = api.urljoin
+
+urljoin = ratlib.api.http.urljoin
 
 target_case_max = 9  # Target highest boardindex to assign
 HISTORY_MAX = 10000  # Max number of nicks we'll remember history for at once.
@@ -83,7 +85,29 @@ def setup(bot):
         pattern = re.compile(r'\s*ratsignal.*')
     rule(pattern)(rule_ratsignal)
 
+    # Handle log.
+    if not hasattr(bot.config, 'ratbot') or not bot.config.ratbot.apidebug:
+        bot.memory['ratbot']['apilog'] = None
+        bot.memory['ratbot']['apilock'] = contextlib.ExitStack()  # Context manager that does nothing
+    else:
+        filename = bot.config.ratbot.apidebug
+        if filename == 'stderr':
+            f = sys.stderr
+        elif filename == 'stdout':
+            f = sys.stdout
+        else:
+            f = open(bot.config.ratbot.apidebug, 'w')
+        bot.memory['ratbot']['apilog'] = f
+        bot.memory['ratbot']['apilock'] = threading.Lock()
+        print("Logging API calls to " + bot.config.ratbot.apidebug)
+
     refresh_cases(bot)
+
+
+def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
+    uri = urljoin(bot.config.ratbot.apiurl, uri)
+    with bot.memory['ratbot']['apilock']:
+        return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'])
 
 
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
@@ -365,7 +389,7 @@ def refresh_cases(bot, rescue=None):
     if not bot.config.ratbot.apiurl:
         warnings.warn("No API URL configured.  Operating in offline mode.")
         return  # API disabled.
-    uri = urljoin(bot.config.ratbot.apiurl, '/api/search/rescues')
+    uri = '/api/search/rescues'
     if rescue is not None:
         if rescue.id is None:
             raise ValueError('Cannot refresh a non-persistent case.')
@@ -375,7 +399,7 @@ def refresh_cases(bot, rescue=None):
         data = {'open': True}
 
     # Exceptions here are the responsibility of the caller.
-    result = call('GET', uri, data=data)
+    result = callapi(bot, 'GET', uri, data=data)
     board = bot.memory['ratbot']['board']
 
     if rescue:
@@ -421,7 +445,7 @@ def save_case(bot, rescue):
     if not bot.config.ratbot.apiurl:
         return None  # API Disabled
 
-    uri = urljoin(bot.config.ratbot.apiurl, '/api/rescues')
+    uri = '/api/rescues'
     if rescue.id:
         method = "PUT"
         uri += "/" + rescue.id
@@ -429,7 +453,7 @@ def save_case(bot, rescue):
         method = "POST"
 
     def task():
-        result = call(method, uri, data=data)
+        result = callapi(bot, method, uri, data=data)
         rescue.commit()
         if 'data' not in result or not result['data']:
             raise RuntimeError("API response returned unusable data.")

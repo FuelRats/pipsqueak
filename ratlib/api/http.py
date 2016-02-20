@@ -2,7 +2,9 @@
 import requests
 import requests.exceptions as exc
 import requests.status_codes
-
+import datetime
+import json
+import functools
 
 # Exceptions
 """Generic API Error class."""
@@ -78,13 +80,14 @@ def urljoin(*parts):
     return "".join(part for part in _gen(parts))
 
 
-def call(method, uri, data=None, statuses=None, **kwargs):
+def call(method, uri, data=None, statuses=None, log=None, **kwargs):
     """
     Wrapper function to contact the web API.
 
     :param method: Request method
     :param uri: URI.  If this is anything other than a string, it is passed to urljoin() first.
     :param data: Data for JSON request body.
+    :param log: File-like object to log request data to.
     :param **kwargs: Passed to requests.
     :param statuses: If present, a set of acceptable HTTP response codes (including 200).  If not present, the default
         behavior of requests.raise_for_status() is used.
@@ -93,6 +96,19 @@ def call(method, uri, data=None, statuses=None, **kwargs):
         uri = urljoin(uri)
     data = data or {}
 
+    if log:
+        logprint = functools.partial(print, file=log, flush=True)
+    else:
+        logprint = lambda *a, **kw: None
+
+    timestamp = datetime.datetime.now()
+    when = timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")
+
+    logprint(
+        "[{when}] {method} {uri}\n{data}\n".format(
+            when=when, method=method.upper(), uri=uri, data=json.dumps(data, sort_keys=True, indent=" "*4)
+        )
+    )
     try:
         if method in request_methods:
             response = request_methods[method](uri, json=data)
@@ -107,14 +123,25 @@ def call(method, uri, data=None, statuses=None, **kwargs):
         raise HTTPError(code=ex.response.status_code, details=str(ex)) from ex
     except exc.RequestException as ex:
         raise BadResponseError from ex
+    finally:
+        delta = (datetime.datetime.now() - timestamp).total_seconds()
+        try:
+            body = response.text
+        except:
+            body = '(unable to decode body)'
+        logprint(
+            "[{when}] status={response.status_code} in {delta} sec.\n{body}\n{d}".format(
+                when=when, response=response, body=body, delta=delta, d='-'*10
+            ),
+        )
     try:
-        json = response.json()
+        result = response.json()
     except ValueError as ex:
         raise BadJSONError() from ex
 
-    if 'errors' in json:
-        err = json['errors'][0]
-        raise APIError(err.get('name'), err.get('message'), json=json)
-    if 'data' not in json:
-        raise BadResponseError(details="Did not receive a data field in a non-error response.", json=json)
-    return json
+    if 'errors' in result:
+        err = result['errors'][0]
+        raise APIError(err.get('name'), err.get('message'), json=result)
+    if 'data' not in result:
+        raise BadResponseError(details="Did not receive a data field in a non-error response.", json=result)
+    return result

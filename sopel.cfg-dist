@@ -51,6 +51,10 @@ apiurl = http://dev.api.fuelrats.com
 ## Production API
 # apiurl = http://api.fuelrats.com
 
+## Set this to log API calls.  The path must exist (but the file does not need to), file will be overwritten at startup.
+## If this is 'stdout' or 'stderr', logs to stdout/stderr instead.
+# apidebug = logs/api.log
+
 ## Configuration file for Alembic (used for schema creation/migrations)
 alembic = alembic.ini
 
