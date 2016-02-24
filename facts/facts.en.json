@@ -1,4 +1,5 @@
 {
+  "en": {
     "xbeacon": "To light your wing beacon hold X and press RIGHT on the D-pad. Press the LB button once then select beacon and set it from OFF to WING",
     "pcwing": "To send a wing request, go to the comms panel (\u0002Default key 2\u000f), \u0002hit ESC\u000f to get out of the chat box, and move to the second panel (\u0002Default key E\u000f). Then select the CMDR you want to invite to your wing and select \u0002Invite to wing\u000f.",
     "pcbeacon": "To drop a wing beacon, go to the right-side panel (\u0002Default key 4\u000f), navigate to the functions screen (\u0002Default key Q\u000f), select \u0002BEACON\u000f and set it to \u0002WING\u000f",
@@ -15,5 +16,5 @@
     "ratchat": "HEY! #fuelrats is for rescue ops only, If you want to chat, Please join #RatChat by typing '/join #RatChat'",
     "rc": "HEY! #fuelrats is for rescue ops only, If you want to chat, Please join #RatChat by typing '/join #RatChat'",
     "pw": "Time to do paperwork! http://bit.ly/1lBp53V"
-
+  }
 }

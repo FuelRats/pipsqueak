@@ -87,7 +87,7 @@ edsm_autorefresh = 14400
 [ratfacts]
 ## Filename or directory that will be searched for facts to add to the database on startup.
 ## This will not override existing facts.
-filename = facts.json
+filename = facts
 
 ## Language search order for facts with no language or where the specified language is not found
 ## Comma-separated list

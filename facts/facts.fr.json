@@ -1,0 +1,20 @@
+﻿{
+  "fr": {
+    "xbeacon": "Pour allumer votre Balise, tenez X et appuyez sur DROITE de la croix directionnelle. Appuyez sur LB une fois, puis sélectionnez Balise et réglez la sur Escadrille",
+    "pcwing": "Pour Envoyer une demande d'escadrille, allez sur le panneau du haut (\u0002Par défaut touche 2\u000f), \u0002Appuyez sur ESC\u000f pour sortir du chat, et allez au deuxième panneau (\u0002Par défaut touche E\u000f). Puis sélectionnez le nom du Commandant, et sélectionnez \u0002Inviter dans l'Escadrille\u000f.",
+    "pcbeacon": "Pour allumer votre Balise, allez dans le panneau de droite (\u0002Par défaut touche 4\u000f), Allez jusqu'au menu des fonctions (\u0002Par défaut touche Q\u000f), Sélectionnez \u0002BALISE\u000f et réglez la sur \u0002Escadrille\u000f",
+    "xwing": "Pour ajouter le(s) rat(s) à votre escadrille, tenez le bouton X enfoncé et pressez le bouton \"Haut\" de la croix directionnelle, appuyez sur RB, puis sélectionnez le nom d'un rat et sélectionnez [Inviter dans l'escadrille]",
+    "pcfr": "Pour envoyer une demande d'amis, ouvrez le menu (\u0002Appuyez sur ESC\u000f), cliquez sur \u0002Amis et Groupes Privés\u000f, et cliquez sur \u0002+ Ajouter Ami\u000f",
+    "prep": "S'il vous plait sortez de supercruise (\u0002Touche J\u000f), arrêtez vous complètement et désactivez tous les modules EXCEPTÉ le Système de Survie",
+    "xfr": "Pour ajouter le(s) rat(s) à votre liste d'amis, appuyez deux fois sur le bouton XBOX, puis appuyez sur le bouton \"Gauche\" de la croix directionnelle. Maintenant appuyez sur A et cherchez le(s) nom(s) du/des rat(s).",
+    "xquit": "Sortez immédiatement du jeu en appuyant sur \u0002START\u000f et en sélectionnant \u0002Sauvegarder et Revenir au Menu Principal\u000f!",
+    "pcquit": "Retournez immédiatement au Menu Principal en appuyant sur \u0002ESC\u000f et en sélectionnant \u0002Sauvegarder et Revenir au Menu Principal\u000f!",
+    "filtergalmap": "Pour apprendre comment filtrer la Carte de la Galaxie, cliquez ici: http://bit.ly/1GKXCWv",
+    "kgbfoam": "Pour apprendre comment filtrer la Carte de la Galaxie, cliquez ici: http://bit.ly/1GKXCWv",
+    "galnet": "Voici un lien vers Galnet: https://community.elitedangerous.com/galnet",
+    "sc": "Réactivez vos propulseurs et votre Réacteur FSD, ensuite Désélectionnez toutes vos cibles / destinations, et allez en supercruise (\u0002Touche J\u000f). Éloignez vous de l'étoile d'environ 5 secondes lumières, puis retourner en navigation normal, et arrêtez vous.",
+    "ratchat": "HÉ! #fuelrats est réservé au opérations de sauvetage, Si vous voulez chattez, prière de rejoindre #RatChat en tapant '/join #RatChat'",
+    "rc": "HÉ! #fuelrats est réservé au opérations de sauvetage, Si vous voulez chattez, prière de rejoindre #RatChat en tapant '/join #RatChat'",
+    "pw": "Il est temps de remplir la paperasse! http://bit.ly/1lBp53V"
+  }
+}

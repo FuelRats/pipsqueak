@@ -97,7 +97,7 @@ def setup(bot):
 
 
     # Import facts
-    import_facts(bot)
+    # import_facts(bot)
 
 
 def load_fact_json(path, recurse=True):
@@ -114,8 +114,12 @@ def load_fact_json(path, recurse=True):
                 facts.update(result)
         return facts
 
-    with open(path) as f:
-        facts = json.load(f)
+    with open(path, encoding='utf-8-sig') as f:
+        try:
+            facts = json.load(f)
+        except Exception as ex:
+            print("Failed to import file {!r}".format(path))
+            raise
 
     if not isinstance(facts, dict):
         # Something horribly wrong with the json
