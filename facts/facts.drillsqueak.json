@@ -1,0 +1,7 @@
+{
+  "en": {
+    "about": "This is a Pipsqueak (aka Mecha 2.0) beta, and can be used for drills. Drillspatchers can (and SHOULD) use real bot commands here (e.g. !inject, !grab and !assign) without affecting live cases.  See !changes for notable changes, !bugs for reporting bugs.",
+    "changes": "For an overview of changes and new features, see <https://github.com/FuelRats/pipsqueak/wiki/Changes>.  See also !bugs.",
+    "bugs": "Please report all bugs and other concerns at <https://github.com/FuelRats/pipsqueak/issues>.  Failure to report bugs will result in denial of snickers."
+  }
+}

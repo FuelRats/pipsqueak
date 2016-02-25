@@ -67,8 +67,11 @@ def import_facts(bot, merge=False, db=None):
         for k, v in json.items():
             if isinstance(v, dict):
                 for name, message in v.items():
-                    yield Fact(name=name, lang=k, message=message)
-            else:
+                    if isinstance(message, dict):  # New-style facts.json with attribution
+                        yield Fact(name=name, lang=k, message=message['fact'], author=message.get('author'))
+                    else:   # Newer-style facts.json with language but not attribution -- or explicit deletion of fact.
+                        yield Fact(name=name, lang=k, message=message)
+            else:  # Old-style facts.json, single language
                 yield Fact(name=k, lang=lang, message=v)
 
     for fact in _gen(load_fact_json(filename)):
@@ -76,7 +79,14 @@ def import_facts(bot, merge=False, db=None):
             with db.begin_nested():
                 if merge:
                     fact = db.merge(fact)
+                    if fact.message is None:
+                        if fact in db.new:
+                            db.expunge(fact)
+                        else:
+                            db.delete(fact)
                 else:
+                    if fact.message is None:
+                        continue
                     db.add(fact)
                 db.flush()
         except exc.DatabaseError:
@@ -111,10 +121,15 @@ def load_fact_json(path, recurse=True):
         for filename in glob.iglob(os.path.join(path, "*.json")):
             result = load_fact_json(filename, recurse=False)
             if result:
-                facts.update(result)
+                for k, v in result.items():
+                    if isinstance(v, dict) and isinstance(facts.get(k), dict):
+                        facts[k].update(v)
+                    else:
+                        facts[k] = v
         return facts
 
     with open(path, encoding='utf-8-sig') as f:
+        print(path)
         try:
             facts = json.load(f)
         except Exception as ex:
@@ -176,7 +191,7 @@ def cmd_fact(bot, trigger, db=None):
     !fact LANGUAGE [full] - Shows detailed stats on the specified language.  'full' dumps all facts to a PM.
 
     The following commands require privileges:
-    !fact import - Reimports JSON data.
+    !fact import [-f] - Reimports JSON data.  -f overwrites existing rows.
     !fact full - Dumps all facts, all languages to a PM.
     !fact add <id> <text> - Creates a new fact or updates an existing one.  <id> must be of the format <factname>-<lang>
         Aliases: set
@@ -203,7 +218,7 @@ def cmd_fact(bot, trigger, db=None):
 
     if command == 'import':
         if access & (HALFOP | OP):
-            import_facts(bot)
+            import_facts(bot, merge=(option == '-f'))
             return bot.reply("Facts imported.")
         return bot.reply("Not authorized.")
 
