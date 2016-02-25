@@ -177,7 +177,7 @@ def cmd_recite_fact(bot, trigger):
         rats = ", ".join(filter(None, re.split(r"[,\s+]", rats))) or None
 
     # reply_to automatically picks the sender's name if rats is None, no additional logic needed
-    return bot.say(fact.message, reply_to=rats)
+    return bot.reply(fact.message, reply_to=rats)
 
 
 @commands('fact', 'facts')
