@@ -177,7 +177,7 @@ def cmd_recite_fact(bot, trigger):
         rats = ", ".join(filter(None, re.split(r"[,\s+]", rats))) or None
 
     # reply_to automatically picks the sender's name if rats is None, no additional logic needed
-    return bot.reply(fact.message, reply_to=rats)
+    return bot.say(fact.message, reply_to=rats)
 
 
 @commands('fact', 'facts')
@@ -214,12 +214,12 @@ def cmd_fact(bot, trigger, db=None):
         unique_facts = list(Fact.unique_names(db))
         if not unique_facts:
             return bot.reply("Like Jon Snow, I know nothing.  (Or there's a problem with the fact database.)")
-        return bot.reply("{} known fact(s): {}".format(len(unique_facts), ", ".join(unique_facts)))
+        return bot.say("{} known fact(s): {}".format(len(unique_facts), ", ".join(unique_facts)))
 
     if command == 'import':
         if access & (HALFOP | OP):
             import_facts(bot, merge=(option == '-f'))
-            return bot.reply("Facts imported.")
+            return bot.say("Facts imported.")
         return bot.reply("Not authorized.")
 
     if command == 'full':
@@ -316,7 +316,7 @@ def cmd_fact(bot, trigger, db=None):
             pm(summary)
             return NOLIMIT
         else:
-            bot.reply(summary)
+            bot.say(summary)
             return NOLIMIT
 
     bot.reply("'{}' is not a known fact, language, or subcommand".format(command))

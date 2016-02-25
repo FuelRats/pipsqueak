@@ -775,7 +775,7 @@ def cmd_quote(bot, trigger, rescue):
         " updated {updated} ({updated_ago})"
     ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
 
-    bot.reply(fmt.format(
+    bot.say(fmt.format(
         client=rescue.client_names, index=rescue.boardindex, tags=", ".join(tags),
         opened=format_timestamp(rescue.createdAt) if rescue.createdAt else '<unknown>',
         updated=format_timestamp(rescue.lastModified) if rescue.lastModified else '<unknown>',
@@ -866,7 +866,7 @@ def cmd_list(bot, trigger, params=''):
         if expand:
             t += ": " + ", ".join(format_rescue(rescue) for rescue in cases)
         output.append(t)
-    bot.reply("; ".join(output))
+    bot.say("; ".join(output))
 
 
 @commands('grab')
@@ -916,7 +916,7 @@ def cmd_inject(bot, trigger, find_result, line):
         raise UsageError()
     result = append_quotes(bot, find_result, line, create=True)
 
-    bot.reply(
+    bot.say(
         "{rescue.client_name}'s case {verb} with: \"{line}\"  ({tags})"
         .format(
             rescue=result.rescue, verb='opened' if result.created else 'updated', tags=", ".join(result.tags()),
@@ -949,10 +949,10 @@ def cmd_sub(bot, trigger, rescue, lineno, line=None):
         return bot.reply('Case only has {} line(s)'.format(len(rescue.quotes)))
     if not line:
         rescue.quotes.pop(lineno)
-        bot.reply("Deleted line {}".format(lineno))
+        bot.say("Deleted line {}".format(lineno))
     else:
         rescue.quotes[lineno] = line
-        bot.reply("Updated line {}".format(lineno))
+        bot.say("Updated line {}".format(lineno))
 
     save_case_later(bot, rescue)
 

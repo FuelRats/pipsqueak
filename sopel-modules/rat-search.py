@@ -85,11 +85,11 @@ def search(bot, trigger, db=None):
 
 
     if result:
-        return bot.reply("Nearest matches for {system_name} are: {matches}".format(
+        return bot.say("Nearest matches for {system_name} are: {matches}".format(
             system_name=system_name,
             matches=", ".join('"{0.Starsystem.name}" [{0.distance}]'.format(row) for row in result)
         ))
-    return bot.reply("No similar results for {system_name}".format(system_name=system_name))
+    return bot.say("No similar results for {system_name}".format(system_name=system_name))
 
 
 def refresh_time_stats(bot):
@@ -138,23 +138,23 @@ def cmd_sysstats(bot, trigger, db=None):
         stats['pct'] = 0 if not stats['count'] else stats['excluded'] / stats['count']
 
         num_systems = ct(Starsystem)
-        bot.reply(
+        bot.say(
             "{count} starsystems under {prefixes} unique prefixes."
             " {one_word} single word systems. {excluded} ({pct:.0%}) systems excluded from system name detection."
             .format(**stats)
         )
 
     if 'refresh' in options:
-        bot.reply(refresh_time_stats(bot))
+        bot.say(refresh_time_stats(bot))
 
     if 'bloom' in options:
         stats = bot.memory['ratbot']['stats'].get('starsystem_bloom')
         bloom = bot.memory['ratbot'].get('starsystem_bloom')
 
         if not stats or not bloom:
-            bot.reply("Bloom filter stats are unavailable.")
+            bot.say("Bloom filter stats are unavailable.")
         else:
-            bot.reply(
+            bot.say(
                 "Bloom filter generated in {time:.2f} seconds. k={k}, m={m}, n={entries}, {numset} bits set,"
                 " {pct:.2%} false positive chance."
                 .format(k=bloom.k, m=bloom.m, pct=bloom.false_positive_chance(), numset=bloom.setbits, **stats)
@@ -184,14 +184,14 @@ def cmd_sysrefresh(bot, trigger, db=None):
             refreshed = refresh_database(
                 bot,
                 force=access & OP and trigger.group(2) and trigger.group(2) == '-f',
-                callback=lambda: bot.reply("Starting starsystem refresh...")
+                callback=lambda: bot.say("Starting starsystem refresh...")
             )
             if refreshed:
-                bot.reply(refresh_time_stats(bot))
+                bot.say(refresh_time_stats(bot))
                 return
             msg = "Not yet.  "
         except ConcurrentOperationError:
-            bot.reply("A starsystem refresh operation is already in progress.")
+            bot.say("A starsystem refresh operation is already in progress.")
             return
 
     when = get_status(db).starsystem_refreshed
@@ -202,7 +202,7 @@ def cmd_sysrefresh(bot, trigger, db=None):
         msg += "The starsystem database was refreshed at {} ({})".format(
             ratlib.format_timestamp(when), ratlib.format_timedelta(when)
         )
-    bot.reply(msg)
+    bot.say(msg)
 
 @commands('scan')
 def cmd_scan(bot, trigger):
@@ -214,5 +214,5 @@ def cmd_scan(bot, trigger):
 
     line = trigger.group(2).strip()
     results = scan_for_systems(bot, line)
-    bot.reply("Scan results: {"
+    bot.say("Scan results: {"
               "}".format(", ".join(results) if results else "no match found"))
