@@ -175,9 +175,8 @@ def cmd_recite_fact(bot, trigger):
         # Reorganize the rat list for consistent & proper separation
         # Split whitespace, comma, colon and semicolon (all common IRC multinick separators) then rejoin with commas
         rats = ", ".join(filter(None, re.split(r"[,\s+]", rats))) or None
-
-    # reply_to automatically picks the sender's name if rats is None, no additional logic needed
-    return bot.reply(fact.message, reply_to=rats)
+        return bot.reply(fact.message, reply_to=rats)
+    return bot.say(fact.message)
 
 
 @commands('fact', 'facts')
