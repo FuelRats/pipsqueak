@@ -32,7 +32,7 @@ fnv_primes = {
     128: 2**88 + 2**8 + 0x3b,
     256: 2**168 + 2**8 + 0x63,
     512: 2**344 + 2**8 + 0x57,
-    1024: 2**680 + 28** + 0x8d
+    1024: 2**680 + 2**8 + 0x8d
 }
 fnv_basis = dict((k, _fnv1_impl(k, v, 0, b"chongo <Landon Curt Noll> /\\../\\")) for k, v in fnv_primes.items())
 
