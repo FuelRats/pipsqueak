@@ -5,3 +5,5 @@ iso8601
 sqlalchemy
 alembic
 psycopg2
+autobahn[twisted]
+twisted

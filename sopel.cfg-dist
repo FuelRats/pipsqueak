@@ -24,9 +24,9 @@ help_prefix = !
 extra = sopel-modules
 
 ## For production/testing
-enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect
+enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect,rat-socket
 ## Development use, which may add security risks
-# enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect,reload,ipython
+# enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect,rat-socket,reload,ipython
 
 db_filename = run/ratbot.db
 logdir = logs
@@ -107,3 +107,8 @@ lang = en
 # Default: ratsignal
 # Use drillsignal for drillsqueak, testsignal for debugging
 signal = ratsignal
+
+[socket]
+# Tracker Configuration
+websocketurl = 12345
+websocketport = 9000
