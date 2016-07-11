@@ -1,0 +1,21 @@
+{
+  "template": {
+    "xbeacon": {"author": "author_name", "fact": ""},
+    "pcwing": {"author": "author_name", "fact": ""},
+    "pcbeacon": {"author": "author_name", "fact": ""},
+    "xwing": {"author": "author_name", "fact": ""},
+    "pcfr": {"author": "author_name", "fact": ""},
+    "prep": {"author": "author_name", "fact": ""},
+    "xfr": {"author": "author_name", "fact": ""},
+    "xquit": {"author": "author_name", "fact": ""},
+    "pcquit": {"author": "author_name", "fact": ""},
+    "filtergalmap": {"author": "author_name", "fact": ""},
+    "kgbfoam": {"author": "author_name", "fact": "same"},
+    "galnet": {"author": "author_name", "fact": ""},
+    "sc": {"author": "author_name", "fact": ""},
+    "ratchat": {"author": "author_name", "fact": ""},
+    "rc": {"author": "author_name", "fact": "same"},
+    "pw": {"author": "author_name", "fact": ""},
+    "prepcr":{"author": "author_name", "fact" : ""}
+  }
+}

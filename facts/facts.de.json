@@ -1,20 +1,21 @@
 {
   "de": {
-    "xbeacon": {"author": "Becci", "fact": "Um das Wingsignal zu aktivieren halte X und drücke dann rechts auf dem D-Pad. Dann drücke einmal Q, wähle Signal, drücke Leertaste und ändere es von \"Aus\" zu \"Geschwader\""},
+    "xbeacon": {"author": "Becci", "fact": "Um das Geschwadersignal zu aktivieren halte X und drücke dann rechts auf dem D-Pad. Dann drücke einmal Q, wähle Signal, drücke Leertaste und ändere es von \"Aus\" zu \"Geschwader\""},
     "pcwing": {"author": "Becci", "fact": "Um eine Geschwadereinladung zu senden, gehe zum Kommunikationsmenü (\u0002Taste 2\u000f), \u0002drücke ESC\u000f um das Chat Eingabefeld zu schließen, und gehe dann zum zweiten Panel (\u0002Default key E\u000f). Dann wähle den CMDR aus dem du die Winganfrage senden willst, drücke die Leertaste und wähle \u0002Geschwadereinladung\u000f."},
-    "pcbeacon": {"author": "Becci", "fact": "Um das Wingsignal zu aktivieren, gehe zum rechten Menü (\u0002Taste 4\u000f), gehe zum Funktionsmenü (\u0002Taste Q\u000f), wähle \u0002Signal\u000f und setze es auf \u0002Geschwader\u000f"},
+    "pcbeacon": {"author": "Becci", "fact": "Um das Geschwadersignal zu aktivieren, gehe zum rechten Menü (\u0002Taste 4\u000f), gehe zum Funktionsmenü (\u0002Taste Q\u000f), wähle \u0002Signal\u000f und setze es auf \u0002Geschwader\u000f"},
     "xwing": {"author": "Becci", "fact": "Um die Rats zu deinem Geschwader hinzuzufügen, halte X und drücke dann hoch auf dem D-Pad, drücke einmal RB, dann wähle den Namen der Rat, drücke Leertaste und wähle [Geschwadereinladung]"},
     "pcfr": {"author": "Becci", "fact": "Um eine Freundesanfrage zu senden, gehe zum Menü (\u0002Drücke ESC\u000f), klicke auf \u0002Freunde und Private Gruppen\u000f, und drücke dann \u0002Freund hinzufügen\u000f"},
     "prep": {"author": "Becci", "fact": "Bitte droppe vom Supercruise, komm zum stehen und deaktiviere alle Module AUSSER der LEBENSERHALTUNG"},
     "xfr": {"author": "Becci", "fact": "Um die Rats zu deiner Freundesliste hinzuzufügen drücke doppelt auf den XBox Button, dann drücke Links auf dem D-Pad. Jetzt drücke auf A und suche nach dem Namen der Rat."},
-    "xquit": {"author": "Becci", "fact": "Bitte logge dich SOFORT aus, indem du \u0002START\u000f drückst und \u0002Save and Exit to Main Menu\u000f!"},
-    "pcquit": {"author": "Becci", "fact": "Please log out of the game immediately by pressing \u0002ESC\u000f and selecting \u0002Speichern und zum Hauptmenü\u000f auswählst!"},
+    "xquit": {"author": "Becci", "fact": "Bitte logge dich SOFORT aus, indem du \u0002START\u000f drückst und \u0002Speichern und zum Hauptmenü\u000f!"},
+    "pcquit": {"author": "Becci", "fact": "Bitte logge dich SOFORT aus, indem du \u0002ESC\u000f drückst und \u0002Speichern und zum Hauptmenü\u000f auswählst!"},
     "filtergalmap": {"author": "Becci", "fact": "Um zu lernen wie man die Galaxiekarte filtert, klicke auf diesen Link: http://bit.ly/1GKXCWv"},
     "kgbfoam": {"author": "Becci", "fact": "Um zu lernen wie man die Galaxiekarte filtert, klicke auf diesen Link: http://bit.ly/1GKXCWv"},
     "galnet": {"author": "Becci", "fact": "Hier ist ein Link zum GalNet: https://community.elitedangerous.com/galnet"},
     "sc": {"author": "Becci", "fact": "Bitte reaktiviere deine Schubdüsen und deinen Frameshiftantrieb, wähle alle Ziele AB und gehe in den Supercruisemodus. Flieg für circa fünf Sekunden weg vom Stern des Systems, dann droppe zurück in den normalen Raum."},
     "ratchat": {"author": "Becci", "fact": "HEY! #fuelrats ist nur für Rettungsoperationen, wenn du/ihr reden möchtest, tritt bitte #RatChat bei indem du '/join #RatChat' in den Chat schreibst."},
     "rc": {"author": "Becci", "fact": "HEY! #fuelrats ist nur für Rettungsoperationen, wenn du/ihr reden möchtest, tritt bitte #RatChat bei indem du '/join #RatChat' in den Chat schreibst."},
-    "pw": {"author": "Becci", "fact": "Zeit für den Papierkram! http://bit.ly/1lBp53V"}
+    "pw": {"author": "Becci", "fact": "Zeit für den Papierkram! http://www.fuelrats.com/paperwork/"},
+    "prepcr": {"author":"Marenthyu", "fact":"Merke dir dein aktuelles System und logge dich SOFORT aus, indem du auf ESC drückst und auf \"Seichern und zum Hauptmenü\" drückst!"}
   }
 }

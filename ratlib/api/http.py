@@ -80,7 +80,7 @@ def urljoin(*parts):
     return "".join(part for part in _gen(parts))
 
 
-def call(method, uri, data=None, statuses=None, log=None, **kwargs):
+def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs):
     """
     Wrapper function to contact the web API.
 
@@ -88,13 +88,19 @@ def call(method, uri, data=None, statuses=None, log=None, **kwargs):
     :param uri: URI.  If this is anything other than a string, it is passed to urljoin() first.
     :param data: Data for JSON request body.
     :param log: File-like object to log request data to.
+    :param headers: Additional header to send; Used to Send authorization.
     :param **kwargs: Passed to requests.
     :param statuses: If present, a set of acceptable HTTP response codes (including 200).  If not present, the default
         behavior of requests.raise_for_status() is used.
     """
     if not isinstance(uri, str):
         uri = urljoin(uri)
-    data = data or {}
+
+    #dump data as a String if it is a dict element to allow for both json objects and Json-formatted strings
+    if type(data) == type({}):
+        data = json.dumps(data)
+
+    data = json.loads(data or '{}')
 
     if log:
         logprint = functools.partial(print, file=log, flush=True)
@@ -112,9 +118,9 @@ def call(method, uri, data=None, statuses=None, log=None, **kwargs):
     response = None
     try:
         if method in request_methods:
-            response = request_methods[method](uri, json=data)
+            response = request_methods[method](uri, json=data, headers=headers)
         else:
-            response = requests.request(method.upper(), uri, json=data)
+            response = requests.request(method.upper(), uri, json=data, headers=headers)
         if not statuses:
             if response.status_code != 400:
                 response.raise_for_status()
@@ -150,4 +156,5 @@ def call(method, uri, data=None, statuses=None, log=None, **kwargs):
         raise APIError(err.get('name'), err.get('message'), json=result)
     if 'data' not in result:
         raise BadResponseError(details="Did not receive a data field in a non-error response.", json=result)
+
     return result

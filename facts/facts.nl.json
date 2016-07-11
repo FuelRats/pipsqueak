@@ -1,0 +1,21 @@
+{
+  "nl": {
+    "xbeacon": {"author": "Beumer", "fact": "Om je 'beacon' te activeren, houd je X knop ingedrukt, en druk je op 'rechts' op de D-Pad. Druk nu op LB, selecteer 'beacon', en kies de optie 'wing'."},
+    "pcwing": {"author": "Beumer", "fact": "Om iemand aan je 'Wing' toe te voegen, ga je naar het communicatie scherm (standaard toets 2), en druk je op ESC om uit het tekstvak te gaan. Navigeer nu naar het tweede tabblad (standaard toets E), en selecteer de CMDR die je aan je 'wing' wil toevoegen. Selecteer nu 'Invite to wing'."},
+    "pcbeacon": {"author": "Beumer", "fact": "Om je 'beacon' te activeren, ga je naar het rechter scherm (standaard toets 4), en navigeer je naar het tabblad 'Functions' (standaard toets Q). Selecteer 'beacon', en kies de optie 'wing'."},
+    "xwing": {"author": "Beumer", "fact": "Om iemand aan je 'Wing' toe te voegen, houd je de X knop ingedrukt, en druk je op 'omhoog' op de D-Pad. Druk nu op RB, en selecteer de CMDR die je aan je 'wing' wil toevoegen. Selecteer nu 'Invite to wing'"},
+    "pcfr": {"author": "Beumer", "fact": "Om een vriendenverzoek te sturen, ga je naar het menu (druk op ESC), en klik je op 'Friends and Private Groups'. Klik op 'Add Friend', en typ de naam van de CMDR die je wil toevoegen."},
+    "prep": {"author": "Beumer", "fact": "Verlaat 'super cruise', kom tot stilstand, en zet al je modules uit, BEHALVE 'life support'! (rechter scherm, tabblad modules)"},
+    "xfr": {"author": "Beumer", "fact": "Om een vriendenverzoek te sturen, druk je twee keer op de XBOX knop, en dan 'Links' op de D-Pad. Druk nu op de A knop, en typ de naam van de CMDR die je wil toevoegen."},
+    "xquit": {"author": "Beumer", "fact": "Log alsjeblieft onmiddelijk uit naar het hoofdmenu, door op Start te drukken, en daarna 'Save and Exit to Main Menu' te selecteren! (by Beumer) xwing-nl - Om iemand aan je 'Wing' toe te voegen, houd je de X knop ingedrukt, en druk je op 'omhoog' op de D-Pad. Druk nu op RB, en selecteer de CMDR die je aan je 'wing' wil toevoegen. Selecteer nu 'Invite to wing'."},
+    "pcquit": {"author": "Beumer", "fact": "Log alsjeblieft onmiddelijk uit naar het hoofdmenu, door op ESC te drukken, en daarna op 'Save and Exit to Main Menu' te klikken!"},
+    "filtergalmap": {"author": "Beumer", "fact": "Om te leren hoe je de 'galaxy map' kunt filteren om scoopbare sterren te vinden, klik hier: http://bit.ly/1GKXCWv (Engels)"},
+    "kgbfoam": {"author": "Beumer", "fact": "Om te leren hoe je de 'galaxy map' kunt filteren om scoopbare sterren te vinden, klik hier: http://bit.ly/1GKXCWv (Engels)"},
+    "sc": {"author": "Beumer", "fact": "Zou je je 'Thrusters' en 'Frame Shift Drive' modules willen activeren? (rechter scherm, tabblad 'modules') Zorg ervoor dat je geen ander zonnestelsel geselecteerd hebt, en ga naar 'super cruise'. Vlieg een paar seconden van de ster weg, en verlaat 'super cruise' weer."},
+    "ratchat": {"author": "Beumer", "fact": "Hoi! #Fuelrats wordt gebruikt voor reddingsacties. Als je met ons wil chatten, kun je dit doen door met het kanaal #RatChat te verbinden. Typ hiervoor '/join #ratchat'"},
+    "rc": {"author": "Beumer", "fact": "Hoi! #Fuelrats wordt gebruikt voor reddingsacties. Als je met ons wil chatten, kun je dit doen door met het kanaal #RatChat te verbinden. Typ hiervoor '/join #ratchat'"},
+    "prepcr": {"author": "Beumer", "fact": "Noteer je locatie in het spel (linker scherm, linker kolom), en log onmiddelijk uit naar het hoofdmenu!"},
+    "pw": {"author":"Aridolomo", "fact": "Tijd om het papierwerk te doen. http://fuelrats.com/paperwork"},
+    "galnet": {"author":"Aridolomo", "fact":"Hier is een link naar Galnet https://community.elitedangerous.com/galnet"}
+  }
+}
