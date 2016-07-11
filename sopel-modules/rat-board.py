@@ -806,7 +806,7 @@ def cmd_clear(bot, trigger, rescue):
     rescue.open = False
     rescue.active = False
     # FIXME: Should have better messaging
-    bot.say("Case {rescue.client_name} is cleared".format(rescue=rescue))
+    bot.say("Case {rescue.client_name} cleared! Do the Paperwork: {bot.config.ratbot.apiurl}/rescues/edit/{rescue.id}".format(rescue=rescue,bot=bot))
     rescue.board.remove(rescue)
     save_case_later(
         bot, rescue,
