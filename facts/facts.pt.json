@@ -1,0 +1,19 @@
+{
+  "pt": {
+    "xbeacon": {"author": "unknown", "fact": " Para ativar o sinalizador para sua esquadra pressione o botão X e pressione a seta para a direira no D-PAD. Pressione então o LB uma vez e selecione BEACON e mude de OFF para WING"},
+    "pcwing": {"author": "unknown", "fact": "para mandar um convite para a esquadra, vá para o painel de comunicações ( tecla padrão 2), clique ESC para fechar a janela de conversa e vá até o segundo painel ( tecla padrão E). Selecione então o comandante que você deseja e então clique em INVITE TO WING (em inglês ) ou Escuadron ( em espanhol )"},
+    "pcbeacon": {"author": "unknown", "fact": "Para ativar o sinalizador, vá ao painel do lado direito ( tecla padrão 4), navegue até a tela de funções ( tecla padrão Q), selecione BEACON ( se estiver jogando em inglês ) ou BALIZA (se estiver jogando em espanhol) e o altere para WING (inglês ) ou ESCUADRON (espanhol)"},
+    "xwing": {"author": "unknown", "fact": "Para adicionar os ratos à sua esquadra pressione o botão X e clique a seta para cima no D-PAD , pressione então uma vez o RB, selecione o nome do rato e clique em Invite to Wing"},
+    "pcfr": {"author": "unknown", "fact": "Para enviar um pedido de amizade, vá para o menu ( aperte ESC) , clique em amigos e grupos privados ( friends and private groups) e clique em ADD FRIEND (adicionar amigo)"},
+    "prep": {"author": "unknown", "fact": "Por favor saia da velocidade de super cruzeiro, pare completamente a nave e desative todos os módulos exceto o suporte de vida ( life support )"},
+    "xfr": {"author": "unknown", "fact": "Para adicionar o rato que irá te resgatar à sua lista de amigos clique duas vezes no botão central do controle Xbox e então pressione a seta para a esquerda no D-PAD. Agora, pressione A e procure pelo nome do rato"},
+    "xquit": {"author": "unknown", "fact": "Por favor saia imediatamente do jogo pressionando o botão START e escolhendo Save and exit to the main menu"},
+    "pcquit": {"author": "unknown", "fact": "Por favor saia imediatamente do jogo clicando ESC e seleciona Save and exit to main menu ( salvar e sair para o menu principal )"},
+    "filtergalmap": {"author": "unknown", "fact": "para aprender sobre como filtrar o mapa galático, clique aqui: http://bit.ly/1GKXCWv"},
+    "kgbfoam": {"author": "unknown", "fact": "para aprender sobre como filtrar o mapa galático, clique aqui: http://bit.ly/1GKXCWv"},
+    "sc": {"author": "unknown", "fact": "reative seus propulsores ( thrusters em inglês ) e o motor de dobra ( frame shift drive/motor de distorsion). Tenha certeza de não ter nenhum alvo selecionado e pule para a velocidade de super cruzeiro. Voe para longe da estrela por cerca de 5 segundos luz, e , então, saia do cruseiro e volte ao espaço normal."},
+    "ratchat": {"author": "unknown", "fact": "Hey! #fuelrats é somente para operações de resgate , se você deseja conversar por favor entre no #RatChat digitando /join #RatChat"},
+    "rc": {"author": "unknown", "fact": "Hey! #fuelrats é somente para operações de resgate , se você deseja conversar por favor entre no #RatChat digitando /join #RatChat"},
+    "prepcr":{"author": "unknown", "fact" : "Por favor anote sua localização atual e então salve e saia para o menu principal imediatamente"}
+  }
+}

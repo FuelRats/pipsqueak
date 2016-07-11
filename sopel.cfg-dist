@@ -55,6 +55,10 @@ apiurl = http://dev.api.fuelrats.com
 ## Production API
 # apiurl = http://api.fuelrats.com
 
+## API Auth Token.
+# Previously generated Oauth2 Token to authorize API Calls
+# apitoken = longassthing
+
 ## Set this to log API calls.  The path must exist (but the file does not need to), file will be overwritten at startup.
 ## If this is 'stdout' or 'stderr', logs to stdout/stderr instead.
 # apidebug = logs/api.log

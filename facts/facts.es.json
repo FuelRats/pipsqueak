@@ -1,0 +1,19 @@
+{
+  "es": {
+    "xbeacon": {"author": "unknown", "fact": "Para activar tu baliza mantén X y entonces presiona DERECHA en la cruceta. Presiona el botón LB hasta FUNCIONES. Cámbiala de APAGADA a ALA."},
+    "pcwing": {"author": "unknown", "fact": "Para enviar una invitación a Ala, ve al panel de comunicaciones (Tecla 2), pulsa ESC para salir del cuadro de chat, muévete al segundo panel (tecla E). Selecciona el COMANDANTE al que quieras invitar a tu Ala y selecciona “Invitar al Ala” "},
+    "pcbeacon": {"author": "unknown", "fact": "Para dejar una baliza, ve al panel de la derecha (Tecla 4), ve hacia la pantalla funciones (tecla Q), selecciona baliza y selecciona ALA "},
+    "xwing": {"author": "unknown", "fact": "Para añadir la “rat” a tu Ala, mantén el botón X y presiona ARRIBA en la cruceta, después presiona RB, selecciona el nombre del “rat” y selecciona “Invitar al Ala”"},
+    "pcfr": {"author": "unknown", "fact": "Para enviar una solicitud de amistad, ve al menu (tecla ESC), click en amigos y grupos privados, y click en AÑADIR AMIGO"},
+    "prep": {"author": "unknown", "fact": "Por favor, sal de supercrucero, hasta llegar a una parada completa y desactiva todos los módulos EXCEPTO el soporte de vida"},
+    "xfr": {"author": "unknown", "fact": "Para añadir las “rats” a tu lista de amigos, doble pulsación al botón XBOX, después, presiona IZQUIERDA en la cruceta. Ahora presiona A y busca el nombre del “rat”."},
+    "xquit": {"author": "unknown", "fact": "Por favor, sal del juego inmediatamente presionando el botón START y selecciona Guardar y Salir al Menu Principal!"},
+    "pcquit": {"author": "unknown", "fact": "Por favor, sal del juego inmediatamente presionando ESC y seleccionando Salvar y Salir al Menu Principal"},
+    "filtergalmap": {"author": "unknown", "fact": "Para aprender sobre el filtrado en el mapa de la Galaxia click aquí: http://bit.ly/1GKXCWv"},
+    "kgbfoam": {"author": "unknown", "fact": "Para aprender sobre el filtrado en el mapa de la Galaxia click aquí: http://bit.ly/1GKXCWv"},
+    "sc": {"author": "unknown", "fact": "Reactiva tus propulsores y el motor de salto, entonces deselecciona todo y salta a supercrucero. Vuela lejos de la estrella al menos 5 segundos/luz, entonces baja de nuevo al estado normal."},
+    "ratchat": {"author": "unknown", "fact": "OYE! #fuelrats es sólo para operaciones de rescate, si quieres chatear, por favor, entra en #RatChat escribiendo '/join #RatChat’"},
+    "rc": {"author": "unknown", "fact": "OYE! #fuelrats es sólo para operaciones de rescate, si quieres chatear, por favor, entra en #RatChat escribiendo '/join #RatChat’"},
+    "prepcr": {"author": "Ravenov", "fact": "Por favor, anota tu localización, Guarda y sal al Menu Principal inmediatamente!"}
+  }
+}

@@ -110,8 +110,9 @@ def setup(bot):
 
 def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
     uri = urljoin(bot.config.ratbot.apiurl, uri)
+    headers = {"Authorization":"Bearer "+bot.config.ratbot.apitoken}
     with bot.memory['ratbot']['apilock']:
-        return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'])
+        return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers)
 
 
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])

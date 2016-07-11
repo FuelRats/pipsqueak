@@ -1,0 +1,16 @@
+{
+  "no": {
+    "xbeacon": {"author": "DerryBear", "fact": "For å aktivere \"Wing beacon\", hold X og trykk Høyre på D-Pad-en. Trykk LB en gang, så velg \"BEACON\" og sett den til \"WING\""},
+    "pcwing": {"author": "DerryBear", "fact": "For å sende en \"Wing request\", åpne Comms panelet (Standard knapp 2), trykk ESC for å komme ut av Chat vinduet, naviger til fane nummer 2 (Standard knapp E). Så velg den du ønsker å invitere og trykk \"Invite to wing\"."},
+    "pcbeacon": {"author": "DerryBear", "fact": "For å aktivere \"Wing beacon\", naviger til det høyre panelet (Standard knapp 4), naviger til \"Functions\" fanen (Standard knapp Q) så velg \"BEACON\" og sett den til \"WING\""},
+    "xwing": {"author": "DerryBear", "fact": "For å sende en \"Wing request\", hold nede X knappen og trykk opp på D-padden, trykk RB en gang så velg råtten og velg \"Invite to wing\""},
+    "pcfr": {"author": "DerryBear", "fact": "For å sende en venneforespørsel, gå til Menyen (trykk ESC), velg \"Friends and private groups\" så trykk \"ADD FRIEND\" og søk opp råttens navn."},
+    "prep": {"author": "DerryBear", "fact": "Vær vennlig å dropp fra Super cruice, stopp fullstendig og deaktiver alle Moduler du kan i skipet UTENOM \"life support\" (Høyre panel)"},
+    "xfr": {"author": "DerryBear", "fact": "For å sende en venneforespørsel, dobbel-trykk på XBOX knappen så trykk VENSTRE på D-Padden. Så trykk A og søk opp råttens navn."},
+    "xquit": {"author": "DerryBear", "fact": "Vær vennlig å logg ut av spillet umiddelbart ved å trykke START og velg \"Save and Exit to Main Menu\"!"},
+    "pcquit": {"author": "DerryBear", "fact": "Vær vennlig å logg ut av spillet umiddelbart ved å trykke ESC og velg \"Save and Exit to Main Menu\"!"},
+    "filtergalmap": {"author": "DerryBear", "fact": "For å lære mer om å filtrere Galakse Kartet, trykk her: http://bit.ly/1GKXCWv"},
+    "kgbfoam": {"author": "DerryBear", "fact": "For å lære mer om å filtrere Galakse Kartet, trykk her: http://bit.ly/1GKXCWv"},
+    "prepcr":{"author": "DerryBear", "fact" : "Vær vennlig å noter ned ditt nåværende system og så trykk ESC, \"Save and Exit to Main Menu\" umiddelbart!"}
+  }
+}

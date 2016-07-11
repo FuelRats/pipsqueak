@@ -1,0 +1,26 @@
+{
+  "sv": {
+    "xbeacon": {"author": "NoLifeKing", "fact": "För att aktivera din nödfyr, håll inne X och tryck Höger på D-knapparna. Tryck på LB-knappen en gång och välj \"Beacon\" och sätt den från OFF till WING"},
+    "pcwing": {"author": "NoLifeKing", "fact": "För att skicka en skvadron-förfrågan, gå till kommunikationspanelen (Standardtangent 2), tryck på ESC för att komma ut chatboxen, gå till andra panelen (Standardtangent E). Välj den CMDR du vill bjuda in till din skvadron och välj \"Invite to wing\"."},
+    "pcbeacon": {"author": "NoLifeKing", "fact": " För att aktivera din nödfyr, gå till den högra panelen (Standardtangent 4), navigera till funktionsskärmen (Standardtangent Q), välj \"BEACON\" och ställ den till \"WING\""},
+    "xwing": {"author": "NoLifeKing", "fact": "För att lägga till råttorna till din skvadron, håll in X-knappen och sedan UPP på D-knapparna, tryck på RB-knappen en gång, välj sedan namnet på en av råttorna och sedan"},
+    "pcfr": {"author": "NoLifeKing", "fact": "Gå till menyn (Tryck på ESC) för att skicka en vän-förfrågan, klicka på \"Friend and private groups\" och sedan \"ADD FRIEND\""},
+    "prep": {"author": "NoLifeKing", "fact": "Var vänlig och gå ur supercruise och stanna helt, stäng av alla moduler UTOM livssupport."},
+    "xfr": {"author": "NoLifeKing", "fact": "För att lägga till råttorna till din vännerlista, dubbelklicka på Xbox-knappen, sedan till VÄNSTER på D-knapparna. Klicka på A och sök på råttans namn."},
+    "xquit": {"author": "NoLifeKing", "fact": "Vänligen logga ut ur spelet direkt genom att klicka på START-knappen och välj \"Save and exit to Main Menu\"!"},
+    "pcquit": {"author": "NoLifeKing", "fact": "Vänligen logga ut ur spelet direkt genom att klicka på ESC och välj \"Save and exit to Main Menu\"!"},
+    "filtergalmap": {"author": "NoLifeKing", "fact": "För att lära dig att filtrera den galaktiska kartan, klicka här: http://bit.ly/1GKXCWv"},
+    "kgbfoam": {"author": "NoLifeKing", "fact": "För att lära dig att filtrera den galaktiska kartan, klicka här: http://bit.ly/1GKXCWv"},
+    "galnet": {"author": "NoLifeKing", "fact": "Här är en länk till Galnet: https://community.elitedangerous.com/galnet"},
+    "sc": {"author": "NoLifeKing", "fact": "Återaktivera dina styrraketer och din Frameshift-drive, avmarkera dina mål och hoppa in i supercruise. Flyg iväg från stjärnan i ungefär 5 ljussekunder, sedan droppar du tillbaka till normal rymd."},
+    "ratchat": {"author": "NoLifeKing", "fact": "Hörru! #fuelrats är till för räddningsuppdrag enbart, om du vil chatta, så är du välkommen i #RatChat genom att skriva '/join #RatChat'"},
+    "rc": {"author": "NoLifeKing", "fact": "Hörru! #fuelrats är till för räddningsuppdrag enbart, om du vil chatta, så är du välkommen i #RatChat genom att skriva '/join #RatChat'"},
+    "pw": {"author": "NoLifeKing", "fact": "Dags att göra pappersarbetet! http://fuelrats.com/paperwork"},
+    "about": {"author": "NoLifeKing", "fact": "Det här är Pipsqueak (även kallad Mecha 2.0) beta, och används för övningar. Drillspatchers can (and SHOULD) use real bot commands here (e.g. !inject, !grab and !assign) without affecting live cases. See !changes for notable changes, !bugs for reporting bugs."},
+    "bugs": {"author": "NoLifeKing", "fact": "Vänligen rapportera alla buggar och andra concerns på https://github.com/FuelRats/pipsqueak/issues. Misslyckas med att rapportera in bugger, resulterar i indragen snickers."},
+    "changes": {"author": "NoLifeKing", "fact": "För en översikt av förändringar och nya funktioner, titta på https://github.com/FuelRats/pipsqueak/wiki/Changes. Kolla även !bugs."},
+    "debrief": {"author": "NoLifeKing", "fact": "Guide för att avrapportera klienter: http://goo.gl/VT6qyc"},
+    "newrat": {"author": "NoLifeKing", "fact": "Här är ett par länkar du borde läsa => 1. http://goo.gl/UXt8Ic l 2. http://goo.gl/kZ21WC l 3. http://goo.gl/3S8p8I l 4. http://goo.gl/1J1F6b l 5. http://goo.gl/4Y7QNB l 6. http://goo.gl/mDF03t :: Du borde även kolla den här guiden (under arbete): http://bitly.com/howtorat-2"},
+    "prepcr":{"author": "NoLifeKing", "fact" : "Skriv ner din position och gå direkt till huvudmenyn genast!!"}
+  }
+}

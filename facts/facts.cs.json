@@ -1,0 +1,17 @@
+{
+  "cs": {
+    "xbeacon": {"author": "DerryBear", "fact": "Pro vypuštění Majáku své Letky (BEACON) podržte X a stiskněte DOPRAVA na D-PADu. Jednou stiskněte LB, vyberte BEACON a nastavte ji z OFF na WING."},
+    "pcwing": {"author": "DerryBear", "fact": "Pro zaslání Pozvání do Letky (WING INVITE), otevřete Comms Panel (Původní Klávesa 2), stiskněte ESC pro ukončení vkládání textu a zvolte 2. stránku. Poté vyberte jméno hráče (CMDR) kterého chcete přizvat do Letky (WING) a zvolte [Invite to Wing]"},
+    "pcbeacon": {"author": "DerryBear", "fact": "Pro vypuštění Majáku své letky (BEACON) jděte do pravého panelu (Původní Klávesa 4), zvolte stránku Functions, vyberte Beacon a nastavte tuto možnost na WING"},
+    "xwing": {"author": "DerryBear", "fact": "Pro vypuštění Majáku své Letky (BEACON) podržte X a stiskněte DOPRAVA na D-PADu. Jednou stiskněte LB, vyberte BEACON a nastavte ji z OFF na WING."},
+    "pcfr": {"author": "DerryBear", "fact": "Pro zaslání žádosti o přátelství jděte do Menu (ESC), vyberte možnost Friends and Private Groups, klikněte ADD FRIEND a vyhledejte jméno Krysy"},
+    "prep": {"author": "DerryBear", "fact": "Deaktivujte prosím Super Cruise (Throttle 0 a až se objeví SAFE DISENGAGE READY, stikněte klávesu Super Cruise pro drop), úplně zastavte a vypněte všechny moduly KROMĚ Podpory Života (Life Support)"},
+    "xfr": {"author": "DerryBear", "fact": "Pro přidání hráčů do vašeho Seznamu Přátel (Friend List) dvojklikněte XBOX tlačítko, poté DOLEVA na D-PADu. Pak stiskněte A a vyhledejte jméno své Krysy (Rat). Žádosti o přátelství musí odeslat i klient, i Krysa."},
+    "xquit": {"author": "DerryBear", "fact": "Prosím okamžitě se odhlašte ze hry pomocí stisku START a výběrem Save and Exit to Main Menu!"},
+    "pcquit": {"author": "DerryBear", "fact": "Odhlašte se prosím okamžitě ze hry stisknutím ESC a vybráním možnosti Save and Exit to Main Menu!"},
+    "filtergalmap": {"author": "DerryBear", "fact": "Pro informace o filtrování Galaktické mapy klikněte zde: http://bit.ly/1GKXCWv"},
+    "kgbfoam": {"author": "DerryBear", "fact": "Pro informace o filtrování Galaktické mapy klikněte zde: http://bit.ly/1GKXCWv"},
+    "sc": {"author": "DerryBear", "fact": "Aktivujte opět své motory a Frameshift Drive, zrušte zaměření Jump systému a skočte do Super Cruise. Leťte od hvězdy asi tak 5 sekund a pak se vraťte zpět do normálního vesmíru."},
+    "prepcr": {"author": "DerryBear", "fact": "Prosím zaznamenejte si svou herní lokaci a poté se okamžitě odpojte do herního menu pomocí klávesy ESC a volby Save and Quit to Main Menu"}
+  }
+}
