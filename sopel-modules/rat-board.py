@@ -297,6 +297,7 @@ class Rescue(TrackedBase):
     client = TrackedProperty(default='<unknown client>')
     system = TrackedProperty(default=None)
     successful = TypeCoercedProperty(default=False, coerce=bool)
+    epic = TypeCoercedProperty(default=False, coerce=bool)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
