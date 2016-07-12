@@ -712,6 +712,78 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
     return decorator
 
 
+def getRatId(bot, ratname):
+    """
+    Gets the RatId for a given name from the API or 0 if it couldnt find anyone with that cmdrname
+    Args:
+        bot: the bot to pull the config from
+        ratname: the cmdrname to look for
+
+    Returns:
+
+    """
+    strippedname = removeTags(ratname)
+    try:
+        uri = '/rats?CMDRname=' + strippedname
+        result = callapi(bot=bot,method = 'GET',uri=uri)
+        # print(result)
+        data = result['data']
+        # print(data)
+        firstmatch = data[0]
+        id = firstmatch['_id']
+        return {'id':id, 'name':strippedname}
+    except IndexError as ex:
+        try:
+            #print('No rats with that CMDRname found. Trying nickname...')
+            uri = '/rats?nickname=' + strippedname
+            result = callapi(bot=bot, method='GET', uri=uri)
+            # print(result)
+            data = result['data']
+            # print(data)
+            firstmatch = data[0]
+            id = firstmatch['_id']
+            return {'id':id, 'name':strippedname}
+        except IndexError:
+            #print('no rats with that commandername or nickname found. trying gamertag...')
+            try:
+                uri = '/rats?gamertag=' + strippedname
+                result = callapi(bot=bot, method='GET', uri=uri)
+                # print(result)
+                data = result['data']
+                # print(data)
+                firstmatch = data[0]
+                id = firstmatch['_id']
+                return {'id':id, 'name':strippedname}
+            except IndexError:
+                #print('no rats with that commandername or nickname or gamertag found.')
+                return {'id':'0', 'name':strippedname, 'error':ex, 'description':'no rats with that commandername or nickname or gamertag found.'}
+    except ratlib.api.http.APIError as ex:
+        print('APIError: couldnt find RatId for '+strippedname)
+        return {'id':'0', 'name':strippedname, 'error':ex, 'description':'API Error while trying to fetch Rat'}
+
+def getRatName(bot, ratid):
+    result = callapi(bot=bot, method='GET', uri='/rats/'+ratid)
+    ret = 'unknown'
+    try:
+        data=result['data']
+        try:
+            ret = data['CMDRname']
+        except:
+            ret = data['nickname']
+    except:
+        ret = 'unknown'
+    # print('returning '+ret+' as name for '+ratid)
+    return ret
+
+def removeTags(string):
+    try:
+        i = string.index('[')
+    except ValueError:
+        i = len(string)
+
+    return string[0:i]
+
+
 # Convenience function
 def requires_case(fn):
     return parameterize('r', "<client or case number>")(fn)
@@ -788,7 +860,11 @@ def cmd_quote(bot, trigger, rescue):
 
     # FIXME: Rats/temprats/etc isn't really handled yet.
     if rescue.rats:
-        bot.say("Assigned rats: " + ", ".join(rescue.rats))
+        ratnames = []
+        for rat in rescue.rats:
+            name = getRatName(bot, rat)
+            ratnames.append(name)
+        bot.say("Assigned rats: " + ", ".join(ratnames))
     if rescue.unidentifiedRats:
         bot.say("Assigned unidentifiedRats: " + ", ".join(rescue.unidentifiedRats))
     for ix, quote in enumerate(rescue.quotes):
@@ -998,12 +1074,33 @@ def cmd_assign(bot, trigger, rescue, *rats):
     Assign rats to a client's case.
     required parameters: client name, rat name(s).
     """
-    rescue.rats |= set(rats)
+    ratlist = []
+    for rat in rats:
+        if rat != ' ':
+            ratlist.append(rat)
+        i = getRatId(bot, rat)
+        if i['id'] != '0':
+            print('id was not 0.')
+            rescue.rats.update([i['id']])
+        else:
+            print('id was 0')
+            rescue.unidentifiedRats.update([rat])
     bot.say(
         "{rescue.client_name}: Please add the following rat(s) to your friends list: {rats}"
-        .format(rescue=rescue, rats=", ".join(rats))
+        .format(rescue=rescue, rats=", ".join(ratlist))
     )
     save_case_later(bot, rescue)
+
+@commands('ratid','id')
+@ratlib.sopel.filter_output
+@parameterize('w', usage='<ratname>')
+def cmd_ratid(bot, trigger, rat):
+    """
+    Get a rats' id from the api
+    required parameters: rat name
+    """
+    id = getRatId(bot=bot, ratname=rat)
+    bot.say('Rat id for '+str(id['name'])+' is '+str(id['id']))
 
 
 @commands('unassign', 'deassign', 'rm', 'remove', 'standdown')
@@ -1013,7 +1110,13 @@ def cmd_unassign(bot, trigger, rescue, *rats):
     """
     Remove rats from a client's case.
     """
-    rescue.rats -= set(rats)
+    rescue.unidentifiedRats -= set(rats)
+    for rat in rats:
+        rat = str(getRatId(bot, rat)['id'])
+        if rat != '0':
+            rescue.rats -= {rat}
+            callapi(bot, 'PUT', '/rescues/'+ str(rescue.id) + '/unassign/' + rat)
+
     bot.say(
         "Removed from {rescue.client_name}'s case: {rats}"
         .format(rescue=rescue, rats=", ".join(rats))
