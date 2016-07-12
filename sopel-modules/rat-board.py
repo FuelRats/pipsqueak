@@ -296,6 +296,7 @@ class Rescue(TrackedBase):
     client = DictProperty(default=lambda: {})
     system = TrackedProperty(default=None)
     successful = TypeCoercedProperty(default=None, coerce=bool)
+    epic = TypeCoercedProperty(default=False, coerce=bool)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -1073,7 +1074,10 @@ def cmd_assign(bot, trigger, rescue, *rats):
     Assign rats to a client's case.
     required parameters: client name, rat name(s).
     """
+    ratlist = []
     for rat in rats:
+        if rat != ' ':
+            ratlist.append(rat)
         i = getRatId(bot, rat)
         if i['id'] != '0':
             print('id was not 0.')
@@ -1083,7 +1087,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
             rescue.unidentifiedRats.update([rat])
     bot.say(
         "{rescue.client_name}: Please add the following rat(s) to your friends list: {rats}"
-        .format(rescue=rescue, rats=", ".join(rats))
+        .format(rescue=rescue, rats=", ".join(ratlist))
     )
     save_case_later(bot, rescue)
 
@@ -1106,7 +1110,13 @@ def cmd_unassign(bot, trigger, rescue, *rats):
     """
     Remove rats from a client's case.
     """
-    rescue.rats -= set(rats)
+    rescue.unidentifiedRats -= set(rats)
+    for rat in rats:
+        rat = str(getRatId(bot, rat)['id'])
+        if rat != '0':
+            rescue.rats -= {rat}
+            callapi(bot, 'PUT', '/rescues/'+ str(rescue.id) + '/unassign/' + rat)
+
     bot.say(
         "Removed from {rescue.client_name}'s case: {rats}"
         .format(rescue=rescue, rats=", ".join(rats))
