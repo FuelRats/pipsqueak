@@ -194,6 +194,9 @@ def sockettest(bot, trigger):
 @commands('connectsocket', 'connect')
 @ratlib.sopel.filter_output
 def connectSocket(bot, trigger):
+    if reactor._started:
+        bot.say('Already connected!')
+        return
     bot.say('Gotcha, connecting to the API\'s Websocket!')
     MyClientProtocol.bot = bot
     factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
