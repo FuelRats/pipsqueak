@@ -1137,7 +1137,10 @@ def cmd_codered(bot, trigger, rescue):
     if rescue.codeRed:
         bot.say('CODE RED! {rescue.client_name} is on emergency oxygen.'.format(rescue=rescue), transform=False)
         if rescue.rats:
-            bot.say(", ".join(rescue.rats) + ": This is your case!")
+            ratnames = []
+            for rat in rescue.rats:
+                ratnames.append(getRatName(bot, rat))
+            bot.say(", ".join(ratnames) + ": This is your case!")
     else:
         bot.say('{rescue.client_name}\'s case is no longer CR.'.format(rescue=rescue))
 
