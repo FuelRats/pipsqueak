@@ -1,4 +1,4 @@
-#coding: utf8
+# coding: utf8
 """
 rat-socket.py - Fuel Rats Rat Tracker module.
 Copyright 2016, Peter "Marenthyu" Fredebold <marenthyu@marenthyu.de>
@@ -13,7 +13,7 @@ import sys
 from threading import Thread
 import json
 
-#Sopel imports
+# Sopel imports
 from sopel.formatting import bold, color, colors
 from sopel.module import commands, NOLIMIT, priority, require_chanmsg, rule
 from sopel.tools import Identifier, SopelMemory
@@ -26,42 +26,46 @@ from twisted.internet import reactor
 from autobahn.twisted.websocket import WebSocketClientProtocol
 from autobahn.twisted.websocket import WebSocketClientFactory
 from twisted.internet.protocol import ReconnectingClientFactory
+
 log.startLogging(sys.stdout)
 
-#ratlib imports
+# ratlib imports
 import ratlib.api.http
+
 urljoin = ratlib.api.http.urljoin
-
-
 
 import threading
 import collections
+
 
 ## Start Config Section ##
 class SocketSection(StaticSection):
     websocketurl = ValidatedAttribute('websocketurl', str, default='1234')
     websocketport = ValidatedAttribute('websocketurl', str, default='9000')
 
+
 def configure(config):
-       ratlib.sopel.configure(config)
-       config.define_section('socket', SocketSection)
-       config.socket.configure_setting(
-           'websocketurl',
-           (
-               "Websocket url"
-           )
-       )
-       config.socket.configure_setting(
-           'websocketport',
-           (
-               "Web Socket Port"
-           )
-       )
+    ratlib.sopel.configure(config)
+    config.define_section('socket', SocketSection)
+    config.socket.configure_setting(
+        'websocketurl',
+        (
+            "Websocket url"
+        )
+    )
+    config.socket.configure_setting(
+        'websocketport',
+        (
+            "Web Socket Port"
+        )
+    )
+
 
 def shutdown(bot=None):
     # Ignored by sopel?!?!?!
     print('shutdown for socket')
     reactor.stop()
+
 
 def setup(bot):
     ratlib.sopel.setup(bot)
@@ -76,10 +80,9 @@ def setup(bot):
         websocketport = bot.config.socket.websocketport
 
 
-
 def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
     uri = urljoin(bot.config.ratbot.apiurl, uri)
-    headers = {"Authorization":"Bearer "+bot.config.ratbot.apitoken}
+    headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
     with bot.memory['ratbot']['apilock']:
         return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers)
 
@@ -91,6 +94,7 @@ def removeTags(string):
         i = len(string)
 
     return string[0:i]
+
 
 def getRatId(bot, ratname):
     """
@@ -105,16 +109,16 @@ def getRatId(bot, ratname):
     strippedname = removeTags(ratname)
     try:
         uri = '/rats?CMDRname=' + strippedname
-        result = callapi(bot=bot,method = 'GET',uri=uri)
+        result = callapi(bot=bot, method='GET', uri=uri)
         # print(result)
         data = result['data']
         # print(data)
         firstmatch = data[0]
         id = firstmatch['_id']
-        return {'id':id, 'name':strippedname}
+        return {'id': id, 'name': strippedname}
     except IndexError as ex:
         try:
-            #print('No rats with that CMDRname found. Trying nickname...')
+            # print('No rats with that CMDRname found. Trying nickname...')
             uri = '/rats?nickname=' + strippedname
             result = callapi(bot=bot, method='GET', uri=uri)
             # print(result)
@@ -122,9 +126,9 @@ def getRatId(bot, ratname):
             # print(data)
             firstmatch = data[0]
             id = firstmatch['_id']
-            return {'id':id, 'name':strippedname}
+            return {'id': id, 'name': strippedname}
         except IndexError:
-            #print('no rats with that commandername or nickname found. trying gamertag...')
+            # print('no rats with that commandername or nickname found. trying gamertag...')
             try:
                 uri = '/rats?gamertag=' + strippedname
                 result = callapi(bot=bot, method='GET', uri=uri)
@@ -133,19 +137,21 @@ def getRatId(bot, ratname):
                 # print(data)
                 firstmatch = data[0]
                 id = firstmatch['_id']
-                return {'id':id, 'name':strippedname}
+                return {'id': id, 'name': strippedname}
             except IndexError:
-                #print('no rats with that commandername or nickname or gamertag found.')
-                return {'id':'0', 'name':strippedname, 'error':ex, 'description':'no rats with that commandername or nickname or gamertag found.'}
+                # print('no rats with that commandername or nickname or gamertag found.')
+                return {'id': '0', 'name': strippedname, 'error': ex,
+                        'description': 'no rats with that commandername or nickname or gamertag found.'}
     except ratlib.api.http.APIError as ex:
-        print('APIError: couldnt find RatId for '+strippedname)
-        return {'id':'0', 'name':strippedname, 'error':ex, 'description':'API Error while trying to fetch Rat'}
+        print('APIError: couldnt find RatId for ' + strippedname)
+        return {'id': '0', 'name': strippedname, 'error': ex, 'description': 'API Error while trying to fetch Rat'}
+
 
 def getRatName(bot, ratid):
-    result = callapi(bot=bot, method='GET', uri='/rats/'+ratid)
+    result = callapi(bot=bot, method='GET', uri='/rats/' + ratid)
     ret = 'unknown'
     try:
-        data=result['data']
+        data = result['data']
         try:
             ret = data['CMDRname']
         except:
@@ -154,6 +160,7 @@ def getRatName(bot, ratid):
         ret = 'unknown'
     # print('returning '+ret+' as name for '+ratid)
     return ret
+
 
 def getClientName(bot, resId):
     result = callapi(bot=bot, method='GET', uri='/rescues/' + resId)
@@ -164,6 +171,7 @@ def getClientName(bot, resId):
     except:
         ret = 'unknown'
     return ret
+
 
 class Socket:
     def __enter__(self):
@@ -182,7 +190,8 @@ class Socket:
 def sockettest(bot, trigger):
     bot.say('Sorry Pal, but you need to restart the bot to attempt a Manual Reconnect!')
 
-@commands('connectsocket','connect')
+
+@commands('connectsocket', 'connect')
 @ratlib.sopel.filter_output
 def connectSocket(bot, trigger):
     bot.say('Gotcha, connecting to the API\'s Websocket!')
@@ -190,15 +199,15 @@ def connectSocket(bot, trigger):
     factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
     factory.protocol = MyClientProtocol
     # print('in connect')
-    reactor.connectTCP(str(bot.config.socket.websocketurl).replace("ws://",''), int(bot.config.socket.websocketport), factory)
+    reactor.connectTCP(str(bot.config.socket.websocketurl).replace("ws://", ''), int(bot.config.socket.websocketport),
+                       factory)
     # print('pls')
-    thread = Thread(target = reactor.run, kwargs={'installSignalHandlers':0})
+    thread = Thread(target=reactor.run, kwargs={'installSignalHandlers': 0})
     thread.start()
 
 
-    #reactor.run(installSignalHandlers=0)
+    # reactor.run(installSignalHandlers=0)
     # print('Im in?')
-
 
 
 class MyClientProtocol(WebSocketClientProtocol):
@@ -209,17 +218,16 @@ class MyClientProtocol(WebSocketClientProtocol):
         self.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
     def onMessage(self, payload, isBinary):
-      if isBinary:
-         print("Binary message received: {0} bytes".format(len(payload)))
+        if isBinary:
+            print("Binary message received: {0} bytes".format(len(payload)))
 
-      else:
-         print("Text message received: {0}".format(payload.decode('utf8')))
-         handleWSMessage(payload)
-
+        else:
+            print("Text message received: {0}".format(payload.decode('utf8')))
+            handleWSMessage(payload)
 
     def onClose(self, wasClean, code, reason):
         # print('onclose')
-        MyClientProtocol.bot.say('Closed connection with Websocket. Reason: '+str(reason))
+        MyClientProtocol.bot.say('Closed connection with Websocket. Reason: ' + str(reason))
 
 
 def handleWSMessage(payload):
@@ -230,9 +238,10 @@ def handleWSMessage(payload):
     bot = MyClientProtocol.bot
 
     def onduty(data):
-        #print('in function onduty!!!!!!!!')
+        # print('in function onduty!!!!!!!!')
         if data['OnDuty'] == 'True':
-            say(str(getRatName(bot, data['RatID'])) + ' is now on Duty! (Current Location: '+data['currentSystem']+') [Reported by RatTracker]')
+            say(str(getRatName(bot, data['RatID'])) + ' is now on Duty! (Current Location: ' + data[
+                'currentSystem'] + ') [Reported by RatTracker]')
         else:
             say(str(getRatName(bot, data['RatID'])) + ' is now off Duty! [Reported by RatTracker]')
 
@@ -279,17 +288,37 @@ def handleWSMessage(payload):
         else:
             say(rat + ': inst- [Case ' + client + ', RatTracker]')
 
-    wsevents = {"OnDuty:update":onduty,'welcome':welcome,'FriendRequest:update':fr,'WingRequest:update':wr,'SysArrived:update':system,'BeaconSpotted:update':bc,'InstanceSuccessful:update':inst}
-    #print('keys of wsevents: '+str(wsevents.keys()))
-    #print(action)
+    def fueled(data):
+        client = getClientName(bot=bot, resId=data['RescueID'])
+        rat = getRatName(bot=bot, ratid=data['ratID'])
+        if data['Fueled'] == 'true':
+            say(rat + ': Client Fueled! [Case ' + client + ', RatTracker]')
+        else:
+            say(rat + ': Client not Fueled! [Case ' + client + ', RatTracker]')
+
+    def calljumps(data):
+        client = getClientName(bot=bot, resId=data['RescueID'])
+        rat = getRatName(bot=bot, ratid=data['RatID'])
+        lystr = str(data['Lightyears'])
+        ind = lystr.index(',')
+        lyintstr = str(int(lystr[0:ind]))
+        if data['SourceCertainty'] != 'Exact' or data['DestinationCertainty'] != 'Exact':
+            bot.say(rat + ': ' + str(data['CallJumps']) + 'j - Estimate, no exact Systems. ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
+        else:
+            bot.say(rat + ': ' + str(data['CallJumps']) + 'j, ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
+
+    wsevents = {"OnDuty:update": onduty, 'welcome': welcome, 'FriendRequest:update': fr, 'WingRequest:update': wr,
+                'SysArrived:update': system, 'BeaconSpotted:update': bc, 'InstanceSuccessful:update': inst,
+                'Fueled:update': fueled, 'CallJumps:update': calljumps}
+    # print('keys of wsevents: '+str(wsevents.keys()))
+    # print(action)
 
     if action in wsevents.keys():
-        #print('Action is in wskeys!!')
+        # print('Action is in wskeys!!')
         wsevents[action](data=data)
 
 
 class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
-
     protocol = MyClientProtocol
 
     def startedConnecting(self, connector):
@@ -301,11 +330,9 @@ class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
 
     def clientConnectionFailed(self, connector, reason):
         print('Connection failed. Reason: {}'.format(reason))
-        MyClientProtocol.bot.say('Connection to Websocket refused. reason:'+str(reason))
+        MyClientProtocol.bot.say('Connection to Websocket refused. reason:' + str(reason))
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
     def retry(self, connector=None):
-        MyClientProtocol.bot.say('Reconnecting to API Websocket in '+str(self.delay)+' seconds...')
+        MyClientProtocol.bot.say('Reconnecting to API Websocket in ' + str(self.delay) + ' seconds...')
         ReconnectingClientFactory.retry(self)
-
-
