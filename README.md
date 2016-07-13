@@ -184,13 +184,13 @@ drilllist | The name of the JSON file containing the drill lists | drills.json
 ## Commands
 Command    | Parameters | Explanation
 --- | --- | ---
-`connect`     |      | Connects to the configured Websocket Server and starts dumping information to chat
+`connect` `connectsocket`     |   none   | Connects to the configured Websocket Server and starts dumping information to chat
 
 ## Config
 Name | Purpose | Example
 --- | --- | ---
 websocketurl | The URL of the WebSocket to connect to | ws://dev.api.fuelrats.com
-websocketport | The Port of the WebSocket to connect to | 9000
+websocketport | The Port of the WebSocket to connect to | 80
              
 ## Detailed module information
 Used to Connect to the WebSocket Part of the API to listen for Updates from RatTracker. Currently only Dumping gotten messages into Chat only though.
