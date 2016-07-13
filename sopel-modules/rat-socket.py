@@ -192,9 +192,10 @@ def getClientName(bot, resId):
     :param resId: the rescueid to look for the client's name
     :return: Client nickname of resId
     """
-    result = callapi(bot=bot, method='GET', uri='/rescues/' + resId)
+
     ret = 'unknown'
     try:
+        result = callapi(bot=bot, method='GET', uri='/rescues/' + resId)
         data = result['data']
         ret = data['client']['nickname']
     except:
@@ -234,6 +235,7 @@ def connectSocket(bot, trigger):
         return
     bot.say('Gotcha, connecting to the API\'s Websocket!')
     MyClientProtocol.bot = bot
+    MyClientProtocol.board = bot.memory['ratbot']['board']
     factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
     factory.protocol = MyClientProtocol
     # print('in connect')
@@ -250,6 +252,7 @@ def connectSocket(bot, trigger):
 
 class MyClientProtocol(WebSocketClientProtocol):
     bot = None
+    board = None
 
     def onOpen(self):
         MyClientProtocol.bot.say('Successfully openend connection to Websocket!')
@@ -274,6 +277,7 @@ def handleWSMessage(payload):
     data = response['data']
     say = MyClientProtocol.bot.say
     bot = MyClientProtocol.bot
+    board = MyClientProtocol.board
 
     def onduty(data):
         # print('in function onduty!!!!!!!!')
@@ -288,7 +292,7 @@ def handleWSMessage(payload):
 
     def fr(data):
         client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['ratID'])
+        rat = getRatName(bot=bot, ratid=data['RatID'])
         if data['FriendRequest'] == 'true':
             say(rat + ': fr+ [Case ' + client + ', RatTracker]')
         else:
@@ -296,7 +300,7 @@ def handleWSMessage(payload):
 
     def wr(data):
         client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['ratID'])
+        rat = getRatName(bot=bot, ratid=data['RatID'])
         if data['WingRequest'] == 'true':
             say(rat + ': wr+ [Case ' + client + ', RatTracker]')
         else:
@@ -304,7 +308,7 @@ def handleWSMessage(payload):
 
     def system(data):
         client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['ratID'])
+        rat = getRatName(bot=bot, ratid=data['RatID'])
         if data['ArrivedSystem'] == 'true':
             say(rat + ': sys+ [Case ' + client + ', RatTracker]')
         else:
@@ -312,7 +316,7 @@ def handleWSMessage(payload):
 
     def bc(data):
         client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['ratID'])
+        rat = getRatName(bot=bot, ratid=data['RatID'])
         if data['BeaconSpotted'] == 'true':
             say(rat + ': bc+ [Case ' + client + ', RatTracker]')
         else:
@@ -320,7 +324,7 @@ def handleWSMessage(payload):
 
     def inst(data):
         client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['ratID'])
+        rat = getRatName(bot=bot, ratid=data['RatID'])
         if data['InstanceSuccessful'] == 'true':
             say(rat + ': inst+ [Case ' + client + ', RatTracker]')
         else:
@@ -328,7 +332,7 @@ def handleWSMessage(payload):
 
     def fueled(data):
         client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['ratID'])
+        rat = getRatName(bot=bot, ratid=data['RatID'])
         if data['Fueled'] == 'true':
             say(rat + ': Client Fueled! [Case ' + client + ', RatTracker]')
         else:
@@ -338,17 +342,42 @@ def handleWSMessage(payload):
         client = getClientName(bot=bot, resId=data['RescueID'])
         rat = getRatName(bot=bot, ratid=data['RatID'])
         lystr = str(data['Lightyears'])
-        ind = lystr.index(',')
-        lyintstr = str(int(lystr[0:ind]))
+        try:
+            ind = lystr.index(',')
+            lyintstr = lystr
+        except:
+            ind = len(lystr)
+            lyintstr = lystr
+        try:
+            lyintstr = str(int(lystr[0:ind]))
+        except:
+            try:
+                ind = lyintstr.index('.')
+            except:
+                ind = len(lyintstr)
+        lyintstr = str(int(lyintstr[0:ind]))
+        if data['SourceCertainty'] == 'Fuelum':
+            bot.say(rat + ': '+str(data['CallJumps'])+'j from Fuelum. [Case '+ client+', Unknown Rat Location, RatTracker]')
+            return
         if data['SourceCertainty'] != 'Exact' or data['DestinationCertainty'] != 'Exact':
             bot.say(rat + ': ' + str(data[
-                                         'CallJumps']) + 'j - Estimate, no exact Systems. ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
+                                         'CallJumps']) + 'j - Estimate, no exact System. ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
         else:
             bot.say(rat + ': ' + str(data['CallJumps']) + 'j, ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
 
+    def clientupdate(data):
+        client = getClientName(bot=bot, resId=data['RescueID'])
+        rat = getRatName(bot=bot, ratid=data['RatID'])
+        for res in board.rescues:
+            if res.id == data['RescueID'] and res.system != data['SystemName']:
+                res.system = data['SystemName']
+                bot.say(rat + ': ' + client + '\'s System is ' + res.system + '! Case updated. [RatTracker]')
+                save_case(bot, res)
+        # bot.say('Client name: ' + client + ', Ratname: ' + rat)
+
     wsevents = {"OnDuty:update": onduty, 'welcome': welcome, 'FriendRequest:update': fr, 'WingRequest:update': wr,
                 'SysArrived:update': system, 'BeaconSpotted:update': bc, 'InstanceSuccessful:update': inst,
-                'Fueled:update': fueled, 'CallJumps:update': calljumps}
+                'Fueled:update': fueled, 'CallJumps:update': calljumps, 'ClientSystem:update':clientupdate}
     # print('keys of wsevents: '+str(wsevents.keys()))
     # print(action)
 
@@ -356,6 +385,38 @@ def handleWSMessage(payload):
         # print('Action is in wskeys!!')
         wsevents[action](data=data)
 
+def save_case(bot, rescue):
+    """
+    Begins saving changes to a case.  Returns the future.
+
+    :param bot: Bot instance
+    :param rescue: Rescue to save.
+    """
+
+    with rescue.change():
+        data = rescue.save(full=(rescue.id is None))
+        rescue.commit()
+
+    if not bot.config.ratbot.apiurl:
+        return None  # API Disabled
+
+    uri = '/api/rescues'
+    if rescue.id:
+        method = "PUT"
+        uri += "/" + rescue.id
+    else:
+        method = "POST"
+
+    def task():
+        result = callapi(bot, method, uri, data=data)
+        rescue.commit()
+        if 'data' not in result or not result['data']:
+            raise RuntimeError("API response returned unusable data.")
+        with rescue.change():
+            rescue.refresh(result['data'])
+        return rescue
+
+    return bot.memory['ratbot']['executor'].submit(task)
 
 class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
     protocol = MyClientProtocol
