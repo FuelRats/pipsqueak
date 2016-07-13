@@ -81,6 +81,15 @@ def setup(bot):
 
 
 def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
+    """
+    Calls the API with the gived method endpoint and data.
+    :param bot: bot to pull config from and log error messages to irc
+    :param method: GET PUT POST etc.
+    :param uri: the endpoint to use, ex /rats
+    :param data: body for request
+    :param _fn: http call function to use
+    :return: the data dict the api call returned.
+    """
     uri = urljoin(bot.config.ratbot.apiurl, uri)
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
     with bot.memory['ratbot']['apilock']:
@@ -88,6 +97,11 @@ def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
 
 
 def removeTags(string):
+    """
+    Removes tags that are used on irc; ex: Marenthyu[PC] becomes Marenthyu
+    :param string: the untruncated string
+    :return: the string with everything start at an [ removed.
+    """
     try:
         i = string.index('[')
     except ValueError:
@@ -104,6 +118,9 @@ def getRatId(bot, ratname):
         ratname: the cmdrname to look for
 
     Returns:
+        a dict with ['id'] which has the id it got, ['name'] the name it used to poll the api and
+        if the api call returned an error or the rat wasn't found, ['error'] has the returned error object and
+        ['description'] a description of the error.
 
     """
     strippedname = removeTags(ratname)
@@ -148,6 +165,12 @@ def getRatId(bot, ratname):
 
 
 def getRatName(bot, ratid):
+    """
+    Returns the Name of a rat from its RatID by calling the API
+    :param bot: the bot to pull config from and log errors to irc
+    :param ratid: the id of the rat to find the name for
+    :return: name of the rat
+    """
     result = callapi(bot=bot, method='GET', uri='/rats/' + ratid)
     ret = 'unknown'
     try:
@@ -163,6 +186,12 @@ def getRatName(bot, ratid):
 
 
 def getClientName(bot, resId):
+    """
+    Gets a client name from a rescueid
+    :param bot: used to send messages and log errors to irc
+    :param resId: the rescueid to look for the client's name
+    :return: Client nickname of resId
+    """
     result = callapi(bot=bot, method='GET', uri='/rescues/' + resId)
     ret = 'unknown'
     try:
@@ -182,18 +211,24 @@ class Socket:
 
     def __init__(self):
         self._lock = threading.RLock()
-        print("Init for socket called!")
+        # print("Init for socket called!")
 
 
 @commands('reconnect')
 @ratlib.sopel.filter_output
 def sockettest(bot, trigger):
+    """
+    Just try it.
+    """
     bot.say('Sorry Pal, but you need to restart the bot to attempt a Manual Reconnect!')
 
 
 @commands('connectsocket', 'connect')
 @ratlib.sopel.filter_output
 def connectSocket(bot, trigger):
+    """
+    Connects the Bot to the API's websocket. This command may be removed Without notice and executed on bot startup.
+    """
     if reactor._started:
         bot.say('Already connected!')
         return
@@ -306,7 +341,8 @@ def handleWSMessage(payload):
         ind = lystr.index(',')
         lyintstr = str(int(lystr[0:ind]))
         if data['SourceCertainty'] != 'Exact' or data['DestinationCertainty'] != 'Exact':
-            bot.say(rat + ': ' + str(data['CallJumps']) + 'j - Estimate, no exact Systems. ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
+            bot.say(rat + ': ' + str(data[
+                                         'CallJumps']) + 'j - Estimate, no exact Systems. ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
         else:
             bot.say(rat + ': ' + str(data['CallJumps']) + 'j, ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
 
