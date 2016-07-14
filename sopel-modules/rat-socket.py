@@ -279,68 +279,101 @@ def handleWSMessage(payload):
     bot = MyClientProtocol.bot
     board = MyClientProtocol.board
 
+    def filterClient(bot, data):
+        try:
+            try:
+                try:
+                    try:
+                        resId = data['RescueID']
+                    except:
+                        resId = data['rescueID']
+                except:
+                    resId = data['RescueId']
+            except:
+                resId = data['rescueId']
+        except:
+            resId = data['rescueid']
+        return getClientName(bot=bot, resId=resId)
+    def filterRat(bot, data):
+        print('filterrat: '+str(data))
+        try:
+            try:
+                try:
+                    try:
+                        ratId = data['RatID']
+                    except:
+                        ratId = data['ratID']
+                except:
+                    ratId = data['RatId']
+            except:
+                ratId = data['ratId']
+        except:
+            ratId = data['ratid']
+        print('ratid: '+ratId)
+        return getRatName(bot=bot, ratid=ratId)
+
     def onduty(data):
         # print('in function onduty!!!!!!!!')
         if data['OnDuty'] == 'True':
-            say(str(getRatName(bot, data['RatID'])) + ' is now on Duty! (Current Location: ' + data[
+            say(str(filterRat(bot, data)) + ' is now on Duty! (Current Location: ' + data[
                 'currentSystem'] + ') [Reported by RatTracker]')
         else:
-            say(str(getRatName(bot, data['RatID'])) + ' is now off Duty! [Reported by RatTracker]')
+            say(str(filterRat(bot, data)) + ' is now off Duty! [Reported by RatTracker]')
 
     def welcome(data):
         say('Successfully welcomed to Websocket!')
 
     def fr(data):
-        client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['RatID'])
+        client = filterClient(bot, data)
+        rat = filterRat(bot, data)
         if data['FriendRequest'] == 'true':
             say(rat + ': fr+ [Case ' + client + ', RatTracker]')
         else:
             say(rat + ': fr- [Case ' + client + ', RatTracker]')
 
     def wr(data):
-        client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['RatID'])
+        client = filterClient(bot, data)
+        rat = filterRat(bot, data)
         if data['WingRequest'] == 'true':
             say(rat + ': wr+ [Case ' + client + ', RatTracker]')
         else:
             say(rat + ': wr- [Case ' + client + ', RatTracker]')
 
     def system(data):
-        client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['RatID'])
+        client = filterClient(bot, data)
+        rat = filterRat(bot, data)
         if data['ArrivedSystem'] == 'true':
             say(rat + ': sys+ [Case ' + client + ', RatTracker]')
         else:
             say(rat + ': sys- [Case ' + client + ', RatTracker]')
 
     def bc(data):
-        client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['RatID'])
+        client = filterClient(bot, data)
+        rat = filterRat(bot, data)
         if data['BeaconSpotted'] == 'true':
             say(rat + ': bc+ [Case ' + client + ', RatTracker]')
         else:
             say(rat + ': bc- [Case ' + client + ', RatTracker]')
 
     def inst(data):
-        client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['RatID'])
+        client = filterClient(bot, data)
+        rat = filterRat(bot, data)
         if data['InstanceSuccessful'] == 'true':
             say(rat + ': inst+ [Case ' + client + ', RatTracker]')
         else:
             say(rat + ': inst- [Case ' + client + ', RatTracker]')
 
     def fueled(data):
-        client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['RatID'])
+        client = filterClient(bot, data)
+        rat = filterRat(bot, data)
         if data['Fueled'] == 'true':
             say(rat + ': Client Fueled! [Case ' + client + ', RatTracker]')
         else:
             say(rat + ': Client not Fueled! [Case ' + client + ', RatTracker]')
 
     def calljumps(data):
-        client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['RatID'])
+        client = filterClient(bot, data)
+        rat = filterRat(bot, data)
         lystr = str(data['Lightyears'])
         try:
             ind = lystr.index(',')
@@ -366,8 +399,8 @@ def handleWSMessage(payload):
             bot.say(rat + ': ' + str(data['CallJumps']) + 'j, ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
 
     def clientupdate(data):
-        client = getClientName(bot=bot, resId=data['RescueID'])
-        rat = getRatName(bot=bot, ratid=data['RatID'])
+        client = filterClient(bot, data)
+        rat = filterRat(bot, data)
         for res in board.rescues:
             if res.id == data['RescueID'] and res.system != data['SystemName']:
                 res.system = data['SystemName']
