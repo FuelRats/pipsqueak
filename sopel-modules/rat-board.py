@@ -1,4 +1,4 @@
-# coding: utf8
+#coding: utf8
 """
 rat-board.py - Fuel Rats Cases module.
 Copyright 2015, Dimitri "Tyrope" Molenaars <tyrope@tyrope.nl>
@@ -8,7 +8,7 @@ This module is built on top of the Sopel system.
 http://sopel.chat/
 """
 
-# Python core imports
+#Python core imports
 import re
 import datetime
 import collections
@@ -19,7 +19,8 @@ import inspect
 import sys
 import contextlib
 
-# Sopel imports
+
+#Sopel imports
 from sopel.formatting import bold, color, colors
 from sopel.module import commands, NOLIMIT, priority, require_chanmsg, rule
 from sopel.tools import Identifier, SopelMemory
@@ -34,6 +35,7 @@ from ratlib import friendly_timedelta, format_timestamp
 from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
+from ratlib.api.names import *
 from sopel.config.types import StaticSection, ValidatedAttribute
 import ratlib.api.http
 import ratlib.db
@@ -78,7 +80,7 @@ def setup(bot):
     except re.error:
         warnings.warn(
             "Failed to compile ratsignal regex; pattern was {!r}.  Falling back to old pattern."
-                .format(pattern)
+            .format(pattern)
         )
         pattern = re.compile(r'\s*ratsignal.*')
     rule(pattern)(rule_ratsignal)
@@ -108,24 +110,13 @@ def setup(bot):
 
 
 def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
-    '''
-    Calls the API with the gived method endpoint and data.
-    :param bot: bot to pull config from and log error messages to irc
-    :param method: GET PUT POST etc.
-    :param uri: the endpoint to use, ex /rats
-    :param data: body for request
-    :param _fn: http call function to use
-    :return: the data dict the api call returned.
-    '''
     uri = urljoin(bot.config.ratbot.apiurl, uri)
-    headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
+    headers = {"Authorization":"Bearer "+bot.config.ratbot.apitoken}
     with bot.memory['ratbot']['apilock']:
         return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers)
 
 
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
-
-
 class RescueBoard:
     """
     Manages all attached cases, including API calls.
@@ -145,7 +136,7 @@ class RescueBoard:
 
         # Boardindex pool
         self.maxpool = self.MAX_POOLED_CASES
-        self.counter = itertools.count(start=self.maxpool)
+        self.counter = itertools.count(start = self.maxpool)
         self.pool = collections.deque(range(0, self.maxpool))
 
     def __enter__(self):
@@ -192,8 +183,7 @@ class RescueBoard:
                 if key is None:
                     continue
                 if self.indexes[index].get(key) != rescue:
-                    warnings.warn(
-                        "Key {key!r} in index {index!r} does not belong to this rescue.".format(key=key, index=index))
+                    warnings.warn("Key {key!r} in index {index!r} does not belong to this rescue.".format(key=key, index=index))
                     continue
                 del self.indexes[index][key]
 
@@ -224,9 +214,7 @@ class RescueBoard:
                 if old != new:
                     if old is not None:
                         if self.indexes[index].get(old) != rescue:
-                            warnings.warn(
-                                "Key {key!r} in index {index!r} does not belong to this rescue.".format(key=old,
-                                                                                                        index=index))
+                            warnings.warn("Key {key!r} in index {index!r} does not belong to this rescue.".format(key=old, index=index))
                         else:
                             del self.indexes[index][old]
                     if new is not None:
@@ -258,6 +246,7 @@ class RescueBoard:
         Otherwise, `search` is treated as a client nickname or a commander name (in that order).  If this still does
         not have a result, a new case is returned (if `create` is True).
         """
+        search = search.strip()
         try:
             if search and isinstance(search, str) and search[0] == '#':
                 index = int(search[1:])
@@ -329,11 +318,9 @@ class Rescue(TrackedBase):
         """
         if self.board:
             return self.board.change(self)
-
         @contextlib.contextmanager
         def _dummy():
             yield self
-
         return _dummy()
 
     def refresh(self, json, merge=True):
@@ -507,17 +494,16 @@ def save_case_later(bot, rescue, message=None, timeout=10):
         if message is None:
             message = (
                 "API is still not done updating case for ({rescue.client_name}}; continuing in background."
-                    .format(rescue=rescue)
+                .format(rescue=rescue)
             )
         bot.notice(message)
-        # return future
+    # return future
 
 
 class AppendQuotesResult:
     """
     Result information from append_quotes
     """
-
     def __init__(self, rescue=None, created=False,
                  added_lines=None, autocorrected=False, detected_platform=None, detected_system=None
                  ):
@@ -607,21 +593,21 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
         platforms = set()
         for line in rv.added_lines:
             if re.search(
-                    r"""
-                    (?:[^\w-]|\A)  # Beginning of line, or non-hyphen word boundary
-                    pc             # ... followed by "PC"
-                    (?:[^\w-]|\Z)  # End of line, or non-hyphen word boundary
-                    """, line, flags=re.IGNORECASE | re.VERBOSE
+                r"""
+                (?:[^\w-]|\A)  # Beginning of line, or non-hyphen word boundary
+                pc             # ... followed by "PC"
+                (?:[^\w-]|\Z)  # End of line, or non-hyphen word boundary
+                """, line, flags=re.IGNORECASE | re.VERBOSE
             ):
                 platforms.add('pc')
 
             if re.search(
-                    r"""
-                    (?:[^\w-]|\A)  # Beginning of line, or non-hyphen word boundary
-                    xb(?:ox)?      # ... followed by "XB" or "XBOX"
-                    (?:-?(?:1|one))?  # ... maybe followed by 1/one, possibly w/ leading hyphen
-                    (?:[^\w-]|\Z)  # End of line, or non-hyphen word boundary
-                    """, line, flags=re.IGNORECASE | re.VERBOSE
+                r"""
+                (?:[^\w-]|\A)  # Beginning of line, or non-hyphen word boundary
+                xb(?:ox)?      # ... followed by "XB" or "XBOX"
+                (?:-?(?:1|one))?  # ... maybe followed by 1/one, possibly w/ leading hyphen
+                (?:[^\w-]|\Z)  # End of line, or non-hyphen word boundary
+                """, line, flags=re.IGNORECASE | re.VERBOSE
             ):
                 platforms.add('xb')
         if len(platforms) == 1:
@@ -724,99 +710,9 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
                     return bot.reply("Incorrect format for command {}".format(trigger.group(1)))
                 else:
                     return bot.reply("Usage: {} {}".format(trigger.group(1), usage))
-
         return wrapper
-
     return decorator
 
-
-def getRatId(bot, ratname):
-    """
-    Gets the RatId for a given name from the API or 0 if it couldnt find anyone with that cmdrname
-    Args:
-        bot: the bot to pull the config from
-        ratname: the cmdrname to look for
-
-    Returns:
-        a dict with ['id'] which has the id it got, ['name'] the name it used to poll the api and
-        if the api call returned an error or the rat wasn't found, ['error'] has the returned error object and
-        ['description'] a description of the error.
-
-    """
-    strippedname = removeTags(ratname)
-    try:
-        uri = '/rats?CMDRname=' + strippedname
-        result = callapi(bot=bot, method='GET', uri=uri)
-        # print(result)
-        data = result['data']
-        # print(data)
-        firstmatch = data[0]
-        id = firstmatch['_id']
-        return {'id': id, 'name': strippedname}
-    except IndexError as ex:
-        try:
-            # print('No rats with that CMDRname found. Trying nickname...')
-            uri = '/rats?nickname=' + strippedname
-            result = callapi(bot=bot, method='GET', uri=uri)
-            # print(result)
-            data = result['data']
-            # print(data)
-            firstmatch = data[0]
-            id = firstmatch['_id']
-            return {'id': id, 'name': strippedname}
-        except IndexError:
-            # print('no rats with that commandername or nickname found. trying gamertag...')
-            try:
-                uri = '/rats?gamertag=' + strippedname
-                result = callapi(bot=bot, method='GET', uri=uri)
-                # print(result)
-                data = result['data']
-                # print(data)
-                firstmatch = data[0]
-                id = firstmatch['_id']
-                return {'id': id, 'name': strippedname}
-            except IndexError:
-                # print('no rats with that commandername or nickname or gamertag found.')
-                return {'id': '0', 'name': strippedname, 'error': ex,
-                        'description': 'no rats with that commandername or nickname or gamertag found.'}
-    except ratlib.api.http.APIError as ex:
-        print('APIError: couldnt find RatId for ' + strippedname)
-        return {'id': '0', 'name': strippedname, 'error': ex, 'description': 'API Error while trying to fetch Rat'}
-
-
-def getRatName(bot, ratid):
-    '''
-    Returns the Name of a rat from its RatID by calling the API
-    :param bot: the bot to pull config from and log errors to irc
-    :param ratid: the id of the rat to find the name for
-    :return: name of the rat
-    '''
-    result = callapi(bot=bot, method='GET', uri='/rats/' + ratid)
-    ret = 'unknown'
-    try:
-        data = result['data']
-        try:
-            ret = data['CMDRname']
-        except:
-            ret = data['nickname']
-    except:
-        ret = 'unknown'
-    # print('returning '+ret+' as name for '+ratid)
-    return ret
-
-
-def removeTags(string):
-    """
-       Removes tags that are used on irc; ex: Marenthyu[PC] becomes Marenthyu
-       :param string: the untruncated string
-       :return: the string with everything start at an [ removed.
-    """
-    try:
-        i = string.index('[')
-    except ValueError:
-        i = len(string)
-
-    return string[0:i]
 
 
 # Convenience function
@@ -829,7 +725,7 @@ def requires_case(fn):
 @require_chanmsg
 def rule_history(bot, trigger):
     """Remember the last thing somebody said."""
-    if trigger.group().startswith("\x01ACTION"):  # /me
+    if trigger.group().startswith("\x01ACTION"): # /me
         line = trigger.group()[:-1]
     else:
         line = trigger.group()
@@ -841,7 +737,7 @@ def rule_history(bot, trigger):
         log.move_to_end(nick)
         while len(log) > HISTORY_MAX:
             log.popitem(False)
-    return NOLIMIT  # This should NOT trigger rate limit, EVER.
+    return NOLIMIT  #This should NOT trigger rate limit, EVER.
 
 
 # @rule(r'\s*(ratsignal|testsignal)(.*)')
@@ -854,7 +750,7 @@ def rule_ratsignal(bot, trigger):
     result = append_quotes(bot, trigger.nick, [line], create=True)
     bot.say(
         "Received RATSIGNAL from {nick}.  Calling all available rats!  ({tags})"
-            .format(nick=trigger.nick, tags=", ".join(result.tags()) if result else "<unknown>")
+        .format(nick=trigger.nick, tags=", ".join(result.tags()) if result else "<unknown>")
     )
     bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
     save_case_later(
@@ -879,9 +775,9 @@ def cmd_quote(bot, trigger, rescue):
         tags.append(bold(color('CR', colors.RED)))
 
     fmt = (
-              "{client}'s case #{index} at {system} ({tags}) opened {opened} ({opened_ago}),"
-              " updated {updated} ({updated_ago})"
-          ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
+        "{client}'s case #{index} at {system} ({tags}) opened {opened} ({opened_ago}),"
+        " updated {updated} ({updated_ago})"
+    ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
 
     bot.say(fmt.format(
         client=rescue.client_names, index=rescue.boardindex, tags=", ".join(tags),
@@ -917,9 +813,7 @@ def cmd_clear(bot, trigger, rescue):
     rescue.open = False
     rescue.active = False
     # FIXME: Should have better messaging
-    bot.say(
-        "Case {rescue.client_name} cleared! Do the Paperwork: {bot.config.ratbot.apiurl}/rescues/edit/{rescue.id}".format(
-            rescue=rescue, bot=bot))
+    bot.say("Case {rescue.client_name} cleared! Do the Paperwork: {bot.config.ratbot.apiurl}/rescues/edit/{rescue.id}".format(rescue=rescue,bot=bot))
     rescue.board.remove(rescue)
     save_case_later(
         bot, rescue,
@@ -1007,15 +901,14 @@ def cmd_grab(bot, trigger, client):
 
     bot.say(
         "{rescue.client_name}'s case {verb} with: \"{line}\"  ({tags})"
-            .format(
+        .format(
             rescue=result.rescue, verb='opened' if result.created else 'updated', tags=", ".join(result.tags()),
             line=result.added_lines[0]
         )
     )
     save_case_later(
         bot, result.rescue,
-        "API is still not done with grab for {rescue.client_name}; continuing in background.".format(
-            rescue=result.rescue)
+        "API is still not done with grab for {rescue.client_name}; continuing in background.".format(rescue=result.rescue)
     )
 
 
@@ -1033,7 +926,7 @@ def cmd_inject(bot, trigger, find_result, line):
 
     bot.say(
         "{rescue.client_name}'s case {verb} with: \"{line}\"  ({tags})"
-            .format(
+        .format(
             rescue=result.rescue, verb='opened' if result.created else 'updated', tags=", ".join(result.tags()),
             line=result.added_lines[0]
         )
@@ -1041,8 +934,7 @@ def cmd_inject(bot, trigger, find_result, line):
 
     save_case_later(
         bot, result.rescue,
-        "API is still not done with inject for {rescue.client_name}; continuing in background.".format(
-            rescue=result.rescue)
+        "API is still not done with inject for {rescue.client_name}; continuing in background.".format(rescue=result.rescue)
     )
 
 
@@ -1084,7 +976,7 @@ def cmd_active(bot, trigger, rescue):
     rescue.active = not rescue.active
     bot.say(
         "{rescue.client_name}'s case is now {active}"
-            .format(rescue=rescue, active=bold('active') if rescue.active else 'inactive')
+        .format(rescue=rescue, active=bold('active') if rescue.active else 'inactive')
     )
     save_case_later(bot, rescue)
 
@@ -1100,7 +992,7 @@ def cmd_epic(bot, trigger, rescue):
     rescue.epic = not rescue.epic
     bot.say(
         "{rescue.client_name}'s case is now {epic}"
-            .format(rescue=rescue, epic=bold('epic') if rescue.epic else 'not as epic')
+        .format(rescue=rescue, epic=bold('epic') if rescue.epic else 'not as epic')
     )
     save_case_later(bot, rescue)
 
@@ -1126,12 +1018,11 @@ def cmd_assign(bot, trigger, rescue, *rats):
             rescue.unidentifiedRats.update([rat])
     bot.say(
         "{rescue.client_name}: Please add the following rat(s) to your friends list: {rats}"
-            .format(rescue=rescue, rats=", ".join(ratlist))
+        .format(rescue=rescue, rats=", ".join(ratlist))
     )
     save_case_later(bot, rescue)
 
-
-@commands('ratid', 'id')
+@commands('ratid','id')
 @ratlib.sopel.filter_output
 @parameterize('w', usage='<ratname>')
 def cmd_ratid(bot, trigger, rat):
@@ -1140,7 +1031,7 @@ def cmd_ratid(bot, trigger, rat):
     required parameters: rat name
     """
     id = getRatId(bot=bot, ratname=rat)
-    bot.say('Rat id for ' + str(id['name']) + ' is ' + str(id['id']))
+    bot.say('Rat id for '+str(id['name'])+' is '+str(id['id']))
 
 
 @commands('unassign', 'deassign', 'rm', 'remove', 'standdown')
@@ -1155,11 +1046,11 @@ def cmd_unassign(bot, trigger, rescue, *rats):
         rat = str(getRatId(bot, rat)['id'])
         if rat != '0':
             rescue.rats -= {rat}
-            callapi(bot, 'PUT', '/rescues/' + str(rescue.id) + '/unassign/' + rat)
+            callapi(bot, 'PUT', '/rescues/'+ str(rescue.id) + '/unassign/' + rat)
 
     bot.say(
         "Removed from {rescue.client_name}'s case: {rats}"
-            .format(rescue=rescue, rats=", ".join(rats))
+        .format(rescue=rescue, rats=", ".join(rats))
     )
     save_case_later(bot, rescue)
 
@@ -1177,7 +1068,10 @@ def cmd_codered(bot, trigger, rescue):
     if rescue.codeRed:
         bot.say('CODE RED! {rescue.client_name} is on emergency oxygen.'.format(rescue=rescue), transform=False)
         if rescue.rats:
-            bot.say(", ".join(rescue.rats) + ": This is your case!")
+            ratnames = []
+            for rat in rescue.rats:
+                ratnames.append(getRatName(bot, rat))
+            bot.say(", ".join(ratnames) + ": This is your case!")
     else:
         bot.say('{rescue.client_name}\'s case is no longer CR.'.format(rescue=rescue))
 
@@ -1197,7 +1091,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
         bot, rescue,
         (
             "API is still not done updating platform for {rescue.client_name}; continuing in background."
-                .format(rescue=rescue)
+            .format(rescue=rescue)
         )
     )
 
@@ -1241,7 +1135,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
         bot, rescue,
         (
             "API is still not done updating system for {rescue.client_name}; continuing in background."
-                .format(rescue=rescue)
+            .format(rescue=rescue)
         )
     )
 
@@ -1266,7 +1160,7 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
         bot, rescue,
         (
             "API is still not done updating system for {rescue.client_name}; continuing in background."
-                .format(rescue=rescue)
+            .format(rescue=rescue)
         )
     )
 
@@ -1278,7 +1172,7 @@ def cmd_version(bot, trigger):
     started = bot.memory['ratbot']['stats']['started']
     bot.say(
         "Version {version}, up {delta} since {time}"
-            .format(
+        .format(
             version=bot.memory['ratbot']['version'],
             delta=format_timedelta(datetime.datetime.now(tz=started.tzinfo) - started),
             time=format_timestamp(started)
