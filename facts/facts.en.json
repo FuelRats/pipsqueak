@@ -19,6 +19,8 @@
     "prepcr": "Please note down your location then Save and Exit to Main Menu immediately!",
     "debrief": "Guide for debriefing clients: http://goo.gl/VT6qyc",
     "invite": "See this short guide on how to accept Wing Invites: http://marenthyu.de/invites.png",
-    "modules": "To power down your modules, please go to your right panel (default key 4), switch to the MODULES tab (default keys E or Q), select every Module once and deactivate it. (You can not deactivate your Power Plant and should not deactivate your Life Support!)"
+    "pcmodules": "To power down your modules, please go to your right panel (default key 4), switch to the MODULES tab (default keys e or q), select every Module once and deactivate it. (You can not deactivate your Power Plant and should not deactivate your Life Support!)",
+    "xmodules":"To power down your modules, please go to your right panel (default X + right on the D-pad), switch to the MODULES tab (default key RB), select every Module once and deactivate it. (You can not deactivate your Power Plant and should not deactivate your Life Support!)"
+
   }
 }
