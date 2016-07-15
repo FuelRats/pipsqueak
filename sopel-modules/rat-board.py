@@ -245,6 +245,7 @@ class RescueBoard:
         Otherwise, `search` is treated as a client nickname or a commander name (in that order).  If this still does
         not have a result, a new case is returned (if `create` is True).
         """
+        search = search.strip()
         try:
             if search and isinstance(search, str) and search[0] == '#':
                 index = int(search[1:])
