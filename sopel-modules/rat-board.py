@@ -35,6 +35,7 @@ from ratlib import friendly_timedelta, format_timestamp
 from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
+from ratlib.api.names import *
 from sopel.config.types import StaticSection, ValidatedAttribute
 import ratlib.api.http
 import ratlib.db
@@ -712,77 +713,6 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
         return wrapper
     return decorator
 
-
-def getRatId(bot, ratname):
-    """
-    Gets the RatId for a given name from the API or 0 if it couldnt find anyone with that cmdrname
-    Args:
-        bot: the bot to pull the config from
-        ratname: the cmdrname to look for
-
-    Returns:
-
-    """
-    strippedname = removeTags(ratname)
-    try:
-        uri = '/rats?CMDRname=' + strippedname
-        result = callapi(bot=bot,method = 'GET',uri=uri)
-        # print(result)
-        data = result['data']
-        # print(data)
-        firstmatch = data[0]
-        id = firstmatch['_id']
-        return {'id':id, 'name':strippedname}
-    except IndexError as ex:
-        try:
-            #print('No rats with that CMDRname found. Trying nickname...')
-            uri = '/rats?nickname=' + strippedname
-            result = callapi(bot=bot, method='GET', uri=uri)
-            # print(result)
-            data = result['data']
-            # print(data)
-            firstmatch = data[0]
-            id = firstmatch['_id']
-            return {'id':id, 'name':strippedname}
-        except IndexError:
-            #print('no rats with that commandername or nickname found. trying gamertag...')
-            try:
-                uri = '/rats?gamertag=' + strippedname
-                result = callapi(bot=bot, method='GET', uri=uri)
-                # print(result)
-                data = result['data']
-                # print(data)
-                firstmatch = data[0]
-                id = firstmatch['_id']
-                return {'id':id, 'name':strippedname}
-            except IndexError:
-                #print('no rats with that commandername or nickname or gamertag found.')
-                return {'id':'0', 'name':strippedname, 'error':ex, 'description':'no rats with that commandername or nickname or gamertag found.'}
-    except ratlib.api.http.APIError as ex:
-        print('APIError: couldnt find RatId for '+strippedname)
-        return {'id':'0', 'name':strippedname, 'error':ex, 'description':'API Error while trying to fetch Rat'}
-
-def getRatName(bot, ratid):
-    result = callapi(bot=bot, method='GET', uri='/rats/'+ratid)
-    ret = 'unknown'
-    try:
-        data=result['data']
-        try:
-            ret = data['CMDRname']
-        except:
-            ret = data['nickname']
-    except:
-        ret = 'unknown'
-    # print('returning '+ret+' as name for '+ratid)
-    return ret
-
-def removeTags(string):
-    try:
-        i = string.index('[')
-    except ValueError:
-        i = len(string)
-
-    return string[0:i]
 
 
 # Convenience function
