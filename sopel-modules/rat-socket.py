@@ -171,8 +171,11 @@ def getRatName(bot, ratid):
     :param ratid: the id of the rat to find the name for
     :return: name of the rat
     """
-    result = callapi(bot=bot, method='GET', uri='/rats/' + ratid)
-    ret = 'unknown'
+    try:
+        result = callapi(bot=bot, method='GET', uri='/rats/' + ratid)
+    except ratlib.api.http.APIError:
+        print('got Api error during api call')
+        return 'unknown'
     try:
         data = result['data']
         try:
@@ -280,36 +283,11 @@ def handleWSMessage(payload):
     board = MyClientProtocol.board
 
     def filterClient(bot, data):
-        try:
-            try:
-                try:
-                    try:
-                        resId = data['RescueID']
-                    except:
-                        resId = data['rescueID']
-                except:
-                    resId = data['RescueId']
-            except:
-                resId = data['rescueId']
-        except:
-            resId = data['rescueid']
+        resId = data.get('RescueID') or data.get('rescueID') or data.get('RescueId') or data.get('rescueId') or data.get('rescueid')
         return getClientName(bot=bot, resId=resId)
     def filterRat(bot, data):
-        print('filterrat: '+str(data))
-        try:
-            try:
-                try:
-                    try:
-                        ratId = data['RatID']
-                    except:
-                        ratId = data['ratID']
-                except:
-                    ratId = data['RatId']
-            except:
-                ratId = data['ratId']
-        except:
-            ratId = data['ratid']
-        print('ratid: '+ratId)
+        ratId = data.get('RatID') or data.get('ratID') or data.get('RatId') or data.get('ratId') or data.get('ratid')
+
         return getRatName(bot=bot, ratid=ratId)
 
     def onduty(data):
