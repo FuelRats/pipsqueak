@@ -133,6 +133,8 @@ class MyClientProtocol(WebSocketClientProtocol):
 
     def onOpen(self):
         MyClientProtocol.bot.say('Successfully openend connection to Websocket!')
+        print('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
+        self.sendMessage(str('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}').encode('utf-8'))
         self.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
     def onMessage(self, payload, isBinary):
@@ -151,7 +153,11 @@ class MyClientProtocol(WebSocketClientProtocol):
 def handleWSMessage(payload):
     response = json.loads(payload.decode('utf8'))
     action = response['meta']['action']
-    data = response['data']
+    try:
+        data = response['data']
+    except KeyError as ex:
+        MyClientProtocol.bot.say('Couldn\'t grab Data field. Here\'s the Error field: '+str(response['errors']))
+        return
     say = MyClientProtocol.bot.say
     bot = MyClientProtocol.bot
     board = MyClientProtocol.board
