@@ -47,10 +47,7 @@ def getRatId(bot, ratname):
             # print(data)
             firstmatch = data[0]
             id = firstmatch['_id']
-            ret = {'id': id, 'name': strippedname}
-            savedratids.update({strippedname: ret})
-            savedratnames.update({id: strippedname})
-            return ret
+            return {'id': id, 'name': strippedname}
         except IndexError:
             # print('no rats with that commandername or nickname found. trying gamertag...')
             try:
@@ -61,10 +58,7 @@ def getRatId(bot, ratname):
                 # print(data)
                 firstmatch = data[0]
                 id = firstmatch['_id']
-                ret = {'id': id, 'name': strippedname}
-                savedratids.update({strippedname: ret})
-                savedratnames.update({id: strippedname})
-                return ret
+                return {'id': id, 'name': strippedname}
             except IndexError:
                 # print('no rats with that commandername or nickname or gamertag found.')
                 return {'id': '0', 'name': strippedname, 'error': ex,
@@ -90,10 +84,8 @@ def getRatName(bot, ratid):
         return 'unknown'
     try:
         data = result['data']
-        try:
-            ret = data['CMDRname']
-        except:
-            ret = data['nickname']
+        ret = data['CMDRname']
+
     except:
         ret = 'unknown'
     # print('returning '+ret+' as name for '+ratid)
