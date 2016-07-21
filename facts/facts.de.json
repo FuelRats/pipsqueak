@@ -16,6 +16,9 @@
     "ratchat": {"author": "Becci", "fact": "HEY! #fuelrats ist nur für Rettungsoperationen, wenn du/ihr reden möchtest, tritt bitte #RatChat bei indem du '/join #RatChat' in den Chat schreibst."},
     "rc": {"author": "Becci", "fact": "HEY! #fuelrats ist nur für Rettungsoperationen, wenn du/ihr reden möchtest, tritt bitte #RatChat bei indem du '/join #RatChat' in den Chat schreibst."},
     "pw": {"author": "Becci", "fact": "Zeit für den Papierkram! http://www.fuelrats.com/paperwork/"},
-    "prepcr": {"author":"Marenthyu", "fact":"Merke dir dein aktuelles System und logge dich SOFORT aus, indem du auf ESC drückst und auf \"Seichern und zum Hauptmenü\" drückst!"}
+    "prepcr": {"author":"Marenthyu", "fact":"Merke dir dein aktuelles System und logge dich SOFORT aus, indem du auf ESC drückst und auf \"Seichern und zum Hauptmenü\" drückst!"},
+    "pcmodules":{"author":"Marenthyu", "fact":"Um deine Module auszuschalten, gehe bitte zu deinem rechten Panel (Standardtaste 4), wechsle zu MODULEN (Standardtasten E und Q), wähle jedes Modul einzeln an und deaktiviere es. (Du kannst dein Kraftwerk nicht abschalten, das ist normal und du solltest deine Lebenserhaltung an lassen!)"},
+    "xmodules":{"author":"Marenthyu", "fact":"Um deine Module auszuschalten, gehe bitte zu deinem rechten Panel (Standardtastenkombination X + rechts auf dem Steuerkreutz), wechsle zu MODULEN (Standardtasten RB und LB), wähle jedes Modul einzeln an und deaktiviere es. (Du kannst dein Kraftwerk nicht abschalten, das ist normal und du solltest deine Lebenserhaltung an lassen!)"},
+    "invite":{"author": "Marenthyu", "fact": "Klicke hier für eine Anleitung, wie man Geschwadereinladungen annimmt: http://marenthyu.de/invites.png"}
   }
 }

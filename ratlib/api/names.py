@@ -3,6 +3,9 @@ import ratlib.api
 import ratlib.api.http
 
 urljoin = ratlib.api.http.urljoin
+savedratids = {}
+savedratnames = {}
+savedclientnames = {}
 
 def getRatId(bot, ratname):
     """
@@ -18,6 +21,8 @@ def getRatId(bot, ratname):
 
     """
     strippedname = removeTags(ratname)
+    if strippedname in savedratids.keys():
+        return savedratids[strippedname]
     try:
         uri = '/rats?CMDRname=' + strippedname
         result = callapi(bot=bot, method='GET', uri=uri)
@@ -26,30 +31,13 @@ def getRatId(bot, ratname):
         # print(data)
         firstmatch = data[0]
         id = firstmatch['_id']
-        return {'id': id, 'name': strippedname}
+        ret =  {'id': id, 'name': strippedname}
+        savedratids.update({strippedname:ret})
+        savedratnames.update({id:strippedname})
+        return ret
+
+
     except IndexError as ex:
-        try:
-            # print('No rats with that CMDRname found. Trying nickname...')
-            uri = '/rats?nickname=' + strippedname
-            result = callapi(bot=bot, method='GET', uri=uri)
-            # print(result)
-            data = result['data']
-            # print(data)
-            firstmatch = data[0]
-            id = firstmatch['_id']
-            return {'id': id, 'name': strippedname}
-        except IndexError:
-            # print('no rats with that commandername or nickname found. trying gamertag...')
-            try:
-                uri = '/rats?gamertag=' + strippedname
-                result = callapi(bot=bot, method='GET', uri=uri)
-                # print(result)
-                data = result['data']
-                # print(data)
-                firstmatch = data[0]
-                id = firstmatch['_id']
-                return {'id': id, 'name': strippedname}
-            except IndexError:
                 # print('no rats with that commandername or nickname or gamertag found.')
                 return {'id': '0', 'name': strippedname, 'error': ex,
                         'description': 'no rats with that commandername or nickname or gamertag found.'}
@@ -65,6 +53,8 @@ def getRatName(bot, ratid):
     :param ratid: the id of the rat to find the name for
     :return: name of the rat
     """
+    if ratid in savedratnames.keys():
+        return savedratnames[ratid]
     try:
         result = callapi(bot=bot, method='GET', uri='/rats/' + ratid)
     except ratlib.api.http.APIError:
@@ -72,10 +62,8 @@ def getRatName(bot, ratid):
         return 'unknown'
     try:
         data = result['data']
-        try:
-            ret = data['CMDRname']
-        except:
-            ret = data['nickname']
+        ret = data['CMDRname']
+
     except:
         ret = 'unknown'
     # print('returning '+ret+' as name for '+ratid)
@@ -108,3 +96,23 @@ def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
     with bot.memory['ratbot']['apilock']:
         return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers)
+
+def getClientName(bot, resId):
+    """
+    Gets a client name from a rescueid
+    :param bot: used to send messages and log errors to irc
+    :param resId: the rescueid to look for the client's name
+    :return: Client nickname of resId
+    """
+
+    if resId in savedclientnames.keys():
+        return savedclientnames[resId]
+
+    try:
+        result = callapi(bot=bot, method='GET', uri='/rescues/' + resId)
+        data = result['data']
+        ret = data['client']['nickname']
+    except:
+        ret = 'unknown'
+    savedclientnames.update({resId:ret})
+    return ret
