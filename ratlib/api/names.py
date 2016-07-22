@@ -30,7 +30,7 @@ def getRatId(bot, ratname):
         data = result['data']
         # print(data)
         firstmatch = data[0]
-        id = firstmatch['_id']
+        id = firstmatch['id']
         ret =  {'id': id, 'name': strippedname}
         savedratids.update({strippedname:ret})
         savedratnames.update({id:strippedname})

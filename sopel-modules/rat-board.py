@@ -124,8 +124,8 @@ class RescueBoard:
     INDEX_TYPES = {
         'boardindex': operator.attrgetter('boardindex'),
         'id': operator.attrgetter('id'),
-        'clientnick': lambda x: None if not x.client or not x.client['nickname'] else x.client['nickname'].lower(),
-        'clientcmdr': lambda x: None if not x.client or not x.client['CMDRname'] else x.client['CMDRname'].lower(),
+        'client': lambda x: None if not x.client else x.client.lower(),
+
     }
 
     MAX_POOLED_CASES = 10
@@ -201,7 +201,7 @@ class RescueBoard:
         Usage Example:
         ```
         with board.change(rescue):
-            rescue.client['CMDRname'] = cmdrname
+            rescue.client = cmdrname
         """
         with self:
             assert rescue.board is self
@@ -265,13 +265,12 @@ class RescueBoard:
             rescue = self.indexes['id'].get(search[1:], None),
             return FindRescueResult(rescue, False if rescue else None)
 
-        rescue = self.indexes['clientnick'].get(search.lower()) or self.indexes['clientcmdr'].get(search.lower())
+        rescue = self.indexes['client'].get(search.lower())
         if rescue or not create:
             return FindRescueResult(rescue, False if rescue else None)
 
         rescue = Rescue()
-        rescue.client['CMDRname'] = search
-        rescue.client['nickname'] = search
+        rescue.client = search
         self.add(rescue)
         return FindRescueResult(rescue, True)
 
@@ -287,7 +286,7 @@ class Rescue(TrackedBase):
     active = TrackedProperty(default=True)
     createdAt = DateTimeProperty(readonly=True)
     lastModified = DateTimeProperty(readonly=True)
-    id = TrackedProperty(remote_name='_id', readonly=True)
+    id = TrackedProperty(remote_name='id', readonly=True)
     rats = SetProperty(default=lambda: set())
     unidentifiedRats = SetProperty(default=lambda: set())
     quotes = ListProperty(default=lambda: [])
@@ -295,10 +294,9 @@ class Rescue(TrackedBase):
     open = TypeCoercedProperty(default=True, coerce=bool)
     epic = TypeCoercedProperty(default=False, coerce=bool)
     codeRed = TypeCoercedProperty(default=False, coerce=bool)
-    client = DictProperty(default=lambda: {})
+    client = TrackedProperty(default='<unknown client>')
     system = TrackedProperty(default=None)
-    successful = TypeCoercedProperty(default=None, coerce=bool)
-    epic = TypeCoercedProperty(default=False, coerce=bool)
+    successful = TypeCoercedProperty(default=False, coerce=bool)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -311,7 +309,7 @@ class Rescue(TrackedBase):
 
         ```
         with rescue.change():
-            rescue.client['CMDRname'] = 'Foo'
+            rescue.client = 'Foo'
         ```
 
         If the rescue is not attached to the board, this returns a dummy context manager that does nothing.
@@ -351,28 +349,10 @@ class Rescue(TrackedBase):
 
     @property
     def client_name(self):
-        """Returns the first logical name for a client."""
-        t = self.client.get('nickname')
-        if t:
-            return t
-        t = self.client.get('CMDRname')
-        if t:
-            return "CMDR " + t
+        """Returns the Client CMDR name"""
+        if self.client:
+            return self.client
         return "<unknown client>"
-
-    @property
-    def client_names(self):
-        """Returns all known names for a client."""
-        nickname = self.client.get('nickname')
-        cmdrname = self.client.get('CMDRname')
-        if nickname:
-            if cmdrname and nickname.lower() != cmdrname.lower():
-                return "{} (CMDR {})".format(nickname, cmdrname)
-            return nickname
-        elif cmdrname:
-            return "CMDR {}".format(cmdrname)
-        else:
-            return "<unknown client>"
 
     def touch(self, when=None):
         """
@@ -396,17 +376,19 @@ def refresh_cases(bot, rescue=None):
     if not bot.config.ratbot.apiurl:
         warnings.warn("No API URL configured.  Operating in offline mode.")
         return  # API disabled.
-    uri = '/api/search/rescues'
+    uri = '/rescues'
     if rescue is not None:
         if rescue.id is None:
             raise ValueError('Cannot refresh a non-persistent case.')
         uri += "/" + rescue.id
-        data = {}
+
     else:
-        data = {'open': True}
+        uri += "?open=true"
+    print('')
 
     # Exceptions here are the responsibility of the caller.
-    result = callapi(bot, 'GET', uri, data=data)
+    result = callapi(bot, 'GET', uri)
+    print('refreshing returned '+str(result))
     board = bot.memory['ratbot']['board']
 
     if rescue:
@@ -421,7 +403,7 @@ def refresh_cases(bot, rescue=None):
         # Cases we have but the refresh doesn't.  We'll assume these are closed after winnowing down the list.
         missing = set(board.indexes['id'].keys())
         for case in result['data']:
-            id = case['_id']
+            id = case['id']
             missing.discard(id)  # Case still exists.
             existing = board.indexes['id'].get(id)
 
@@ -452,7 +434,7 @@ def save_case(bot, rescue):
     if not bot.config.ratbot.apiurl:
         return None  # API Disabled
 
-    uri = '/api/rescues'
+    uri = '/rescues'
     if rescue.id:
         method = "PUT"
         uri += "/" + rescue.id
@@ -490,13 +472,14 @@ def save_case_later(bot, rescue, message=None, timeout=10):
         return None
     try:
         future.result(timeout=timeout)
-    except concurrent.futures.TimeoutError:
+    except concurrent.futures.TimeoutError as ex:
+        print('Timeout Error: '+str(ex))
         if message is None:
             message = (
                 "API is still not done updating case for ({rescue.client_name}}; continuing in background."
                 .format(rescue=rescue)
             )
-        bot.notice(message)
+        bot.say(message)
     # return future
 
 
@@ -780,7 +763,7 @@ def cmd_quote(bot, trigger, rescue):
     ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
 
     bot.say(fmt.format(
-        client=rescue.client_names, index=rescue.boardindex, tags=", ".join(tags),
+        client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags),
         opened=format_timestamp(rescue.createdAt) if rescue.createdAt else '<unknown>',
         updated=format_timestamp(rescue.lastModified) if rescue.lastModified else '<unknown>',
         opened_ago=friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
@@ -836,7 +819,7 @@ def cmd_list(bot, trigger, params=''):
     if not params or params[0] != '-':
         params = '-'
 
-    show_ids = '@' in params and bot.config.ratbot.apiurl is not None
+    showids = '@' in params and bot.config.ratbot.apiurl is not None
     show_inactive = 'i' in params
     attr = 'client_names' if 'n' in params else 'client_name'
 
@@ -854,7 +837,7 @@ def cmd_list(bot, trigger, params=''):
     def format_rescue(rescue):
         cr = color("(CR)", colors.RED) if rescue.codeRed else ''
         id = ""
-        if show_ids:
+        if showids:
             id = "@" + (rescue.id if rescue.id is not None else "none")
         return "[{boardindex}{id}]{client}{cr}".format(
             boardindex=rescue.boardindex,
@@ -1153,7 +1136,7 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
         raise UsageError()
 
     with rescue.change():
-        rescue.client['CMDRname'] = commander
+        rescue.client = commander
 
     bot.say("Client for case {rescue.boardindex} is now CMDR {commander}".format(rescue=rescue, commander=commander))
     save_case_later(
