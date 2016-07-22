@@ -7,3 +7,4 @@ alembic
 psycopg2
 autobahn[twisted]
 twisted
+pyopenssl

@@ -26,8 +26,12 @@ from twisted.internet import reactor
 from autobahn.twisted.websocket import WebSocketClientProtocol
 from autobahn.twisted.websocket import WebSocketClientFactory
 from twisted.internet.protocol import ReconnectingClientFactory
+from twisted.internet.ssl import optionsForClientTLS
+from twisted.internet import defer
 
 log.startLogging(sys.stdout)
+defer.setDebugging(True)
+
 
 # ratlib imports
 import ratlib.api.http
@@ -114,12 +118,25 @@ def connectSocket(bot, trigger):
     MyClientProtocol.bot = bot
     MyClientProtocol.board = bot.memory['ratbot']['board']
     factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
+
     factory.protocol = MyClientProtocol
     # print('in connect')
-    reactor.connectTCP(str(bot.config.socket.websocketurl).replace("ws://", ''), int(bot.config.socket.websocketport),
-                       factory)
+    hostname = str(bot.config.socket.websocketurl).replace("ws://", '').replace("wss://", '')
+    print('Hostname: '+hostname)
+    if (bot.config.socket.websocketurl.startswith('wss://')):
+
+        reactor.connectSSL(hostname,
+                           int(bot.config.socket.websocketport),
+                           factory, contextFactory=optionsForClientTLS(hostname = hostname))
+    else:
+
+        reactor.connectTCP(hostname,
+                           int(bot.config.socket.websocketport),
+                           factory)
+
     # print('pls')
     thread = Thread(target=reactor.run, kwargs={'installSignalHandlers': 0})
+
     thread.start()
 
 
@@ -132,6 +149,7 @@ class MyClientProtocol(WebSocketClientProtocol):
     board = None
 
     def onOpen(self):
+        WebSocketClientProtocol.onOpen(self)
         MyClientProtocol.bot.say('Successfully openend connection to Websocket!')
         print('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
         self.sendMessage(str('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}').encode('utf-8'))
@@ -148,6 +166,7 @@ class MyClientProtocol(WebSocketClientProtocol):
     def onClose(self, wasClean, code, reason):
         # print('onclose')
         MyClientProtocol.bot.say('Closed connection with Websocket. Reason: ' + str(reason))
+        WebSocketClientProtocol.onClose(self, wasClean, code, reason)
 
 
 def handleWSMessage(payload):
@@ -314,6 +333,7 @@ class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
 
     def startedConnecting(self, connector):
         print('Started to connect.')
+        ReconnectingClientFactory.startedConnecting(self, connector)
 
     def clientConnectionLost(self, connector, reason):
         print('Lost connection. Reason: {}'.format(reason))

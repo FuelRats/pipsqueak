@@ -990,6 +990,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
     """
     ratlist = []
     for rat in rats:
+        rat = removeTags(rat)
         if rat != ' ':
             ratlist.append(rat)
         i = getRatId(bot, rat)
