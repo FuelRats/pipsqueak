@@ -33,6 +33,8 @@ logdir = logs
 verbose = verbose
 log_raw = True
 
+[admin]
+auto_accept_invite = False
 
 [ratbot]
 ## Common configuration to all rat modules.
