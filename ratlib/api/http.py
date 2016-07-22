@@ -101,7 +101,7 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
         data = json.dumps(data)
 
     data = json.loads(data or '{}')
-
+    print('will send '+str(data))
     if log:
         logprint = functools.partial(print, file=log, flush=True)
     else:
@@ -111,10 +111,11 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
     when = timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")
 
     logprint(
-        "[{when}] {method} {uri}\n{data}\n".format(
-            when=when, method=method.upper(), uri=uri, data=json.dumps(data, sort_keys=True, indent=" "*4)
+        "[{when}] {method} {uri}\n{header}\n{data}\n".format(
+            header=headers, when=when, method=method.upper(), uri=uri, data=json.dumps(data, sort_keys=True, indent=" "*4)
         )
     )
+
     response = None
     try:
         if method in request_methods:
@@ -127,6 +128,13 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
         elif response.status_code not in statuses:
             raise HTTPError(code=response.status_code, details="Unexpected Status Code {}".format(response.status_code))
     except exc.HTTPError as ex:
+        print(str(ex))
+        print(
+            "[{when}] {method} {uri}\n{header}\n{data}\n".format(
+                header=headers, when=when, method=method.upper(), uri=uri,
+                data=json.dumps(data, sort_keys=True, indent=" " * 4)
+            )
+        )
         raise HTTPError(code=ex.response.status_code, details=str(ex)) from ex
     except exc.RequestException as ex:
         try:
@@ -153,6 +161,13 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
 
     if 'errors' in result:
         err = result['errors'][0]
+        print('Error while calling API. result: '+str(result))
+        print(
+            "[{when}] {method} {uri}\n{header}\n{data}\n".format(
+                header=headers, when=when, method=method.upper(), uri=uri,
+                data=json.dumps(data, sort_keys=True, indent=" " * 4)
+            )
+        )
         raise APIError(err.get('name'), err.get('message'), json=result)
     if 'data' not in result:
         raise BadResponseError(details="Did not receive a data field in a non-error response.", json=result)
