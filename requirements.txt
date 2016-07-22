@@ -8,3 +8,4 @@ psycopg2
 autobahn[twisted]
 twisted
 pyopenssl
+service_identity
