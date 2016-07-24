@@ -38,28 +38,6 @@ def getRatId(bot, ratname):
 
 
     except IndexError as ex:
-        try:
-            # print('No rats with that CMDRname found. Trying nickname...')
-            uri = '/rats?nickname=' + strippedname
-            result = callapi(bot=bot, method='GET', uri=uri)
-            # print(result)
-            data = result['data']
-            # print(data)
-            firstmatch = data[0]
-            id = firstmatch['_id']
-            return {'id': id, 'name': strippedname}
-        except IndexError:
-            # print('no rats with that commandername or nickname found. trying gamertag...')
-            try:
-                uri = '/rats?gamertag=' + strippedname
-                result = callapi(bot=bot, method='GET', uri=uri)
-                # print(result)
-                data = result['data']
-                # print(data)
-                firstmatch = data[0]
-                id = firstmatch['_id']
-                return {'id': id, 'name': strippedname}
-            except IndexError:
                 # print('no rats with that commandername or nickname or gamertag found.')
                 return {'id': '0', 'name': strippedname, 'error': ex,
                         'description': 'no rats with that commandername or nickname or gamertag found.'}
