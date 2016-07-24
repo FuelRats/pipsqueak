@@ -67,7 +67,8 @@ def refresh_database(bot, force=False, limit_one=True, callback=None, background
         if limit_one:
             release = _lock.acquire(blocking=False)
             if not release:
-                raise ConcurrentOperationError('refresh_database call already in progress')
+                print('refresh_database call already in progress! Aborting.')
+                return False
         result = _refresh_database(bot, force, callback, background)
         if result and background and release:
             result.add_done_callback(lambda *a, **kw: _lock.release())
@@ -92,9 +93,10 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     :param db: Database handle
     """
     start = time()
+    print('Starting refresh at '+str(start))
     edsm_url = bot.config.ratbot.edsm_url or "http://edsm.net/api-v1/systems?coords=1"
     status = get_status(db)
-
+    print('status: '+str(status))
     edsm_maxage = bot.config.ratbot.maxage or 60*12*12
     if not (
         force or
@@ -102,25 +104,31 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
         (datetime.datetime.now(tz=datetime.timezone.utc) - status.starsystem_refreshed).total_seconds() > edsm_maxage
     ):
         # No refresh needed.
+        print('not force and no refresh needed')
         return False
 
     if callback:
         callback()
 
     if background:
+        print('background!')
         return bot.memory['ratbot']['executor'].submit(
             _refresh_database, bot, force=True, callback=None, background=False
         )
 
     fetch_start = time()
+    print('Fetching......')
     data = requests.get(edsm_url).json()
+    print('Fetch done!')
     fetch_end = time()
     # with open('run/systems.json') as f:
     #     import json
     #     data = json.load(f)
 
+    print('Wiping old data')
     db.query(Starsystem).delete()  # Wipe all old data
     db.query(StarsystemPrefix).delete()  # Wipe all old data
+    print('done wiping, moving along...')
     # Pass 1: Load JSON data into stats table.
     systems = []
     ct = 0
@@ -136,15 +144,19 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             'x': s.get('x'), 'y': s.get('y'), 'z': s.get('z'),
             'word_ct': word_ct
         }
+
+    print('loading data into db....')
     load_start = time()
     for chunk in chunkify(data, 5000):
         db.bulk_insert_mappings(Starsystem, [_format_system(s) for s in chunk])
         # print(ct)
     del data
     db.connection().execute("ANALYZE " + Starsystem.__tablename__)
+    print('done loading!')
     load_end = time()
 
     stats_start = time()
+    print('calculating stats...')
     # Pass 2: Calculate statistics.
     # 2A: Quick insert of prefixes for single-name systems
     db.connection().execute(
@@ -212,6 +224,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
         WHERE t.id=starsystem_prefix.id
         """.format(sp=StarsystemPrefix.__tablename__, s=Starsystem.__tablename__)
     )
+    print('Done with stats.')
     stats_end = time()
 
     # Update refresh time
@@ -219,10 +232,12 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     status.starsystem_refreshed = sql.func.clock_timestamp()
     db.add(status)
     db.commit()
+    print('calc bloom...')
     bloom_start = time()
     refresh_bloom(bot)
     bloom_end = time()
     end = time()
+    print('Done with all!, collecting stats.')
     stats = {
         'stats': stats_end - stats_start, 'load': load_end - load_start, 'fetch': fetch_end - fetch_start,
         'bloom': bloom_end - bloom_start
@@ -230,6 +245,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     stats['misc'] = (end - start) - sum(stats.values())
     stats['all'] = end - start
     bot.memory['ratbot']['stats']['starsystem_refresh'] = stats
+    print('Done.')
     return True
 
 
