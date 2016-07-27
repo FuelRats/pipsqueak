@@ -1147,6 +1147,33 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
         )
     )
 
+@rule('Incoming Client:.* - O2:.*')
+def ratmama_parse(bot, trigger):
+    print('triggered ratmama_parse')
+    line = trigger.group()
+    print('line: '+line)
+    if Identifier(trigger.nick) == 'Ratmama[BOT]':
+        import re
+        newline = line.replace("Incoming Client:", "\u0002RATSIGNAL\u000F - CMDR")
+        cmdr = re.search('(?<=CMDR ).*?(?= - )', newline).group()
+        system = re.search('(?<=System: ).*?(?= - )', newline).group()
+        platform = re.search('(?<=Platform: ).*?(?= - )', newline).group()
+        crstring = re.search('(?<=O2: ).*', newline).group()
+        cr = False
+        if crstring != "OK":
+            cr = True
+            newline = newline.replace(crstring, '\u00034\u0002'+crstring+'\u000F')
+        if platform == 'XB':
+            newline = newline.replace(platform, '\u00033'+platform)
+        newline = newline.replace(cmdr, '\u0002'+cmdr+'\u000F').replace(system, '\u0002'+system+'\u000F').replace(platform, '\u0002'+platform+'\u000F')
+        result = append_quotes(bot, cmdr, [newline], create=True)
+        if not result.rescue.system:
+            result.rescue.system = system
+        result.rescue.codeRed = cr
+        result.rescue.platform = platform.lower()
+        save_case_later(bot, result.rescue)
+        bot.say(newline)
+
 
 # This should go elsewhere, but here for now.
 @commands('version', 'uptime')
