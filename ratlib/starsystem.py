@@ -156,16 +156,16 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     load_end = time()
 
     stats_start = time()
-    print('calculating stats...')
     # Pass 2: Calculate statistics.
     # 2A: Quick insert of prefixes for single-name systems
+    print('line 162')
     db.connection().execute(
         sql.insert(StarsystemPrefix).from_select(
             (StarsystemPrefix.first_word, StarsystemPrefix.word_ct),
             db.query(Starsystem.name_lower, Starsystem.word_ct).filter(Starsystem.word_ct == 1).distinct()
         )
     )
-
+    print('line 169')
     def _gen():
         for s in (
             db.query(Starsystem)
@@ -176,9 +176,11 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             yield (first_word, s.word_ct), words, s
 
     ct = 0
+    print('for chunk line 180')
     for chunk in chunkify(itertools.groupby(_gen(), operator.itemgetter(0)), 100):
         for (first_word, word_ct), group in chunk:
             ct += 1
+            print('ct: '+ct)
             const_words = None
             for _, words, system in group:
                 if const_words is None:
@@ -193,7 +195,9 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             )
             db.add(prefix)
         # print(ct)
+        print('db.flush')
         db.flush()
+    print('db. connection().execute line 200')
     db.connection().execute(
         sql.update(
             Starsystem, values={
@@ -204,8 +208,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             }
         )
     )
-    db.connection().execute(
-        """
+    exestring = """
         UPDATE {sp} SET ratio=t.ratio, cume_ratio=t.cume_ratio
         FROM (
             SELECT t.id, ct/SUM(ct) OVER w AS ratio, SUM(ct) OVER p/SUM(ct) OVER w AS cume_ratio
@@ -223,6 +226,10 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
         ) AS t
         WHERE t.id=starsystem_prefix.id
         """.format(sp=StarsystemPrefix.__tablename__, s=Starsystem.__tablename__)
+    print('db. connection().execute line 211, exestring: '+exestring)
+
+    db.connection().execute(
+        exestring
     )
     print('Done with stats.')
     stats_end = time()
