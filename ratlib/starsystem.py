@@ -178,6 +178,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     ct = 0
     print('for chunk line 180')
     for chunk in chunkify(itertools.groupby(_gen(), operator.itemgetter(0)), 100):
+        print('ct: '+ct)
         for (first_word, word_ct), group in chunk:
             ct += 1
             print('ct: '+ct)
@@ -193,6 +194,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             prefix = StarsystemPrefix(
                 first_word=first_word, word_ct=word_ct, const_words=" ".join(const_words)
             )
+            print('prefix: '+prefix)
             db.add(prefix)
         # print(ct)
         print('db.flush')
