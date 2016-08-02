@@ -178,10 +178,10 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     ct = 0
     print('for chunk line 180')
     for chunk in chunkify(itertools.groupby(_gen(), operator.itemgetter(0)), 100):
-        print('ct: '+ct)
+        print('ct: '+str(ct))
         for (first_word, word_ct), group in chunk:
             ct += 1
-            print('ct: '+ct)
+            print('ct: '+str(ct))
             const_words = None
             for _, words, system in group:
                 if const_words is None:
