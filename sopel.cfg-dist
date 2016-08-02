@@ -12,6 +12,8 @@ port = 6697
 # auth_method = sasl
 # auth_password = topsecret
 # auth_username = mechasqueak-test
+# Since the EDSM Background refresh highly increases the ping for the Bot, the timeout needs to be bigger, the default 120 deosn't cut it.
+timeout = 300
 
 prefix = \!
 help_prefix = !

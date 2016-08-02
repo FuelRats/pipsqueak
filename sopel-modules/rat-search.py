@@ -12,6 +12,7 @@ http://sopel.chat/
 import json
 import os
 import datetime
+import threading
 
 #Sopel imports
 from sopel.module import commands, interval, example, NOLIMIT, HALFOP, OP
@@ -162,7 +163,9 @@ def cmd_sysstats(bot, trigger, db=None):
 
 def task_sysrefresh(bot):
     try:
-        refresh_database(bot, background=True, callback=lambda: print("Starting background EDSM refresh."))
+        thread = threading.Thread(target = refresh_database, args=(bot, False, True, lambda: print("Starting background EDSM refresh."), True))
+        thread.start()
+        # refresh_database(bot, background=True, callback=lambda: print("Starting background EDSM refresh."))
     except ConcurrentOperationError:
         pass
 
@@ -175,6 +178,11 @@ def cmd_sysrefresh(bot, trigger, db=None):
 
     -f: Force refresh even if data is stale.  Requires op.
     """
+    thread = threading.Thread(target = _cmd_sysrefresh, args=(bot, trigger, db))
+    thread.start()
+
+# Actual implentation of cmd_sysrefresh to allow for threading and NOT killing the bot...
+def _cmd_sysrefresh(bot, trigger, db=None):
     access = ratlib.sopel.best_channel_mode(bot, trigger.nick)
     privileged = access & (HALFOP | OP)
     msg = ""
