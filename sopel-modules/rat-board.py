@@ -815,7 +815,7 @@ def cmd_clear(bot, trigger, rescue):
     # FIXME: Should have better messaging
     bot.say(
         "Case {rescue.client_name} cleared! Do the Paperwork: {apiurl}/rescues/edit/{rescue.id}".format(
-            rescue=rescue, apiurl=str(bot.config.ratbot.apiurl)).strip('/'))
+            rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/')))
     rescue.board.remove(rescue)
     save_case_later(
         bot, rescue,
