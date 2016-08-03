@@ -490,7 +490,7 @@ def save_case_later(bot, rescue, message=None, timeout=10):
         print('Timeout Error: '+str(ex))
         if message is None:
             message = (
-                "API is still not done updating case for ({rescue.client_name}}; continuing in background."
+                "API is still not done updating case for {{rescue.client_name}}; continuing in background."
                     .format(rescue=rescue)
             )
         bot.notice(message)
