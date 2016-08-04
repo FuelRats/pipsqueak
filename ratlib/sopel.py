@@ -55,6 +55,8 @@ class RatbotConfigurationSection(StaticSection):
     edsm_maxage = types.ValidatedAttribute('edsm_maxage', int, default=12*60*60)
     edsm_autorefresh = types.ValidatedAttribute('edsm_autorefresh', int, default=4*60*60)
     edsm_db = types.ValidatedAttribute('edsm_db', str, default="systems.db")
+    websocketurl = types.ValidatedAttribute('websocketurl', str, default='12')
+    websocketport = types.ValidatedAttribute('websocketport', str, default='9000')
 
 
 def best_channel_mode(bot, nickname):
@@ -90,6 +92,8 @@ def configure(config):
     config.ratbot.configure_setting('edsm_maxage', "Maximum age of EDSM system data in seconds")
     config.ratbot.configure_setting('edsm_autorefresh', "EDSM autorefresh frequency in seconds (0=disable)")
     config.ratbot.configure_setting('edsm_db', "EDSM Database path (relative to workdir)")
+    config.ratbot.configure_setting('websocketurl', "The url for the Websocket to listen on")
+    config.ratbot.configure_setting('websocketport', "The port for the Websocket to listen on")
 
 
 def setup(bot):
@@ -142,6 +146,9 @@ def setup(bot):
         callback=lambda: print("EDSM database is out of date.  Starting background refresh."),
         background=True
     )
+
+def shutdown(bot):
+    print('shutting down?')
 
 def makepath(dir, filename):
     """

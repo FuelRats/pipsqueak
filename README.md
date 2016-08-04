@@ -180,3 +180,18 @@ Name | Purpose | Example
 --- | --- | ---
 drilllist | The name of the JSON file containing the drill lists | drills.json
 
+# rat-socket.py
+## Commands
+Command    | Parameters | Explanation
+--- | --- | ---
+`connect` `connectsocket`     |   none   | Connects to the configured Websocket Server and starts dumping information to chat
+
+## Config
+Name | Purpose | Example
+--- | --- | ---
+websocketurl | The URL of the WebSocket to connect to | ws://dev.api.fuelrats.com
+websocketport | The Port of the WebSocket to connect to | 80
+             
+## Detailed module information
+Used to Connect to the WebSocket Part of the API to listen for Updates from RatTracker. Currently only Dumping gotten messages into Chat only though.
+Will Attempt to reconnect to the WebSocket if the initial connection fails or the connection gets lost at any point. If a reconnect fails, it will retry indefinitely with an always increasing delay which grows exponentiollay. 

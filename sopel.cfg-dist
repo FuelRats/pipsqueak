@@ -12,6 +12,8 @@ port = 6697
 # auth_method = sasl
 # auth_password = topsecret
 # auth_username = mechasqueak-test
+# Since the EDSM Background refresh highly increases the ping for the Bot, the timeout needs to be bigger, the default 120 deosn't cut it.
+timeout = 300
 
 prefix = \!
 help_prefix = !
@@ -24,9 +26,9 @@ help_prefix = !
 extra = sopel-modules
 
 ## For production/testing
-enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect
+enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect,rat-socket
 ## Development use, which may add security risks
-# enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect,reload,ipython
+# enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect,rat-socket,reload,ipython
 
 db_filename = run/ratbot.db
 logdir = logs
@@ -107,3 +109,8 @@ lang = en
 # Default: ratsignal
 # Use drillsignal for drillsqueak, testsignal for debugging
 signal = ratsignal
+
+[socket]
+# Tracker Configuration
+websocketurl = 12345
+websocketport = 9000

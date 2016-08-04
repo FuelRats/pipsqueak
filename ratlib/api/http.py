@@ -101,7 +101,7 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
         data = json.dumps(data)
 
     data = json.loads(data or '{}')
-    print('will send '+str(data))
+    # print('will send '+str(data))
     if log:
         logprint = functools.partial(print, file=log, flush=True)
     else:
