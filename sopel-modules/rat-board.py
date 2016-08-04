@@ -398,11 +398,11 @@ def refresh_cases(bot, rescue=None):
 
     else:
         uri += "?open=true"
-    print('')
+
 
     # Exceptions here are the responsibility of the caller.
     result = callapi(bot, 'GET', uri)
-    print('refreshing returned '+str(result))
+    # print('refreshing returned '+str(result))
     board = bot.memory['ratbot']['board']
 
     if rescue:
@@ -1016,10 +1016,10 @@ def cmd_assign(bot, trigger, rescue, *rats):
             ratlist.append(rat)
         i = getRatId(bot, rat)
         if i['id'] != '0':
-            print('id was not 0.')
+            # print('id was not 0.')
             rescue.rats.update([i['id']])
         else:
-            print('id was 0')
+            # print('id was 0')
             rescue.unidentifiedRats.update([rat])
     bot.say(
         "{rescue.client_name}: Please add the following rat(s) to your friends list: {rats}"

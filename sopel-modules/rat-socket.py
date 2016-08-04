@@ -151,7 +151,7 @@ class MyClientProtocol(WebSocketClientProtocol):
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
         MyClientProtocol.bot.say('Successfully openend connection to Websocket!')
-        print('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
+        # print('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
         self.sendMessage(str('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}').encode('utf-8'))
         self.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
@@ -159,8 +159,9 @@ class MyClientProtocol(WebSocketClientProtocol):
         if isBinary:
             print("Binary message received: {0} bytes".format(len(payload)))
 
+
         else:
-            print("Text message received: {0}".format(payload.decode('utf8')))
+            # print("Text message received: {0}".format(payload.decode('utf8')))
             handleWSMessage(payload)
 
     def onClose(self, wasClean, code, reason):
@@ -332,15 +333,15 @@ class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
     protocol = MyClientProtocol
 
     def startedConnecting(self, connector):
-        print('Started to connect.')
+        print('[Websocket] Started to connect.')
         ReconnectingClientFactory.startedConnecting(self, connector)
 
     def clientConnectionLost(self, connector, reason):
-        print('Lost connection. Reason: {}'.format(reason))
+        print('[Websocket]  Lost connection. Reason: {}'.format(reason))
         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
 
     def clientConnectionFailed(self, connector, reason):
-        print('Connection failed. Reason: {}'.format(reason))
+        print('[Websocket]  Connection failed. Reason: {}'.format(reason))
         MyClientProtocol.bot.say('Connection to Websocket refused. reason:' + str(reason))
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
