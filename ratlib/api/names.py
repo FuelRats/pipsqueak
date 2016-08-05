@@ -8,8 +8,46 @@ savedratnames = {}
 savedclientnames = {}
 
 def getRatId(bot, ratname):
+    if ratname in savedratids.keys():
+        return savedratids[ratname]
+
+
+    try:
+        uri = '/users?nicknames=' + ratname
+        result = callapi(bot=bot, method='GET', uri=uri)
+        # print(result)
+        data = result['data']
+        # print(data)
+        firstmatch = data[0]
+        id = firstmatch['CMDRs'][0]
+        ret = {'id': id, 'name': ratname}
+        savedratids.update({ratname: ret})
+        savedratnames.update({id: ratname})
+        return ret
+    except:
+        try:
+            strippedname = removeTags(ratname)
+            if strippedname in savedratids.keys():
+                return savedratids[strippedname]
+            uri = '/users?nicknames=' + strippedname
+            result = callapi(bot=bot, method='GET', uri=uri)
+            # print(result)
+            data = result['data']
+            # print(data)
+            firstmatch = data[0]
+            id = firstmatch['CMDRs'][0]
+            ret =  {'id': id, 'name': strippedname}
+            savedratids.update({strippedname:ret})
+            savedratnames.update({id:strippedname})
+            return ret
+        except:
+            print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
+            return idFallback(bot, ratname)
+
+
+def idFallback(bot, ratname):
     """
-    Gets the RatId for a given name from the API or 0 if it couldnt find anyone with that cmdrname
+    Fallback to searching the commander Name instead of the linked account nickname.
     Args:
         bot: the bot to pull the config from
         ratname: the cmdrname to look for
@@ -21,8 +59,7 @@ def getRatId(bot, ratname):
 
     """
     strippedname = removeTags(ratname)
-    if strippedname in savedratids.keys():
-        return savedratids[strippedname]
+
     try:
         uri = '/rats?CMDRname=' + strippedname
         result = callapi(bot=bot, method='GET', uri=uri)
@@ -31,19 +68,19 @@ def getRatId(bot, ratname):
         # print(data)
         firstmatch = data[0]
         id = firstmatch['id']
-        ret =  {'id': id, 'name': strippedname}
-        savedratids.update({strippedname:ret})
-        savedratnames.update({id:strippedname})
+        ret =  {'id': id, 'name': ratname}
+        savedratids.update({ratname:ret})
+        savedratnames.update({id:ratname})
         return ret
 
 
     except IndexError as ex:
                 # print('no rats with that commandername or nickname or gamertag found.')
-                return {'id': '0', 'name': strippedname, 'error': ex,
+                return {'id': '0', 'name': ratname, 'error': ex,
                         'description': 'no rats with that commandername or nickname or gamertag found.'}
     except ratlib.api.http.APIError as ex:
-        print('APIError: couldnt find RatId for ' + strippedname)
-        return {'id': '0', 'name': strippedname, 'error': ex, 'description': 'API Error while trying to fetch Rat'}
+        print('APIError: couldnt find RatId for ' + ratname)
+        return {'id': '0', 'name': ratname, 'error': ex, 'description': 'API Error while trying to fetch Rat'}
 
 
 def getRatName(bot, ratid):

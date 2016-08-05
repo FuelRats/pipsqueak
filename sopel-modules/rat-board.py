@@ -1011,16 +1011,18 @@ def cmd_assign(bot, trigger, rescue, *rats):
     """
     ratlist = []
     for rat in rats:
-        rat = removeTags(rat)
         if rat != ' ':
-            ratlist.append(rat)
+            # Make client-friendly list
+            ratlist.append(removeTags(rat))
         i = getRatId(bot, rat)
+        # Check if id returned is an id, decide for unidentified rats or rats.
         if i['id'] != '0':
             # print('id was not 0.')
             rescue.rats.update([i['id']])
         else:
             # print('id was 0')
             rescue.unidentifiedRats.update([rat])
+
     bot.say(
         "{rescue.client_name}: Please add the following rat(s) to your friends list: {rats}"
             .format(rescue=rescue, rats=", ".join(ratlist))
