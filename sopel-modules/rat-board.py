@@ -688,6 +688,8 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
                         if value is None:
                             break
                         if param and param in 'rRfF':
+                            if value == bot.config.ratboard.signal:
+                                return bot.reply('No, i am NOT adding a rescue to save '+value+'! Come on, this is dispatch rule #97 !')
                             value = bot.memory['ratbot']['board'].find(value, create=param in 'RF')
                             if not value[0]:
                                 return bot.reply('Could not find a case with that name or number.')
