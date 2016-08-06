@@ -1174,6 +1174,10 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
 
 @rule('Incoming Client:.* - O2:.*')
 def ratmama_parse(bot, trigger):
+    '''
+    Parse Incoming Kiwiirc clients (gets announced by ratmama)
+    :param trigger: line that triggered this
+    '''
     print('triggered ratmama_parse')
     line = trigger.group()
     print('line: '+line)
@@ -1198,6 +1202,27 @@ def ratmama_parse(bot, trigger):
         result.rescue.platform = platform.lower()
         save_case_later(bot, result.rescue)
         bot.say(newline)
+
+
+@commands('closed','recent')
+def cmd_closed(bot, trigger):
+    '''
+    Lists the 5 last closed rescues to give the ability to reopen them
+    '''
+    try:
+        result = callapi(bot=bot, uri='/rescues?open=false&limit=5&order=updatedAt&direction=DESC', method='GET')
+        data = result['data']
+        rescue0 = data[0]
+        rescue1 = data[1]
+        rescue2 = data[2]
+        rescue3 = data[3]
+        rescue4 = data[4]
+        bot.reply(
+            'These are the newest closed rescues: 1: {rescue0.client} at system {rescue0.system} - id: {rescue0.id}; 2: {rescue1.client} at system {rescue1.system} - id: {rescue1.id}; 3: {rescue2.client} at system {rescue2.system} - id: {rescue2.id}; 4: {rescue3.client} at system {rescue3.system} - id: {rescue3.id}; 5: {rescue4.client} at system {rescue4.system} - id: {rescue4.id};'.format(
+                rescue0=rescue0, rescue1=rescue1, rescue2=rescue2, rescue3=rescue3, rescue4=rescue4))
+        
+    except ratlib.api.http.APIError:
+        bot.reply('Got an APIError, sorry. Try again later!')
 
 
 # This should go elsewhere, but here for now.
