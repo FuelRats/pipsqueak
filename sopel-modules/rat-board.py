@@ -110,7 +110,7 @@ def setup(bot):
 
 def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
     '''
-    Calls the API with the gived method endpoint and data.
+    Calls the API with the given method endpoint and data.
     :param bot: bot to pull config from and log error messages to irc
     :param method: GET PUT POST etc.
     :param uri: the endpoint to use, ex /rats
@@ -119,6 +119,7 @@ def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
     :return: the data dict the api call returned.
     '''
     uri = urljoin(bot.config.ratbot.apiurl, uri)
+    print('will call uri '+uri)
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
     with bot.memory['ratbot']['apilock']:
         return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers)
@@ -1224,6 +1225,25 @@ def cmd_closed(bot, trigger):
         
     except ratlib.api.http.APIError:
         bot.reply('Got an APIError, sorry. Try again later!')
+
+@commands('reopen')
+@parameterize('+', usage="!reopen <id>")
+def cmd_reopen(bot, trigger, id):
+    access = ratlib.sopel.best_channel_mode(bot, trigger.nick)
+    print('access: '+str(access))
+    if access:
+        print('got access - id: '+str(id))
+        bot.reply('got access - id: '+str(id))
+        try:
+            result = callapi(bot, 'PUT', data={'open':True}, uri='/rescues/'+str(id))
+            refresh_cases(bot)
+            bot.reply('Reopened case. Cases refreshed, care for your case numbers!')
+        except ratlib.api.http.APIError:
+            # print('apierror.')
+            bot.reply('id '+str(id)+' does not exist or other API Error.')
+    else:
+        print('no access')
+        bot.reply('Not authorized.')
 
 
 # This should go elsewhere, but here for now.
