@@ -1218,8 +1218,9 @@ def cmd_closed(bot, trigger):
         rescue3 = data[3]
         rescue4 = data[4]
         bot.reply(
-            'These are the newest closed rescues: 1: {rescue0.client} at system {rescue0.system} - id: {rescue0.id}; 2: {rescue1.client} at system {rescue1.system} - id: {rescue1.id}; 3: {rescue2.client} at system {rescue2.system} - id: {rescue2.id}; 4: {rescue3.client} at system {rescue3.system} - id: {rescue3.id}; 5: {rescue4.client} at system {rescue4.system} - id: {rescue4.id};'.format(
-                rescue0=rescue0, rescue1=rescue1, rescue2=rescue2, rescue3=rescue3, rescue4=rescue4))
+            "These are the newest closed rescues: 1: Client "+str(rescue0['client'])+" at "+str(rescue0['system'])+" - id: "+str(rescue0['id'])+" 2: Client "+str(rescue1['client'])+" at "+str(rescue1['system'])+" - id: "+str(rescue1['id']))
+        bot.reply("3: Client "+str(rescue2['client'])+" at "+str(rescue2['system'])+" - id: "+str(rescue2['id'])+" 4: Client "+str(rescue3['client'])+" at "+str(rescue3['system'])+" - id: "+str(rescue3['id']))
+        bot.reply("5: Client "+str(rescue4['client'])+" at "+str(rescue4['system'])+" - id: "+str(rescue4['id']))
         
     except ratlib.api.http.APIError:
         bot.reply('Got an APIError, sorry. Try again later!')
