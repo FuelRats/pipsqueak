@@ -108,7 +108,7 @@ def setup(bot):
         traceback.print_exc()
 
 
-def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
+def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call, statuses=None):
     '''
     Calls the API with the given method endpoint and data.
     :param bot: bot to pull config from and log error messages to irc
@@ -119,10 +119,10 @@ def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
     :return: the data dict the api call returned.
     '''
     uri = urljoin(bot.config.ratbot.apiurl, uri)
-    print('will call uri '+uri)
+    # print('will call uri '+uri)
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
     with bot.memory['ratbot']['apilock']:
-        return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers)
+        return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers, statuses=statuses)
 
 
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
@@ -1227,7 +1227,7 @@ def cmd_closed(bot, trigger):
         bot.reply('Got an APIError, sorry. Try again later!')
 
 @commands('reopen')
-@parameterize('+', usage="!reopen <id>")
+@parameterize('+', usage="<id>")
 def cmd_reopen(bot, trigger, id):
     access = ratlib.sopel.best_channel_mode(bot, trigger.nick)
     print('access: '+str(access))
@@ -1244,6 +1244,38 @@ def cmd_reopen(bot, trigger, id):
     else:
         print('no access')
         bot.reply('Not authorized.')
+
+# Copied from Sopel repo as it is not available?
+def require_admin(message=None):
+    """Decorate a function to require the triggering user to be a bot admin.
+    If they are not, `message` will be said if given."""
+    def actual_decorator(function):
+        @functools.wraps(function)
+        def guarded(bot, trigger, *args, **kwargs):
+            if not trigger.admin:
+                if message and not callable(message):
+                    bot.say(message)
+            else:
+                return function(bot, trigger, *args, **kwargs)
+        return guarded
+    # Hack to allow decorator without parens
+    if callable(message):
+        return actual_decorator(message)
+    return actual_decorator
+
+
+@commands('delete')
+@require_admin(message='Sorry pal, you\'re not an admin!')
+@parameterize('+', usage='<id>')
+def cmd_delete(bot, trigger, id):
+    try:
+     result = callapi(bot, 'DELETE', uri='/rescues/'+str(id))
+     # print(result)
+    except ratlib.api.http.APIError as ex:
+        bot.reply('case with id '+str(id)+' does not exist or other APIError.')
+        print(ex)
+        return
+    bot.reply('deleted case with id '+str(id)+' - THIS IS NOT REVERTABLE!')
 
 
 # This should go elsewhere, but here for now.

@@ -101,6 +101,7 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
         data = json.dumps(data)
 
     data = json.loads(data or '{}')
+    # print('statuses: '+str(statuses))
     # print('will send '+str(data))
     if log:
         logprint = functools.partial(print, file=log, flush=True)
@@ -120,8 +121,10 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
     try:
         if method in request_methods:
             response = request_methods[method](uri, json=data, headers=headers)
+            # print('response full: '+str(response.text))
         else:
             response = requests.request(method.upper(), uri, json=data, headers=headers)
+            # print('response full: ' + str(response.text))
         if not statuses:
             if response.status_code != 400:
                 response.raise_for_status()
@@ -154,10 +157,13 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
                     when=when, response=response, body=body, delta=delta, d='-'*10
                 ),
             )
-    try:
-        result = response.json()
-    except ValueError as ex:
-        raise BadJSONError() from ex
+    if response.status_code == 204:
+        result = {'data':[]}
+    else:
+        try:
+            result = response.json()
+        except ValueError as ex:
+            raise BadJSONError() from ex
 
     if 'errors' in result:
         err = result['errors'][0]
