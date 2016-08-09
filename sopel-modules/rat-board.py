@@ -310,6 +310,7 @@ class Rescue(TrackedBase):
     system = TrackedProperty(default=None)
     successful = TypeCoercedProperty(default=False, coerce=bool)
     epic = TypeCoercedProperty(default=False, coerce=bool)
+    title = TrackedProperty(default=None)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -776,6 +777,7 @@ def cmd_quote(bot, trigger, rescue):
         tags.append(bold(color('CR', colors.RED)))
 
     fmt = (
+            ("Rescue Operation {title}: " if rescue.title else "") +
               "{client}'s case #{index} at {system} ({tags}) opened {opened} ({opened_ago}),"
               " updated {updated} ({updated_ago})"
           ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
@@ -787,10 +789,11 @@ def cmd_quote(bot, trigger, rescue):
         opened_ago=friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
         updated_ago=friendly_timedelta(rescue.lastModified) if rescue.lastModified else '???',
         id=rescue.id or 'pending',
-        system=rescue.system or 'an unknown system'
+        system=rescue.system or 'an unknown system',
+        title=rescue.title
     ))
 
-    # FIXME: Rats/temprats/etc isn't really handled yet.
+
     if rescue.rats:
         ratnames = []
         for rat in rescue.rats:
@@ -857,12 +860,13 @@ def cmd_list(bot, trigger, params=''):
     def format_rescue(rescue):
         cr = color("(CR)", colors.RED) if rescue.codeRed else ''
         id = ""
+        cl = (('Operation '+rescue.title) if rescue.title else (getattr(rescue, attr)))
         if showids:
             id = "@" + (rescue.id if rescue.id is not None else "none")
         return "[{boardindex}{id}]{client}{cr}".format(
             boardindex=rescue.boardindex,
             id=id,
-            client=getattr(rescue, attr),
+            client=cl,
             cr=cr
         )
 
@@ -1277,6 +1281,15 @@ def cmd_delete(bot, trigger, id):
         return
     bot.reply('deleted case with id '+str(id)+' - THIS IS NOT REVERTABLE!')
 
+@commands('title')
+@parameterize('rw*', '<case # or client name> <title to set>')
+def cmd_title(bot, trigger, rescue, *title):
+    comptitle = ""
+    for s in title:
+        comptitle = comptitle + s
+    rescue.title=comptitle
+    bot.reply('Set '+rescue.client+'\'s case Title to "'+comptitle+'"')
+    save_case_later(bot, rescue)
 
 # This should go elsewhere, but here for now.
 @commands('version', 'uptime')
