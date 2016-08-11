@@ -1090,7 +1090,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     Sets a case platform to PC or xbox.
     """
     rescue.platform = platform
-    bot.say(
+    bot.reply(
         "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
     )
     save_case_later(
@@ -1136,7 +1136,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     else:
         fmt += "  (not in EDSM)"
     rescue.system = system
-    bot.say(fmt.format(rescue=rescue))
+    bot.reply(fmt.format(rescue=rescue))
     save_case_later(
         bot, rescue,
         (
