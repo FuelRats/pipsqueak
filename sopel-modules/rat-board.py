@@ -749,6 +749,10 @@ def rule_ratsignal(bot, trigger):
     """Light the rat signal, somebody needs fuel."""
     line = trigger.group()
     client = Identifier(trigger.nick)
+    value = bot.memory['ratbot']['board'].find(client, create=False)
+    if value[0]:
+        bot.reply('You already sent a Signal! Please stand by, someone will help you soon!')
+        return
     result = append_quotes(bot, trigger.nick, [line], create=True)
     bot.say(
         "Received RATSIGNAL from {nick}.  Calling all available rats!  ({tags})"
