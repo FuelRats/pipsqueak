@@ -1136,7 +1136,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     else:
         fmt += "  (not in EDSM)"
     rescue.system = system
-    bot.reply(fmt.format(rescue=rescue))
+    bot.say(fmt.format(rescue=rescue))
     save_case_later(
         bot, rescue,
         (
