@@ -865,13 +865,20 @@ def cmd_list(bot, trigger, params=''):
         cr = color("(CR)", colors.RED) if rescue.codeRed else ''
         id = ""
         cl = (('Operation '+rescue.title) if rescue.title else (getattr(rescue, attr)))
+        platform = rescue.platform
+        if platform == 'unknown':
+            platform = None
+        if platform == 'XB':
+            platform = '\u00033XB\u0003'
+
         if showids:
             id = "@" + (rescue.id if rescue.id is not None else "none")
-        return "[{boardindex}{id}]{client}{cr}".format(
+        return "[{boardindex}{id}]{client}{cr} {platform}".format(
             boardindex=rescue.boardindex,
             id=id,
             client=cl,
-            cr=cr
+            cr=cr,
+            platform=platform
         )
 
     output = []
