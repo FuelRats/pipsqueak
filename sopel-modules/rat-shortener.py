@@ -60,20 +60,26 @@ class Shortener:
         self._lock = threading.RLock()
         # print("Init for shortener called!")
 
-    def shortenUrl(self, bot, url):
+    def shortenUrl(self, bot, url, keyword=None):
         result = callshortener(method='GET', uri=(
-        bot.config.shortener.shortenerurl + "?signature=" + bot.config.shortener.shortenertoken + "&action=shorturl&format=json&url=" + url))
+        bot.config.shortener.shortenerurl + "?signature=" + bot.config.shortener.shortenertoken + "&action=shorturl&format=json"+(('&keyword='+keyword) if keyword is not None else '')+"&url=" + url))
         return result
 
 
-def shortenUrl(bot, url):
-    result = callshortener(method='GET', uri = (bot.config.shortener.shortenerurl + "?signature=" + bot.config.shortener.shortenertoken + "&action=shorturl&format=json&url=" + url))
+def shortenUrl(bot, url, keyword=None):
+    result = callshortener(method='GET', uri=(
+        bot.config.shortener.shortenerurl + "?signature=" + bot.config.shortener.shortenertoken + "&action=shorturl&format=json" + (
+        ('&keyword=' + keyword) if keyword is not None else '') + "&url=" + url))
     return result
 
 @commands('short','shortener','shorten')
-@parameterize("w","<url to shorten>")
-def shorten_cmd(bot, trigger, url):
-    shortened = shortenUrl(bot, url)
+@parameterize("w*","<url to shorten> [keyword]")
+def shorten_cmd(bot, trigger, url, *keywords):
+    if len(keywords) > 0:
+        keyword = keywords[0]
+    else:
+        keyword=None
+    shortened = shortenUrl(bot, url, keyword)
     if shortened['statusCode'] != 200:
         bot.reply('That didnt work. Error '+str(shortened['statusCode'])+' - message: '+str(shortened['message']))
     else:
