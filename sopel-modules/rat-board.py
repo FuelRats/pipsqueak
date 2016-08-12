@@ -1231,11 +1231,20 @@ def cmd_closed(bot, trigger):
     try:
         result = callapi(bot=bot, uri='/rescues?open=false&limit=5&order=updatedAt&direction=DESC', method='GET')
         data = result['data']
-        rescue0 = data[0]
-        rescue1 = data[1]
-        rescue2 = data[2]
-        rescue3 = data[3]
-        rescue4 = data[4]
+        rescue0 = getDummyRescue()
+        rescue1 = getDummyRescue()
+        rescue2 = getDummyRescue()
+        rescue3 = getDummyRescue()
+        rescue4 = getDummyRescue()
+
+        try:
+            rescue0 = data[0]
+            rescue1 = data[1]
+            rescue2 = data[2]
+            rescue3 = data[3]
+            rescue4 = data[4]
+        except:
+            bot.reply('Couldn\'t grab 5 cases. The output might look weird.')
         bot.reply(
             "These are the newest closed rescues: 1: Client "+str(rescue0['client'])+" at "+str(rescue0['system'])+" - id: "+str(rescue0['id'])+" 2: Client "+str(rescue1['client'])+" at "+str(rescue1['system'])+" - id: "+str(rescue1['id']))
         bot.reply("3: Client "+str(rescue2['client'])+" at "+str(rescue2['system'])+" - id: "+str(rescue2['id'])+" 4: Client "+str(rescue3['client'])+" at "+str(rescue3['system'])+" - id: "+str(rescue3['id']))
@@ -1243,6 +1252,9 @@ def cmd_closed(bot, trigger):
         
     except ratlib.api.http.APIError:
         bot.reply('Got an APIError, sorry. Try again later!')
+
+def getDummyRescue():
+    return {'client':'dummy','system':'dummy','id':'dummy'}
 
 @commands('reopen')
 @parameterize('+', usage="<id>")
