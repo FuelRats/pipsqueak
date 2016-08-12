@@ -26,7 +26,7 @@ help_prefix = !
 extra = sopel-modules
 
 ## For production/testing
-enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect,rat-socket
+enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect,rat-socket,rat-shortener
 ## Development use, which may add security risks
 # enable = admin,help,rat-board,rat-facts,rat-search,rat-autocorrect,rat-socket,reload,ipython
 
@@ -114,3 +114,8 @@ signal = ratsignal
 # Tracker Configuration
 websocketurl = 12345
 websocketport = 9000
+
+[shortener]
+# Url shortener Config
+shortenerurl = http://t.fuelr.at/yourls-api.php
+shortenertoken = asdf

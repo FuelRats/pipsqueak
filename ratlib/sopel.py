@@ -14,6 +14,8 @@ import ratlib.starsystem
 from sopel.config import StaticSection, types
 from sopel.tools import Identifier
 from sopel.tools import SopelMemory
+import inspect
+import itertools
 
 
 __all__ = [
@@ -57,7 +59,107 @@ class RatbotConfigurationSection(StaticSection):
     edsm_db = types.ValidatedAttribute('edsm_db', str, default="systems.db")
     websocketurl = types.ValidatedAttribute('websocketurl', str, default='12')
     websocketport = types.ValidatedAttribute('websocketport', str, default='9000')
+    shortenerurl = types.ValidatedAttribute('shortenerurl', str, default='')
+    shortenertoken = types.ValidatedAttribute('shortenertoken', str, default='asdf')
 
+def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
+    """
+    Returns a decorator that wraps a function into a structure that's easier to work with in commands.
+    Works around some issues with Sopel's argument parsing and makes things much more convenient.
+
+    :param params: Sequence of parameter types to parse.
+    :param usage: Usage instructions displayed on error.  Automatically prepended by "Usage: <command name>"
+    :param split: Function accepting (string, maxsplit) and returning the split string.
+
+    The first two arguments to the wrapped function will be 'bot' and 'trigger' as normal.  Additional arguments will
+    be added on based on splitting the trigger text into words and mapping them against the characters appearing in
+    'params', as follows:
+
+    'r': Parameter will be the case found by board.find(..., create=False).  Outputs an error message instead of
+    calling the wrapped function if the case is not found.
+    'R': As above, but the case can be created.
+    'f': Like 'r', but the parameter will be the entire find() result tuple (rescue, created)
+    'F': Like 'R', but the parameter will be the entire find() result tuple (rescue, created)
+    'w': Parameter will be a single word.
+
+    The following must be the final parameter if they are present:
+    '*': Produces one parameter for each word remaining in the line.
+    '+': Produces one parameter for each word remaining in the line, which must be at least one word.
+    't': Parameter will be the entire remainder of the line.
+    'T': Same as 't'.  Backwards compatibility.
+
+    Any remaining 'words' in the argument will be passed to the wrapped function as additional parameters, as params
+    contained enough 'w's to pad to the end of the argument list.
+
+    If the resulting call does not match the function signature, usage instructions are displayed instead.  These usage
+    instructions can also be displayed by raising UsageError() from the wrapped function.
+
+    Optional parameters can be specified by making them optional on the function call itself (e.g. by assigning
+    default values)
+    """
+
+    # Input validation
+    maxsplit = 0
+    if len(params):
+        result = re.search(r'[tT*+]', params[:-1])
+        if result:
+            raise ValueError("{!r} must be the last parameter if it is present.", result.group(0))
+        if params[-1] in 'tT':
+            maxsplit = len(params) - 1
+            if not maxsplit:
+                # Only accepts one parameter and it's t/T?
+                # We can't use the normal split mechanics, because they treat maxsplit=0 as unlimited splits.  So
+                # replace the split function with a dummy instead.
+                split = lambda x, maxsplit: [x] if x else []
+        result = re.search(r'[^rRfFwtT*+]', params)
+        if result:
+            raise ValueError("{!r} is an unknown parameter type.".format(result.group(0)))
+
+    def decorator(fn):
+        sig = inspect.signature(fn)
+
+        @functools.wraps(fn)
+        def wrapper(bot, trigger, *args, **kwargs):
+            args = list(args)
+            try:
+                line = (trigger.group(2) or '').strip()
+                if line:
+                    for param, value in itertools.zip_longest(params, split(line, maxsplit), fillvalue=None):
+                        if param == '+' and value is None:
+                            raise UsageError()
+                        if value is None:
+                            break
+                        if param and param in 'rRfF':
+                            if value == bot.config.ratboard.signal:
+                                return bot.reply('No, i am NOT adding a rescue to save '+value+'! Come on, this is dispatch rule #97 !')
+                            value = bot.memory['ratbot']['board'].find(value, create=param in 'RF')
+                            if not value[0]:
+                                return bot.reply('Could not find a case with that name or number.')
+                            if param in 'rR':
+                                value = value[0]
+                        # 'w' and 't'/'T' don't require any special handling, the split takes care of them.
+                        # '*' doesn't require any special handling, it's just syntactic sugar.
+                        # '+' already had its special handling done.
+                        args.append(value)
+                try:
+                    bound = sig.bind(bot, trigger, *args, **kwargs)
+                except TypeError:
+                    raise UsageError()
+                else:
+                    return fn(*bound.args, **bound.kwargs)
+            except UsageError:
+                if usage is None:
+                    return bot.reply("Incorrect format for command {}".format(trigger.group(1)))
+                else:
+                    return bot.reply("Usage: {} {}".format(trigger.group(1), usage))
+
+        return wrapper
+
+    return decorator
+
+
+class UsageError(ValueError):
+    pass
 
 def best_channel_mode(bot, nickname):
     """
@@ -94,7 +196,8 @@ def configure(config):
     config.ratbot.configure_setting('edsm_db', "EDSM Database path (relative to workdir)")
     config.ratbot.configure_setting('websocketurl', "The url for the Websocket to listen on")
     config.ratbot.configure_setting('websocketport', "The port for the Websocket to listen on")
-
+    config.ratbot.configure_setting('shortenerurl', "The url for the shortener to listen on")
+    config.ratbot.configure_setting('shortenertoken', "The Auth token the shortener should use")
 
 def setup(bot):
     """
