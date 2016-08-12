@@ -297,7 +297,7 @@ class RescueBoard:
 class Rescue(TrackedBase):
     active = TrackedProperty(default=True)
     createdAt = DateTimeProperty(readonly=True)
-    lastModified = DateTimeProperty(readonly=True)
+    updatedAt = DateTimeProperty(readonly=True)
     id = TrackedProperty(remote_name='id', readonly=True)
     rats = SetProperty(default=lambda: set())
     unidentifiedRats = SetProperty(default=lambda: set())
@@ -379,7 +379,7 @@ class Rescue(TrackedBase):
             when = datetime.datetime.now(tz=datetime.timezone.utc)
         if not self.createdAt:
             self.createdAt = when
-        self.lastModified = when
+        self.updatedAt = when
         return when
 
 
@@ -791,9 +791,9 @@ def cmd_quote(bot, trigger, rescue):
     bot.say(fmt.format(
         client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags),
         opened=format_timestamp(rescue.createdAt) if rescue.createdAt else '<unknown>',
-        updated=format_timestamp(rescue.lastModified) if rescue.lastModified else '<unknown>',
+        updated=format_timestamp(rescue.updatedAt) if rescue.updatedAt else '<unknown>',
         opened_ago=friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
-        updated_ago=friendly_timedelta(rescue.lastModified) if rescue.lastModified else '???',
+        updated_ago=friendly_timedelta(rescue.updatedAt) if rescue.updatedAt else '???',
         id=rescue.id or 'pending',
         system=rescue.system or 'an unknown system',
         title=rescue.title
