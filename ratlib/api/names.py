@@ -7,9 +7,13 @@ savedratids = {}
 savedratnames = {}
 savedclientnames = {}
 
-def getRatId(bot, ratname):
+def getRatId(bot, ratname, platform=None):
+
     if ratname in savedratids.keys():
-        return savedratids[ratname]
+        if platform == None:
+            return savedratids[ratname]
+        if platform == getRatName(bot, ratid=savedratids[ratname])[1]:
+            return savedratids[ratname]
 
 
     try:
@@ -18,11 +22,23 @@ def getRatId(bot, ratname):
         # print(result)
         data = result['data']
         # print(data)
-        firstmatch = data[0]
-        id = firstmatch['CMDRs'][0]
-        ret = {'id': id, 'name': ratname}
+        if platform == None:
+            firstmatch = data[0]
+            id = firstmatch['CMDRs'][0]
+            ret = {'id': id, 'name': ratname, 'platform':firstmatch['platform']}
+
+        else:
+            ret = {'id':None, 'name':None, 'platform':None}
+            id = None
+            if len(data) == 0:
+                raise Exception
+            for user in data:
+                rat = user['CMDRs']
+                if rat['platform'] == platform:
+                    id = rat['id']
+                    ret = {'id':rat['id'], 'name': ratname, 'platform':rat['platform']}
         savedratids.update({ratname: ret})
-        savedratnames.update({id: ratname})
+        savedratnames.update({id: {'name': ratname, 'platform': ret['platform']}})
         return ret
     except:
         try:
@@ -34,18 +50,30 @@ def getRatId(bot, ratname):
             # print(result)
             data = result['data']
             # print(data)
-            firstmatch = data[0]
-            id = firstmatch['CMDRs'][0]
-            ret =  {'id': id, 'name': strippedname}
-            savedratids.update({strippedname:ret})
-            savedratnames.update({id:strippedname})
+            if platform == None:
+                firstmatch = data[0]
+                id = firstmatch['CMDRs'][0]
+                ret = {'id': id, 'name': strippedname, 'platform': firstmatch['platform']}
+
+            else:
+                ret = {'id': None, 'name': None, 'platform': None}
+                id = None
+                if len(data) == 0:
+                    return idFallback(bot, ratname, platform=platform)
+                for user in data:
+                    rat = user['CMDRs']
+                    if rat['platform'] == platform:
+                        id = rat['id']
+                        ret = {'id': rat['id'], 'name': strippedname, 'platform': rat['platform']}
+            savedratids.update({strippedname: ret})
+            savedratnames.update({id: {'name':strippedname, 'platform':ret['platform']}})
             return ret
         except:
             print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
-            return idFallback(bot, ratname)
+            return idFallback(bot, ratname, platform=platform)
 
 
-def idFallback(bot, ratname):
+def idFallback(bot, ratname, platform=None):
     """
     Fallback to searching the commander Name instead of the linked account nickname.
     Args:
@@ -61,26 +89,26 @@ def idFallback(bot, ratname):
     strippedname = removeTags(ratname)
 
     try:
-        uri = '/rats?CMDRname=' + strippedname
+        uri = '/rats?CMDRname=' + strippedname + (('&platform='+platform) if platform is not None else '')
         result = callapi(bot=bot, method='GET', uri=uri)
         # print(result)
         data = result['data']
         # print(data)
         firstmatch = data[0]
         id = firstmatch['id']
-        ret =  {'id': id, 'name': ratname}
+        ret =  {'id': id, 'name': strippedname, 'platform':firstmatch['platform']}
         savedratids.update({ratname:ret})
-        savedratnames.update({id:ratname})
+        savedratnames.update({id:{'name':strippedname, 'platform':firstmatch['platform']}})
         return ret
 
 
     except IndexError as ex:
                 # print('no rats with that commandername or nickname or gamertag found.')
-                return {'id': '0', 'name': ratname, 'error': ex,
+                return {'id': '0', 'name': ratname, 'error': ex, 'platform':'unknown',
                         'description': 'no rats with that commandername or nickname or gamertag found.'}
     except ratlib.api.http.APIError as ex:
         print('APIError: couldnt find RatId for ' + ratname)
-        return {'id': '0', 'name': ratname, 'error': ex, 'description': 'API Error while trying to fetch Rat'}
+        return {'id': '0', 'name': ratname, 'platform':'unknown', 'error': ex, 'description': 'API Error while trying to fetch Rat'}
 
 
 def getRatName(bot, ratid):
@@ -91,7 +119,7 @@ def getRatName(bot, ratid):
     :return: name of the rat
     """
     if ratid in savedratnames.keys():
-        return savedratnames[ratid]
+        return savedratnames[ratid]['name'], savedratnames[ratid]['platform']
     try:
         result = callapi(bot=bot, method='GET', uri='/rats/' + ratid)
     except ratlib.api.http.APIError:
@@ -99,11 +127,12 @@ def getRatName(bot, ratid):
         return 'unknown'
     try:
         data = result['data']
-        ret = data['CMDRname']
-
+        name = data['CMDRname']
+        platform = data['platform']
+        ret = name, platform
     except:
-        ret = 'unknown'
-    # print('returning '+ret+' as name for '+ratid)
+        ret = 'unknown', 'unknown'
+    print('returning '+str(ret)+' as name for '+ratid)
     return ret
 
 def removeTags(string):

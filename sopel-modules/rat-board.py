@@ -803,7 +803,7 @@ def cmd_quote(bot, trigger, rescue):
     if rescue.rats:
         ratnames = []
         for rat in rescue.rats:
-            name = getRatName(bot, rat)
+            name = getRatName(bot, rat)[0]
             ratnames.append(name)
         bot.say("Assigned rats: " + ", ".join(ratnames))
     if rescue.unidentifiedRats:
@@ -1031,14 +1031,18 @@ def cmd_assign(bot, trigger, rescue, *rats):
     """
     ratlist = []
     for rat in rats:
-        i = getRatId(bot, rat)
+        if rescue.platform == 'unknown':
+            i = getRatId(bot, rat)
+        else:
+            i = getRatId(bot, rat, platform=rescue.platform)
         # Check if id returned is an id, decide for unidentified rats or rats.
         if i['id'] != '0':
             # print('id was not 0.')
             rescue.rats.update([i['id']])
-            ratlist.append(getRatName(bot, i['id']))
+            ratlist.append(getRatName(bot, i['id'])[0])
         else:
             # print('id was 0')
+            bot.reply('Be advised: '+rat+' does not have a registered Rat for the case\'s platform!')
             rescue.unidentifiedRats.update([rat])
             ratlist.append(removeTags(rat))
 
@@ -1097,7 +1101,7 @@ def cmd_codered(bot, trigger, rescue):
         if rescue.rats:
             ratnames = []
             for rat in rescue.rats:
-                ratnames.append(getRatName(bot, rat))
+                ratnames.append(getRatName(bot, rat)[0])
             bot.say(", ".join(ratnames) + ": This is your case!")
     else:
         bot.say('{rescue.client_name}\'s case is no longer CR.'.format(rescue=rescue))
