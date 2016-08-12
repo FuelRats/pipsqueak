@@ -118,7 +118,7 @@ def getRatName(bot, ratid):
     :param ratid: the id of the rat to find the name for
     :return: name of the rat
     """
-    if ratid in savedratnames.keys():
+    if str(ratid) in savedratnames.keys():
         return savedratnames[ratid]['name'], savedratnames[ratid]['platform']
     try:
         result = callapi(bot=bot, method='GET', uri='/rats/' + ratid)
