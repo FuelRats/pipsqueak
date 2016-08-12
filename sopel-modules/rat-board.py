@@ -1224,7 +1224,7 @@ def ratmama_parse(bot, trigger):
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
         save_case_later(bot, result.rescue)
-        bot.say(newline)
+        bot.say(newline + ' (Case #'+str(result.rescue.boardindex)+')')
 
 
 @commands('closed','recent')
