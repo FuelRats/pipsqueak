@@ -1092,7 +1092,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     Sets a case platform to PC or xbox.
     """
     rescue.platform = platform
-    bot.say(
+    bot.reply(
         "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
     )
     save_case_later(
