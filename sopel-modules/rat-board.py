@@ -15,7 +15,7 @@ import collections
 import itertools
 import warnings
 import functools
-import inspect
+
 import sys
 import contextlib
 
@@ -108,9 +108,9 @@ def setup(bot):
         traceback.print_exc()
 
 
-def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
+def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call, statuses=None):
     '''
-    Calls the API with the gived method endpoint and data.
+    Calls the API with the given method endpoint and data.
     :param bot: bot to pull config from and log error messages to irc
     :param method: GET PUT POST etc.
     :param uri: the endpoint to use, ex /rats
@@ -119,9 +119,10 @@ def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
     :return: the data dict the api call returned.
     '''
     uri = urljoin(bot.config.ratbot.apiurl, uri)
+    # print('will call uri '+uri)
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
     with bot.memory['ratbot']['apilock']:
-        return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers)
+        return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers, statuses=statuses)
 
 
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
@@ -296,7 +297,7 @@ class RescueBoard:
 class Rescue(TrackedBase):
     active = TrackedProperty(default=True)
     createdAt = DateTimeProperty(readonly=True)
-    lastModified = DateTimeProperty(readonly=True)
+    updatedAt = DateTimeProperty(readonly=True)
     id = TrackedProperty(remote_name='id', readonly=True)
     rats = SetProperty(default=lambda: set())
     unidentifiedRats = SetProperty(default=lambda: set())
@@ -309,6 +310,7 @@ class Rescue(TrackedBase):
     system = TrackedProperty(default=None)
     successful = TypeCoercedProperty(default=False, coerce=bool)
     epic = TypeCoercedProperty(default=False, coerce=bool)
+    title = TrackedProperty(default=None)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -377,7 +379,7 @@ class Rescue(TrackedBase):
             when = datetime.datetime.now(tz=datetime.timezone.utc)
         if not self.createdAt:
             self.createdAt = when
-        self.lastModified = when
+        self.updatedAt = when
         return when
 
 
@@ -616,103 +618,9 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
     return rv
 
 
-class UsageError(ValueError):
-    pass
 
 
-def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
-    """
-    Returns a decorator that wraps a function into a structure that's easier to work with in commands.
-    Works around some issues with Sopel's argument parsing and makes things much more convenient.
-
-    :param params: Sequence of parameter types to parse.
-    :param usage: Usage instructions displayed on error.  Automatically prepended by "Usage: <command name>"
-    :param split: Function accepting (string, maxsplit) and returning the split string.
-
-    The first two arguments to the wrapped function will be 'bot' and 'trigger' as normal.  Additional arguments will
-    be added on based on splitting the trigger text into words and mapping them against the characters appearing in
-    'params', as follows:
-
-    'r': Parameter will be the case found by board.find(..., create=False).  Outputs an error message instead of
-    calling the wrapped function if the case is not found.
-    'R': As above, but the case can be created.
-    'f': Like 'r', but the parameter will be the entire find() result tuple (rescue, created)
-    'F': Like 'R', but the parameter will be the entire find() result tuple (rescue, created)
-    'w': Parameter will be a single word.
-
-    The following must be the final parameter if they are present:
-    '*': Produces one parameter for each word remaining in the line.
-    '+': Produces one parameter for each word remaining in the line, which must be at least one word.
-    't': Parameter will be the entire remainder of the line.
-    'T': Same as 't'.  Backwards compatibility.
-
-    Any remaining 'words' in the argument will be passed to the wrapped function as additional parameters, as params
-    contained enough 'w's to pad to the end of the argument list.
-
-    If the resulting call does not match the function signature, usage instructions are displayed instead.  These usage
-    instructions can also be displayed by raising UsageError() from the wrapped function.
-
-    Optional parameters can be specified by making them optional on the function call itself (e.g. by assigning
-    default values)
-    """
-
-    # Input validation
-    maxsplit = 0
-    if len(params):
-        result = re.search(r'[tT*+]', params[:-1])
-        if result:
-            raise ValueError("{!r} must be the last parameter if it is present.", result.group(0))
-        if params[-1] in 'tT':
-            maxsplit = len(params) - 1
-            if not maxsplit:
-                # Only accepts one parameter and it's t/T?
-                # We can't use the normal split mechanics, because they treat maxsplit=0 as unlimited splits.  So
-                # replace the split function with a dummy instead.
-                split = lambda x, maxsplit: [x] if x else []
-        result = re.search(r'[^rRfFwtT*+]', params)
-        if result:
-            raise ValueError("{!r} is an unknown parameter type.".format(result.group(0)))
-
-    def decorator(fn):
-        sig = inspect.signature(fn)
-
-        @functools.wraps(fn)
-        def wrapper(bot, trigger, *args, **kwargs):
-            args = list(args)
-            try:
-                line = (trigger.group(2) or '').strip()
-                if line:
-                    for param, value in itertools.zip_longest(params, split(line, maxsplit), fillvalue=None):
-                        if param == '+' and value is None:
-                            raise UsageError()
-                        if value is None:
-                            break
-                        if param and param in 'rRfF':
-                            value = bot.memory['ratbot']['board'].find(value, create=param in 'RF')
-                            if not value[0]:
-                                return bot.reply('Could not find a case with that name or number.')
-                            if param in 'rR':
-                                value = value[0]
-                        # 'w' and 't'/'T' don't require any special handling, the split takes care of them.
-                        # '*' doesn't require any special handling, it's just syntactic sugar.
-                        # '+' already had its special handling done.
-                        args.append(value)
-                try:
-                    bound = sig.bind(bot, trigger, *args, **kwargs)
-                except TypeError:
-                    raise UsageError()
-                else:
-                    return fn(*bound.args, **bound.kwargs)
-            except UsageError:
-                if usage is None:
-                    return bot.reply("Incorrect format for command {}".format(trigger.group(1)))
-                else:
-                    return bot.reply("Usage: {} {}".format(trigger.group(1), usage))
-
-        return wrapper
-
-    return decorator
-
+from ratlib.sopel import parameterize
 
 
 # Convenience function
@@ -747,6 +655,10 @@ def rule_ratsignal(bot, trigger):
     """Light the rat signal, somebody needs fuel."""
     line = trigger.group()
     client = Identifier(trigger.nick)
+    value = bot.memory['ratbot']['board'].find(client, create=False)
+    if value[0]:
+        bot.reply('You already sent a Signal! Please stand by, someone will help you soon!')
+        return
     result = append_quotes(bot, trigger.nick, [line], create=True)
     bot.say(
         "Received RATSIGNAL from {nick}.  Calling all available rats!  ({tags})"
@@ -775,6 +687,7 @@ def cmd_quote(bot, trigger, rescue):
         tags.append(bold(color('CR', colors.RED)))
 
     fmt = (
+            ("Rescue Operation {title}: " if rescue.title else "") +
               "{client}'s case #{index} at {system} ({tags}) opened {opened} ({opened_ago}),"
               " updated {updated} ({updated_ago})"
           ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
@@ -782,18 +695,19 @@ def cmd_quote(bot, trigger, rescue):
     bot.say(fmt.format(
         client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags),
         opened=format_timestamp(rescue.createdAt) if rescue.createdAt else '<unknown>',
-        updated=format_timestamp(rescue.lastModified) if rescue.lastModified else '<unknown>',
+        updated=format_timestamp(rescue.updatedAt) if rescue.updatedAt else '<unknown>',
         opened_ago=friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
-        updated_ago=friendly_timedelta(rescue.lastModified) if rescue.lastModified else '???',
+        updated_ago=friendly_timedelta(rescue.updatedAt) if rescue.updatedAt else '???',
         id=rescue.id or 'pending',
-        system=rescue.system or 'an unknown system'
+        system=rescue.system or 'an unknown system',
+        title=rescue.title
     ))
 
-    # FIXME: Rats/temprats/etc isn't really handled yet.
+
     if rescue.rats:
         ratnames = []
         for rat in rescue.rats:
-            name = getRatName(bot, rat)
+            name = getRatName(bot, rat)[0]
             ratnames.append(name)
         bot.say("Assigned rats: " + ", ".join(ratnames))
     if rescue.unidentifiedRats:
@@ -813,9 +727,15 @@ def cmd_clear(bot, trigger, rescue):
     rescue.open = False
     rescue.active = False
     # FIXME: Should have better messaging
+    url = "{apiurl}/rescues/edit/{rescue.id}".format(
+            rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
+    try:
+        url = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)['shorturl']
+    except:
+        print('Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
     bot.say(
-        "Case {rescue.client_name} cleared! Do the Paperwork: {apiurl}/rescues/edit/{rescue.id}".format(
-            rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/')))
+        "Case {rescue.client_name} cleared! Do the Paperwork: {url}".format(
+            rescue=rescue, url=url))
     rescue.board.remove(rescue)
     save_case_later(
         bot, rescue,
@@ -856,13 +776,23 @@ def cmd_list(bot, trigger, params=''):
     def format_rescue(rescue):
         cr = color("(CR)", colors.RED) if rescue.codeRed else ''
         id = ""
+        cl = (('Operation '+rescue.title) if rescue.title else (getattr(rescue, attr)))
+        platform = rescue.platform
+        if platform == 'unknown':
+            platform = ''
+        if platform == 'xb':
+            platform = ' \u00033XB\u0003'
+        if platform == 'pc':
+            platform = ' PC'
+
         if showids:
             id = "@" + (rescue.id if rescue.id is not None else "none")
-        return "[{boardindex}{id}]{client}{cr}".format(
+        return "[{boardindex}{id}]{client}{cr}{platform}".format(
             boardindex=rescue.boardindex,
             id=id,
-            client=getattr(rescue, attr),
-            cr=cr
+            client=cl,
+            cr=cr,
+            platform=platform
         )
 
     output = []
@@ -1011,16 +941,21 @@ def cmd_assign(bot, trigger, rescue, *rats):
     """
     ratlist = []
     for rat in rats:
-        rat = removeTags(rat)
-        if rat != ' ':
-            ratlist.append(rat)
-        i = getRatId(bot, rat)
+        if rescue.platform == 'unknown':
+            i = getRatId(bot, rat)
+        else:
+            i = getRatId(bot, rat, platform=rescue.platform)
+        # Check if id returned is an id, decide for unidentified rats or rats.
         if i['id'] != '0':
             # print('id was not 0.')
             rescue.rats.update([i['id']])
+            ratlist.append(getRatName(bot, i['id'])[0])
         else:
             # print('id was 0')
+            bot.reply('Be advised: '+rat+' does not have a registered Rat for the case\'s platform!')
             rescue.unidentifiedRats.update([rat])
+            ratlist.append(removeTags(rat))
+
     bot.say(
         "{rescue.client_name}: Please add the following rat(s) to your friends list: {rats}"
             .format(rescue=rescue, rats=", ".join(ratlist))
@@ -1076,7 +1011,7 @@ def cmd_codered(bot, trigger, rescue):
         if rescue.rats:
             ratnames = []
             for rat in rescue.rats:
-                ratnames.append(getRatName(bot, rat))
+                ratnames.append(getRatName(bot, rat)[0])
             bot.say(", ".join(ratnames) + ": This is your case!")
     else:
         bot.say('{rescue.client_name}\'s case is no longer CR.'.format(rescue=rescue))
@@ -1170,6 +1105,131 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
         )
     )
 
+@rule('Incoming Client:.* - O2:.*')
+def ratmama_parse(bot, trigger):
+    '''
+    Parse Incoming Kiwiirc clients (gets announced by ratmama)
+    :param trigger: line that triggered this
+    '''
+    print('triggered ratmama_parse')
+    line = trigger.group()
+    print('line: '+line)
+    if Identifier(trigger.nick) == 'Ratmama[BOT]':
+        import re
+        newline = line.replace("Incoming Client:", "\u0002RATSIGNAL\u000F - CMDR")
+        cmdr = re.search('(?<=CMDR ).*?(?= - )', newline).group()
+        system = re.search('(?<=System: ).*?(?= - )', newline).group()
+        platform = re.search('(?<=Platform: ).*?(?= - )', newline).group()
+        crstring = re.search('(?<=O2: ).*', newline).group()
+        cr = False
+        if crstring != "OK":
+            cr = True
+            newline = newline.replace(crstring, '\u00034\u0002'+crstring+'\u000F')
+        if platform == 'XB':
+            newline = newline.replace(platform, '\u00033'+platform)
+        newline = newline.replace(cmdr, '\u0002'+cmdr+'\u000F').replace(system, '\u0002'+system+'\u000F').replace(platform, '\u0002'+platform+'\u000F')
+        result = append_quotes(bot, cmdr, [newline], create=True)
+        if not result.rescue.system:
+            result.rescue.system = system
+        result.rescue.codeRed = cr
+        result.rescue.platform = platform.lower()
+        save_case_later(bot, result.rescue)
+        bot.say(newline + ' (Case #'+str(result.rescue.boardindex)+')')
+
+
+@commands('closed','recent')
+def cmd_closed(bot, trigger):
+    '''
+    Lists the 5 last closed rescues to give the ability to reopen them
+    '''
+    try:
+        result = callapi(bot=bot, uri='/rescues?open=false&limit=5&order=updatedAt&direction=DESC', method='GET')
+        data = result['data']
+        rescue0 = getDummyRescue()
+        rescue1 = getDummyRescue()
+        rescue2 = getDummyRescue()
+        rescue3 = getDummyRescue()
+        rescue4 = getDummyRescue()
+
+        try:
+            rescue0 = data[0]
+            rescue1 = data[1]
+            rescue2 = data[2]
+            rescue3 = data[3]
+            rescue4 = data[4]
+        except:
+            bot.reply('Couldn\'t grab 5 cases. The output might look weird.')
+        bot.reply(
+            "These are the newest closed rescues: 1: Client "+str(rescue0['client'])+" at "+str(rescue0['system'])+" - id: "+str(rescue0['id'])+" 2: Client "+str(rescue1['client'])+" at "+str(rescue1['system'])+" - id: "+str(rescue1['id']))
+        bot.reply("3: Client "+str(rescue2['client'])+" at "+str(rescue2['system'])+" - id: "+str(rescue2['id'])+" 4: Client "+str(rescue3['client'])+" at "+str(rescue3['system'])+" - id: "+str(rescue3['id']))
+        bot.reply("5: Client "+str(rescue4['client'])+" at "+str(rescue4['system'])+" - id: "+str(rescue4['id']))
+        
+    except ratlib.api.http.APIError:
+        bot.reply('Got an APIError, sorry. Try again later!')
+
+def getDummyRescue():
+    return {'client':'dummy','system':'dummy','id':'dummy'}
+
+@commands('reopen')
+@parameterize('+', usage="<id>")
+def cmd_reopen(bot, trigger, id):
+    access = ratlib.sopel.best_channel_mode(bot, trigger.nick)
+    print('access: '+str(access))
+    if access:
+        print('got access - id: '+str(id))
+        bot.reply('got access - id: '+str(id))
+        try:
+            result = callapi(bot, 'PUT', data={'open':True}, uri='/rescues/'+str(id))
+            refresh_cases(bot)
+            bot.reply('Reopened case. Cases refreshed, care for your case numbers!')
+        except ratlib.api.http.APIError:
+            # print('apierror.')
+            bot.reply('id '+str(id)+' does not exist or other API Error.')
+    else:
+        print('no access')
+        bot.reply('Not authorized.')
+
+# Copied from Sopel repo as it is not available?
+def require_admin(message=None):
+    """Decorate a function to require the triggering user to be a bot admin.
+    If they are not, `message` will be said if given."""
+    def actual_decorator(function):
+        @functools.wraps(function)
+        def guarded(bot, trigger, *args, **kwargs):
+            if not trigger.admin:
+                if message and not callable(message):
+                    bot.say(message)
+            else:
+                return function(bot, trigger, *args, **kwargs)
+        return guarded
+    # Hack to allow decorator without parens
+    if callable(message):
+        return actual_decorator(message)
+    return actual_decorator
+
+
+@commands('delete')
+@require_admin(message='Sorry pal, you\'re not an admin!')
+@parameterize('+', usage='<id>')
+def cmd_delete(bot, trigger, id):
+    try:
+     result = callapi(bot, 'DELETE', uri='/rescues/'+str(id))
+     # print(result)
+    except ratlib.api.http.APIError as ex:
+        bot.reply('case with id '+str(id)+' does not exist or other APIError.')
+        print(ex)
+        return
+    bot.reply('deleted case with id '+str(id)+' - THIS IS NOT REVERTABLE!')
+
+@commands('title')
+@parameterize('rw*', '<case # or client name> <title to set>')
+def cmd_title(bot, trigger, rescue, *title):
+    comptitle = ""
+    for s in title:
+        comptitle = comptitle + s
+    rescue.title=comptitle
+    bot.reply('Set '+rescue.client+'\'s case Title to "'+comptitle+'"')
+    save_case_later(bot, rescue)
 
 # This should go elsewhere, but here for now.
 @commands('version', 'uptime')

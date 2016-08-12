@@ -46,7 +46,7 @@ import collections
 ## Start Config Section ##
 class SocketSection(StaticSection):
     websocketurl = ValidatedAttribute('websocketurl', str, default='1234')
-    websocketport = ValidatedAttribute('websocketurl', str, default='9000')
+    websocketport = ValidatedAttribute('websocketport', str, default='9000')
 
 
 def configure(config):
