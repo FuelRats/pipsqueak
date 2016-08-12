@@ -19,6 +19,9 @@
     "prepcr": {"author":"Marenthyu", "fact":"Merke dir dein aktuelles System und logge dich SOFORT aus, indem du auf ESC drückst und auf \"Seichern und zum Hauptmenü\" drückst!"},
     "pcmodules":{"author":"Marenthyu", "fact":"Um deine Module auszuschalten, gehe bitte zu deinem rechten Panel (Standardtaste 4), wechsle zu MODULEN (Standardtasten E und Q), wähle jedes Modul einzeln an und deaktiviere es. (Du kannst dein Kraftwerk nicht abschalten, das ist normal und du solltest deine Lebenserhaltung an lassen!)"},
     "xmodules":{"author":"Marenthyu", "fact":"Um deine Module auszuschalten, gehe bitte zu deinem rechten Panel (Standardtastenkombination X + rechts auf dem Steuerkreutz), wechsle zu MODULEN (Standardtasten RB und LB), wähle jedes Modul einzeln an und deaktiviere es. (Du kannst dein Kraftwerk nicht abschalten, das ist normal und du solltest deine Lebenserhaltung an lassen!)"},
-    "invite":{"author": "Marenthyu", "fact": "Klicke hier für eine Anleitung, wie man Geschwadereinladungen annimmt: http://marenthyu.de/invites.png"}
+    "invite":{"author": "Marenthyu", "fact": "Klicke hier für eine Anleitung, wie man Geschwadereinladungen annimmt: http://marenthyu.de/invites.png"},
+    "crinst":{"author":"Marenthyu","fact":"Sobald es dir gesagt wird, (NICHT JETZT!) logge dich bitte in OFFENES SPIEL (OPEN PLAY) ein, setzte dein SIGNAL auf GESCHWADER und lade alle deine zugewiesenen Rats zu deinem Geschwader ein!"},
+    "pg":{"author":"Marenthyu","fact":"Um einer privaten Gruppe beizutreten, gehe ins Hauptmenü, klicke auf START und dann auf Private Gruppe. Danach klicke auf den Namen der Rat oder der Name der dir gesagt wurde um in die Private Gruppe zu starten."},
+    "multi":{"author":"Marenthyu","fact":"Bitte ignoriere Nachrichten, in denen dein Name nicht vorkommt! Wir retten normalerweise mehrere Leute gleichzeitig, weshalb nicht alles an dich gerichtet ist!"}
   }
 }

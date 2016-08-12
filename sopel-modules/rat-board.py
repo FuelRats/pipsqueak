@@ -690,6 +690,8 @@ def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
                         if value is None:
                             break
                         if param and param in 'rRfF':
+                            if value == bot.config.ratboard.signal:
+                                return bot.reply('No, i am NOT adding a rescue to save '+value+'! Come on, this is dispatch rule #97 !')
                             value = bot.memory['ratbot']['board'].find(value, create=param in 'RF')
                             if not value[0]:
                                 return bot.reply('Could not find a case with that name or number.')
@@ -1107,7 +1109,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     Sets a case platform to PC or xbox.
     """
     rescue.platform = platform
-    bot.say(
+    bot.reply(
         "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
     )
     save_case_later(

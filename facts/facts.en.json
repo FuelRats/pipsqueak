@@ -20,7 +20,10 @@
     "debrief": "Guide for debriefing clients: http://goo.gl/VT6qyc",
     "invite": "See this short guide on how to accept Wing Invites: http://marenthyu.de/invites.png",
     "pcmodules": "To power down your modules, please go to your right panel (default key 4), switch to the MODULES tab (default keys e or q), select every Module once and deactivate it. (You can not deactivate your Power Plant and should not deactivate your Life Support!)",
-    "xmodules":"To power down your modules, please go to your right panel (default X + right on the D-pad), switch to the MODULES tab (default key RB), select every Module once and deactivate it. (You can not deactivate your Power Plant and should not deactivate your Life Support!)"
+    "xmodules":"To power down your modules, please go to your right panel (default X + right on the D-pad), switch to the MODULES tab (default key RB), select every Module once and deactivate it. (You can not deactivate your Power Plant and should not deactivate your Life Support!)",
+    "crinst":"Once you get told (NOT NOW!), please log into OPEN PLAY, enable your WING BEACON and finally INVITE all your assigned Rats to a Wing!",
+    "pg":"To Log into a Private Group, please, from the main menu, click Start, then Private Group, then the rat's  or otherwise told name.",
+    "multi":"Please ignore messages that do not have your name in them, they are most likely not meant for you! We usually have multiple rescues ongoing, so not everything is directed at you!"
 
   }
 }
