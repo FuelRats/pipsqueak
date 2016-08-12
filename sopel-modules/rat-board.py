@@ -869,13 +869,15 @@ def cmd_list(bot, trigger, params=''):
         cl = (('Operation '+rescue.title) if rescue.title else (getattr(rescue, attr)))
         platform = rescue.platform
         if platform == 'unknown':
-            platform = None
-        if platform == 'XB':
-            platform = '\u00033XB\u0003'
+            platform = ''
+        if platform == 'xb':
+            platform = ' \u00033XB\u0003'
+        if platform == 'pc':
+            platform = ' PC'
 
         if showids:
             id = "@" + (rescue.id if rescue.id is not None else "none")
-        return "[{boardindex}{id}]{client}{cr} {platform}".format(
+        return "[{boardindex}{id}]{client}{cr}{platform}".format(
             boardindex=rescue.boardindex,
             id=id,
             client=cl,
