@@ -27,7 +27,8 @@ def getRatId(bot, ratname, platform=None):
         if platform == None:
             firstmatch = data[0]
             id = firstmatch['CMDRs'][0]
-            ret = {'id': id, 'name': ratname, 'platform':firstmatch['platform']}
+            ratnam, ratplat = getRatName(bot, id)
+            ret = {'id': id, 'name':ratnam , 'platform':firstmatch['platform']}
 
         else:
             ret = {'id':None, 'name':None, 'platform':None}
@@ -43,7 +44,7 @@ def getRatId(bot, ratname, platform=None):
                         id = rat['id']
                         ret = {'id':rat['id'], 'name': ratname, 'platform':rat['platform']}
         savedratids.update({ratname: ret})
-        savedratnames.update({id: {'name': ratname, 'platform': ret['platform']}})
+        savedratnames.update({id: {'name': ratnam, 'platform': ret['platform']}})
         return ret
     except:
         # print('didnt find with tags, trying without')
@@ -59,7 +60,8 @@ def getRatId(bot, ratname, platform=None):
             if platform == None:
                 firstmatch = data[0]
                 id = firstmatch['CMDRs'][0]
-                ret = {'id': id, 'name': strippedname, 'platform': firstmatch['platform']}
+                ratnam, ratplat = getRatName(bot, id)
+                ret = {'id': id, 'name': ratnam, 'platform': firstmatch['platform']}
 
             else:
                 ret = {'id': None, 'name': None, 'platform': None}
@@ -75,7 +77,7 @@ def getRatId(bot, ratname, platform=None):
                             id = rat['id']
                             ret = {'id': rat['id'], 'name': strippedname, 'platform': rat['platform']}
             savedratids.update({strippedname: ret})
-            savedratnames.update({id: {'name':strippedname, 'platform':ret['platform']}})
+            savedratnames.update({id: {'name':ratnam, 'platform':ret['platform']}})
             return ret
         except:
             # print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
@@ -141,7 +143,7 @@ def getRatName(bot, ratid):
         ret = name, platform
     except:
         ret = 'unknown', 'unknown'
-    print('returning '+str(ret)+' as name for '+ratid)
+    # print('returning '+str(ret)+' as name for '+ratid)
     return ret
 
 def removeTags(string):
