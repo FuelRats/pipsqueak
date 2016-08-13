@@ -18,8 +18,10 @@ def getRatId(bot, ratname, platform=None):
 
     try:
         uri = '/users?nicknames=' + ratname
+        print('looking for name '+ratname)
+        print('uri: '+str(uri))
         result = callapi(bot=bot, method='GET', uri=uri)
-        # print(result)
+        print(result)
         data = result['data']
         # print(data)
         if platform == None:
@@ -31,23 +33,27 @@ def getRatId(bot, ratname, platform=None):
             ret = {'id':None, 'name':None, 'platform':None}
             id = None
             if len(data) == 0:
+                print('data length 0')
                 raise Exception
             for user in data:
-                rat = user['CMDRs']
-                if rat['platform'] == platform:
-                    id = rat['id']
-                    ret = {'id':rat['id'], 'name': ratname, 'platform':rat['platform']}
+                for cmdr in user['CMDRs']:
+                    rat = {}
+                    rat['id'] = cmdr
+                    if rat['platform'] == platform:
+                        id = rat['id']
+                        ret = {'id':rat['id'], 'name': ratname, 'platform':rat['platform']}
         savedratids.update({ratname: ret})
         savedratnames.update({id: {'name': ratname, 'platform': ret['platform']}})
         return ret
     except:
+        print('didnt find with tags, trying without')
         try:
             strippedname = removeTags(ratname)
             if strippedname in savedratids.keys():
                 return savedratids[strippedname]
             uri = '/users?nicknames=' + strippedname
             result = callapi(bot=bot, method='GET', uri=uri)
-            # print(result)
+            print(result)
             data = result['data']
             # print(data)
             if platform == None:
@@ -59,12 +65,15 @@ def getRatId(bot, ratname, platform=None):
                 ret = {'id': None, 'name': None, 'platform': None}
                 id = None
                 if len(data) == 0:
+                    print('data length 0')
                     return idFallback(bot, ratname, platform=platform)
                 for user in data:
-                    rat = user['CMDRs']
-                    if rat['platform'] == platform:
-                        id = rat['id']
-                        ret = {'id': rat['id'], 'name': strippedname, 'platform': rat['platform']}
+                    for cmdr in user['CMDRs']:
+                        rat = {}
+                        rat['id'] = cmdr
+                        if rat['platform'] == platform:
+                            id = rat['id']
+                            ret = {'id': rat['id'], 'name': ratname, 'platform': rat['platform']}
             savedratids.update({strippedname: ret})
             savedratnames.update({id: {'name':strippedname, 'platform':ret['platform']}})
             return ret
