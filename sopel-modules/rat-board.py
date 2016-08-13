@@ -1133,11 +1133,13 @@ def ratmama_parse(bot, trigger):
             result.rescue.system = system
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
-        save_case_later(bot, result.rescue)
-        bot.say(newline + ' (Case #'+str(result.rescue.boardindex)+')')
-        if cr:
-            bot.say(result.rescue.client + " Please note down your location then Save and Exit to Main Menu \u0002immediately!\u0002")
-
+        save_result = save_case_later(bot, result.rescue)
+        if save_result.created:
+            bot.say(newline + ' (Case #'+str(result.rescue.boardindex)+')')
+            if cr:
+                bot.say(result.rescue.client + " Please note down your location then Save and Exit to Main Menu \u0002immediately!\u0002")
+        else:
+            bot.say('Client '+result.rescue.client+' has reconnected to the IRC!')
 
 @commands('closed','recent')
 def cmd_closed(bot, trigger):
