@@ -1131,6 +1131,7 @@ def ratmama_parse(bot, trigger):
         result = append_quotes(bot, cmdr, [newline], create=True)
         if not result.rescue.system:
             result.rescue.system = system
+        newline = newline.replace(system, result.rescue.system)
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
         save_result = save_case_later(bot, result.rescue)
