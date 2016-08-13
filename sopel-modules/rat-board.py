@@ -260,7 +260,6 @@ class RescueBoard:
         not have a result, a new case is returned (if `create` is True).
         """
         search = search.strip()
-        search = search.replace('_', ' ')
         try:
             if search and isinstance(search, str) and search[0] == '#':
                 index = int(search[1:])
@@ -280,6 +279,10 @@ class RescueBoard:
             return FindRescueResult(rescue, False if rescue else None)
 
         rescue = self.indexes['client'].get(search.lower())
+        if not rescue:
+            search = search.replace('_', ' ')
+            rescue = self.indexes['client'].get(search.lower())
+
         if rescue or not create:
             return FindRescueResult(rescue, False if rescue else None)
 
