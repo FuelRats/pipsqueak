@@ -1120,7 +1120,7 @@ def ratmama_parse(bot, trigger):
         cmdr = re.search('(?<=CMDR ).*?(?= - )', newline).group()
         system = re.search('(?<=System: ).*?(?= - )', newline).group()
         platform = re.search('(?<=Platform: ).*?(?= - )', newline).group()
-        crstring = re.search('(?<=O2: ).*', newline).group()
+        crstring = re.search('(?<=O2: ).*?(?= - )', newline).group()
         cr = False
         if crstring != "OK":
             cr = True
