@@ -37,8 +37,8 @@ def getRatId(bot, ratname, platform=None):
                 raise Exception
             for user in data:
                 for cmdr in user['CMDRs']:
-                    ratidid, ratplat = getRatName(bot, cmdr)
-                    rat = {'id':id, 'platform':ratplat}
+                    ratid, ratplat = getRatName(bot, cmdr)
+                    rat = {'id':ratid, 'platform':ratplat}
                     if rat['platform'] == platform:
                         id = rat['id']
                         ret = {'id':rat['id'], 'name': ratname, 'platform':rat['platform']}
@@ -69,8 +69,8 @@ def getRatId(bot, ratname, platform=None):
                     return idFallback(bot, ratname, platform=platform)
                 for user in data:
                     for cmdr in user['CMDRs']:
-                        ratidid, ratplat = getRatName(bot, cmdr)
-                        rat = {'id': id, 'platform': ratplat}
+                        ratid, ratplat = getRatName(bot, cmdr)
+                        rat = {'id': ratid, 'platform': ratplat}
                         if rat['platform'] == platform:
                             id = rat['id']
                             ret = {'id': rat['id'], 'name': strippedname, 'platform': rat['platform']}
