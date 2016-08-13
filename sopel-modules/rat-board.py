@@ -35,6 +35,7 @@ from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
 from ratlib.api.names import *
+from ratlib.sopel import UsageError
 from sopel.config.types import StaticSection, ValidatedAttribute
 import ratlib.api.http
 import ratlib.db
@@ -309,7 +310,6 @@ class Rescue(TrackedBase):
     client = TrackedProperty(default='<unknown client>')
     system = TrackedProperty(default=None)
     successful = TypeCoercedProperty(default=True, coerce=bool)
-    epic = TypeCoercedProperty(default=False, coerce=bool)
     title = TrackedProperty(default=None)
 
     def __init__(self, **kwargs):
@@ -1232,6 +1232,14 @@ def cmd_title(bot, trigger, rescue, *title):
     rescue.title=comptitle
     bot.reply('Set '+rescue.client+'\'s case Title to "'+comptitle+'"')
     save_case_later(bot, rescue)
+
+@commands('pwl','pwlink','paperwork','paperworklink')
+@parameterize(params='r',usage='<client name or case number>')
+def cmd_pwl(bot, trigger, case):
+    url = "{apiurl}/rescues/edit/{rescue.id}".format(
+        rescue=case, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
+    shortened = bot.memory['ratbot']['shortener'].shortenUrl(url)
+    bot.reply('Here you go: '+str(shortened))
 
 # This should go elsewhere, but here for now.
 @commands('version', 'uptime')
