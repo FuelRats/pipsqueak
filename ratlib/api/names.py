@@ -12,7 +12,7 @@ def getRatId(bot, ratname, platform=None):
     if ratname in savedratids.keys():
         if platform == None:
             return savedratids[ratname]
-        if platform == getRatName(bot, ratid=savedratids[ratname])[1]:
+        if platform == getRatName(bot, ratid=savedratids[ratname]['id'])[1]:
             return savedratids[ratname]
 
 
