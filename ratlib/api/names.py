@@ -130,7 +130,7 @@ def getRatName(bot, ratid):
     if str(ratid) in savedratnames.keys():
         return savedratnames[ratid]['name'], savedratnames[ratid]['platform']
     try:
-        result = callapi(bot=bot, method='GET', uri='/rats/' + ratid)
+        result = callapi(bot=bot, method='GET', uri='/rats/' + str(ratid))
     except ratlib.api.http.APIError:
         print('got Api error during api call')
         return 'unknown'
