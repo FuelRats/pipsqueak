@@ -495,7 +495,7 @@ def save_case_later(bot, rescue, message=None, timeout=10):
                 "API is still not done updating case for {{rescue.client_name}}; continuing in background."
                     .format(rescue=rescue)
             )
-        bot.notice(message)
+        bot.say(message)
         # return future
 
 
