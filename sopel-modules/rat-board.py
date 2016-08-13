@@ -308,7 +308,7 @@ class Rescue(TrackedBase):
     codeRed = TypeCoercedProperty(default=False, coerce=bool)
     client = TrackedProperty(default='<unknown client>')
     system = TrackedProperty(default=None)
-    successful = TypeCoercedProperty(default=False, coerce=bool)
+    successful = TypeCoercedProperty(default=True, coerce=bool)
     epic = TypeCoercedProperty(default=False, coerce=bool)
     title = TrackedProperty(default=None)
 
