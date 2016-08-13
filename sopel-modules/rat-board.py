@@ -1238,7 +1238,9 @@ def cmd_title(bot, trigger, rescue, *title):
 def cmd_pwl(bot, trigger, case):
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
         rescue=case, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
-    shortened = bot.memory['ratbot']['shortener'].shortenUrl(url)
+    shortened = url
+    if bot.memory['ratbot']['shortener']:
+        shortened = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)
     bot.reply('Here you go: '+str(shortened))
 
 # This should go elsewhere, but here for now.
