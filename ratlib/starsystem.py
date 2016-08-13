@@ -97,7 +97,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     edsm_url = bot.config.ratbot.edsm_url or "http://edsm.net/api-v1/systems?coords=1"
     status = get_status(db)
     # print('status: '+str(status))
-    edsm_maxage = bot.config.ratbot.edsm_maxage or 60*12*12
+    edsm_maxage = float(bot.config.ratbot.edsm_maxage) or 60*12*12
     if not (
         force or
         not status.starsystem_refreshed or
