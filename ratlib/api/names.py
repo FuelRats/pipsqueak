@@ -24,6 +24,7 @@ def getRatId(bot, ratname, platform=None):
         # print(result)
         data = result['data']
         # print(data)
+        returnlist = []
         if platform == None:
             firstmatch = data[0]
             id = firstmatch['CMDRs'][0]
@@ -33,6 +34,7 @@ def getRatId(bot, ratname, platform=None):
         else:
             ret = {'id':None, 'name':None, 'platform':None}
             id = None
+            ratnam = None
             if len(data) == 0:
                 # print('data length 0')
                 raise Exception
@@ -42,7 +44,12 @@ def getRatId(bot, ratname, platform=None):
                     rat = {'id':cmdr, 'platform':ratplat}
                     if rat['platform'] == platform:
                         id = rat['id']
-                        ret = {'id':rat['id'], 'name': ratname, 'platform':rat['platform']}
+                        ret = {'id':rat['id'], 'name': ratnam, 'platform':rat['platform']}
+                        returnlist.append(ret)
+            strippedname = removeTags(ratname)
+            for retelement in returnlist:
+                if (retelement['name']==ratname) or (retelement['name']==strippedname):
+                    ret = retelement
         savedratids.update({ratname: ret})
         savedratnames.update({id: {'name': ratnam, 'platform': ret['platform']}})
         return ret
@@ -57,6 +64,7 @@ def getRatId(bot, ratname, platform=None):
             print(result)
             data = result['data']
             # print(data)
+            returnlist = []
             if platform == None:
                 firstmatch = data[0]
                 id = firstmatch['CMDRs'][0]
@@ -75,7 +83,12 @@ def getRatId(bot, ratname, platform=None):
                         rat = {'id': cmdr, 'platform': ratplat}
                         if rat['platform'] == platform:
                             id = rat['id']
-                            ret = {'id': rat['id'], 'name': strippedname, 'platform': rat['platform']}
+                            ret = {'id': rat['id'], 'name': ratnam, 'platform': rat['platform']}
+                            returnlist.append(ret)
+                strippedname = removeTags(ratname)
+                for retelement in returnlist:
+                    if (retelement['name'] == ratname) or (retelement['name'] == strippedname):
+                        ret = retelement
             savedratids.update({strippedname: ret})
             savedratnames.update({id: {'name':ratnam, 'platform':ret['platform']}})
             return ret
