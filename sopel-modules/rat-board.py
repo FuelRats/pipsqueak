@@ -315,6 +315,7 @@ class Rescue(TrackedBase):
     system = TrackedProperty(default=None)
     successful = TypeCoercedProperty(default=True, coerce=bool)
     title = TrackedProperty(default=None)
+    firstLimpet = TrackedProperty(default='')
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -722,15 +723,26 @@ def cmd_quote(bot, trigger, rescue):
 
 @commands('clear', 'close')
 @ratlib.sopel.filter_output
-@requires_case
-def cmd_clear(bot, trigger, rescue):
+@parameterize('r*','<client name or case number> [Rat that fired first limpet]')
+def cmd_clear(bot, trigger, rescue, *firstlimpet):
     """
     Mark a case as closed.
-    Required parameters: client name or case number.
+    Required parameters: client name or case number and optionally a rat who fired the first limpet.
     """
+    print('firstlimpet = '+str(firstlimpet))
+    if len(firstlimpet)>1:
+        raise UsageError()
+    if len(firstlimpet) == 1:
+        rat = getRatId(bot, firstlimpet[0])
+        if rat != 0:
+            rescue.firstLimpet = rat
+        else:
+            bot.reply('Couldn\'t find that Rat, sorry! Case not closed, try again!')
+            return
+
     rescue.open = False
     rescue.active = False
-    # FIXME: Should have better messaging
+
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
             rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     try:
@@ -738,7 +750,7 @@ def cmd_clear(bot, trigger, rescue):
     except:
         print('Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
     bot.say(
-        "Case {rescue.client_name} cleared! Do the Paperwork: {url}".format(
+        "Case {rescue.client_name} cleared!"+((" "+str(getRatName(bot, rescue.firstLimpet))) if rescue.firstLimpet else "")+" Do the Paperwork: {url}".format(
             rescue=rescue, url=url))
     rescue.board.remove(rescue)
     save_case_later(
