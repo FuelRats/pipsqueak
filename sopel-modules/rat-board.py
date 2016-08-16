@@ -761,15 +761,15 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
 
 @commands('list')
 @ratlib.sopel.filter_output
-@parameterize('w', usage="[-inr@]")
+@parameterize('w', usage="[-ir@]")
 def cmd_list(bot, trigger, params=''):
     """
     List the currently active, open cases.
 
     Supported parameters:
         -i: Also show inactive (but still open) cases.
-        -n: Show all known names (e.g. CMDR names).
         -@: Show full case IDs.  (LONG)
+        -r: Show assigned rats
     """
     if not params or params[0] != '-':
         params = '-'
@@ -777,7 +777,7 @@ def cmd_list(bot, trigger, params=''):
     showids = '@' in params and bot.config.ratbot.apiurl is not None
     show_inactive = 'i' in params
     showassigned = 'r' in params
-    attr = 'client_names' if 'n' in params else 'client_name'
+    attr = 'client_name'
 
     board = bot.memory['ratbot']['board']
 
