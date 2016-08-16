@@ -810,6 +810,7 @@ def cmd_list(bot, trigger, params=''):
                 assignedratsstring += rat + ', '
             if len(rescue.rats) > 0 or len(rescue.rats) > 0:
                 assignedratsstring = assignedratsstring.strip(', ')
+                assignedratsstring = " " + assignedratsstring
 
         if showids:
             id = "@" + (rescue.id if rescue.id is not None else "none")
