@@ -761,7 +761,7 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
 
 @commands('list')
 @ratlib.sopel.filter_output
-@parameterize('w', usage="[-in@]")
+@parameterize('w', usage="[-inr@]")
 def cmd_list(bot, trigger, params=''):
     """
     List the currently active, open cases.
@@ -776,6 +776,7 @@ def cmd_list(bot, trigger, params=''):
 
     showids = '@' in params and bot.config.ratbot.apiurl is not None
     show_inactive = 'i' in params
+    showassigned = 'r' in params
     attr = 'client_names' if 'n' in params else 'client_name'
 
     board = bot.memory['ratbot']['board']
@@ -794,21 +795,31 @@ def cmd_list(bot, trigger, params=''):
         id = ""
         cl = (('Operation '+rescue.title) if rescue.title else (getattr(rescue, attr)))
         platform = rescue.platform
+        assignedratsstring=''
         if platform == 'unknown':
             platform = ''
         if platform == 'xb':
             platform = ' \u00033XB\u0003'
         if platform == 'pc':
             platform = ' PC'
+        if showassigned:
+            assignedratsstring = ' Assigned Rats: '
+            for rat in rescue.rats:
+                assignedratsstring += getRatName(bot, rat)[0] + ', '
+            for rat in rescue.unidentifiedRats:
+                assignedratsstring += rat + ', '
+            if len(rescue.rats) > 0 or len(rescue.rats) > 0:
+                assignedratsstring = assignedratsstring.strip(', ')
 
         if showids:
             id = "@" + (rescue.id if rescue.id is not None else "none")
-        return "[{boardindex}{id}]{client}{cr}{platform}".format(
+        return "[{boardindex}{id}]{client}{cr}{platform}{assignedrats}".format(
             boardindex=rescue.boardindex,
             id=id,
             client=cl,
             cr=cr,
-            platform=platform
+            platform=platform,
+            assignedrats=assignedratsstring
         )
 
     output = []
