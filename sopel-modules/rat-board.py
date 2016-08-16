@@ -315,6 +315,7 @@ class Rescue(TrackedBase):
     system = TrackedProperty(default=None)
     successful = TypeCoercedProperty(default=True, coerce=bool)
     title = TrackedProperty(default=None)
+    firstLimpet = TrackedProperty(default='')
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -722,15 +723,26 @@ def cmd_quote(bot, trigger, rescue):
 
 @commands('clear', 'close')
 @ratlib.sopel.filter_output
-@requires_case
-def cmd_clear(bot, trigger, rescue):
+@parameterize('r*','<client name or case number> [Rat that fired first limpet]')
+def cmd_clear(bot, trigger, rescue, *firstlimpet):
     """
     Mark a case as closed.
-    Required parameters: client name or case number.
+    Required parameters: client name or case number and optionally a rat who fired the first limpet.
     """
+    print('firstlimpet = '+str(firstlimpet))
+    if len(firstlimpet)>1:
+        raise UsageError()
+    if len(firstlimpet) == 1:
+        rat = getRatId(bot, firstlimpet[0])['id']
+        if rat != 0:
+            rescue.firstLimpet = rat
+        else:
+            bot.reply('Couldn\'t find that Rat, sorry! Case not closed, try again!')
+            return
+
     rescue.open = False
     rescue.active = False
-    # FIXME: Should have better messaging
+
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
             rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     try:
@@ -738,7 +750,7 @@ def cmd_clear(bot, trigger, rescue):
     except:
         print('Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
     bot.say(
-        "Case {rescue.client_name} cleared! Do the Paperwork: {url}".format(
+        ("Case {rescue.client_name} cleared!"+((" "+str(getRatName(bot, rescue.firstLimpet)[0])) if rescue.firstLimpet else "")+" Do the Paperwork: {url}").format(
             rescue=rescue, url=url))
     rescue.board.remove(rescue)
     save_case_later(
@@ -749,22 +761,23 @@ def cmd_clear(bot, trigger, rescue):
 
 @commands('list')
 @ratlib.sopel.filter_output
-@parameterize('w', usage="[-in@]")
+@parameterize('w', usage="[-ir@]")
 def cmd_list(bot, trigger, params=''):
     """
     List the currently active, open cases.
 
     Supported parameters:
         -i: Also show inactive (but still open) cases.
-        -n: Show all known names (e.g. CMDR names).
         -@: Show full case IDs.  (LONG)
+        -r: Show assigned rats
     """
     if not params or params[0] != '-':
         params = '-'
 
     showids = '@' in params and bot.config.ratbot.apiurl is not None
     show_inactive = 'i' in params
-    attr = 'client_names' if 'n' in params else 'client_name'
+    showassigned = 'r' in params
+    attr = 'client_name'
 
     board = bot.memory['ratbot']['board']
 
@@ -782,21 +795,32 @@ def cmd_list(bot, trigger, params=''):
         id = ""
         cl = (('Operation '+rescue.title) if rescue.title else (getattr(rescue, attr)))
         platform = rescue.platform
+        assignedratsstring=''
         if platform == 'unknown':
             platform = ''
         if platform == 'xb':
             platform = ' \u00033XB\u0003'
         if platform == 'pc':
             platform = ' PC'
+        if showassigned:
+            assignedratsstring = ' Assigned Rats: '
+            for rat in rescue.rats:
+                assignedratsstring += getRatName(bot, rat)[0] + ', '
+            for rat in rescue.unidentifiedRats:
+                assignedratsstring += rat + ', '
+            if len(rescue.rats) > 0 or len(rescue.rats) > 0:
+                assignedratsstring = assignedratsstring.strip(', ')
+                assignedratsstring = " " + assignedratsstring
 
         if showids:
             id = "@" + (rescue.id if rescue.id is not None else "none")
-        return "[{boardindex}{id}]{client}{cr}{platform}".format(
+        return "[{boardindex}{id}]{client}{cr}{platform}{assignedrats}".format(
             boardindex=rescue.boardindex,
             id=id,
             client=cl,
             cr=cr,
-            platform=platform
+            platform=platform,
+            assignedrats=assignedratsstring
         )
 
     output = []
