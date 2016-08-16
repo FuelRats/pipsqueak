@@ -750,7 +750,7 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
     except:
         print('Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
     bot.say(
-        "Case {rescue.client_name} cleared!"+((" "+str(getRatName(bot, rescue.firstLimpet))) if rescue.firstLimpet else "")+" Do the Paperwork: {url}".format(
+        ("Case {rescue.client_name} cleared!"+((" "+str(getRatName(bot, rescue.firstLimpet)[0])) if rescue.firstLimpet else "")+" Do the Paperwork: {url}").format(
             rescue=rescue, url=url))
     rescue.board.remove(rescue)
     save_case_later(
