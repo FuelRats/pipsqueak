@@ -985,8 +985,8 @@ def cmd_assign(bot, trigger, rescue, *rats):
             ratlist.append(removeTags(rat))
 
     bot.say(
-        "{rescue.client_name}: Please add the following rat(s) to your friends list: {rats}"
-            .format(rescue=rescue, rats=", ".join(ratlist))
+        "{client_name}: Please add the following rat(s) to your friends list: {rats}"
+            .format(rescue=rescue, rats=", ".join(ratlist), client_name = rescue.client_name.replace(' ','_'))
     )
     save_case_later(bot, rescue)
 
@@ -1155,11 +1155,10 @@ def ratmama_parse(bot, trigger):
             newline = newline.replace(crstring, '\u00034\u0002'+crstring+'\u000F')
         if platform == 'XB':
             newline = newline.replace(platform, '\u00033'+platform)
-        newline = newline.replace(cmdr, '\u0002'+cmdr+'\u000F').replace(system, '\u0002'+system+'\u000F').replace(platform, '\u0002'+platform+'\u000F')
         result = append_quotes(bot, cmdr, [newline], create=True)
         if not result.rescue.system:
             result.rescue.system = system
-        newline = newline.replace(system, result.rescue.system)
+        newline = newline.replace(cmdr, '\u0002' + cmdr + '\u000F').replace(system,'\u0002' + result.rescue.system + '\u000F').replace(platform, '\u0002' + platform + '\u000F')
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
         save_case_later(bot, result.rescue)
@@ -1196,7 +1195,7 @@ def cmd_closed(bot, trigger):
             "These are the newest closed rescues: 1: Client "+str(rescue0['client'])+" at "+str(rescue0['system'])+" - id: "+str(rescue0['id'])+" 2: Client "+str(rescue1['client'])+" at "+str(rescue1['system'])+" - id: "+str(rescue1['id']))
         bot.reply("3: Client "+str(rescue2['client'])+" at "+str(rescue2['system'])+" - id: "+str(rescue2['id'])+" 4: Client "+str(rescue3['client'])+" at "+str(rescue3['system'])+" - id: "+str(rescue3['id']))
         bot.reply("5: Client "+str(rescue4['client'])+" at "+str(rescue4['system'])+" - id: "+str(rescue4['id']))
-        
+
     except ratlib.api.http.APIError:
         bot.reply('Got an APIError, sorry. Try again later!')
 
