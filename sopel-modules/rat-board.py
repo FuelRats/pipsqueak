@@ -722,7 +722,7 @@ def cmd_quote(bot, trigger, rescue):
 
 
 @commands('clear', 'close')
-@ratlib.sopel.filter_output
+#@ratlib.sopel.filter_output
 @parameterize('r*','<client name or case number> [Rat that fired first limpet]')
 def cmd_clear(bot, trigger, rescue, *firstlimpet):
     """
