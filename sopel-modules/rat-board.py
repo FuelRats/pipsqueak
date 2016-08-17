@@ -280,8 +280,8 @@ class RescueBoard:
 
         rescue = self.indexes['client'].get(search.lower())
         if not rescue:
-            search = search.replace('_', ' ')
-            rescue = self.indexes['client'].get(search.lower())
+            spacesearch = search.replace('_', ' ')
+            rescue = self.indexes['client'].get(spacesearch.lower())
 
         if rescue or not create:
             return FindRescueResult(rescue, False if rescue else None)
