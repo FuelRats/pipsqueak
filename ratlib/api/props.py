@@ -336,7 +336,10 @@ class InstrumentedSet(EventEmitter, set):
         items = itertools.chain(*iterables)
         if not self.replace:
             copy, items = itertools.tee(items, 2)
-            self.changes.update((item, True) for item in copy)
+            try:
+                self.changes.update((item, True) for item in copy)
+            except:
+                print('I have no clue why this error happens, but TypeError: \'NoneType\' object is not iterable')
         return super().update(items)
 
     def __ior__(self, other):

@@ -722,7 +722,7 @@ def cmd_quote(bot, trigger, rescue):
 
 
 @commands('clear', 'close')
-@ratlib.sopel.filter_output
+#@ratlib.sopel.filter_output
 @parameterize('r*','<client name or case number> [Rat that fired first limpet]')
 def cmd_clear(bot, trigger, rescue, *firstlimpet):
     """
@@ -732,10 +732,19 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
     print('firstlimpet = '+str(firstlimpet))
     if len(firstlimpet)>1:
         raise UsageError()
+
+    url = "{apiurl}/rescues/edit/{rescue.id}".format(
+            rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
+    try:
+        url = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)['shorturl']
+    except:
+        print('Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
+
     if len(firstlimpet) == 1:
         rat = getRatId(bot, firstlimpet[0], rescue.platform)['id']
         if rat != "0":
             rescue.firstLimpet = rat
+            bot.say('Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: '+url, firstlimpet[0])
             if rat not in rescue.rats:
                 rescue.rats.update(rat)
         else:
@@ -745,15 +754,10 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
     rescue.open = False
     rescue.active = False
 
-    url = "{apiurl}/rescues/edit/{rescue.id}".format(
-            rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
-    try:
-        url = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)['shorturl']
-    except:
-        print('Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
+
     bot.say(
         ("Case {rescue.client_name} cleared!"+((" "+str(getRatName(bot, rescue.firstLimpet)[0])) if rescue.firstLimpet else "")+" Do the Paperwork: {url}").format(
-            rescue=rescue, url=url))
+            rescue=rescue, url=url), '#ratchat')
     rescue.board.remove(rescue)
     save_case_later(
         bot, rescue,
