@@ -734,7 +734,7 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
         raise UsageError()
     if len(firstlimpet) == 1:
         rat = getRatId(bot, firstlimpet[0], rescue.platform)['id']
-        if rat != 0:
+        if rat != "0":
             rescue.firstLimpet = rat
             if rat not in rescue.rats:
                 rescue.rats.update(rat)
