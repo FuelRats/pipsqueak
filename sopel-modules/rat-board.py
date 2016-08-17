@@ -733,11 +733,13 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
     if len(firstlimpet)>1:
         raise UsageError()
     if len(firstlimpet) == 1:
-        rat = getRatId(bot, firstlimpet[0])['id']
+        rat = getRatId(bot, firstlimpet[0], rescue.platform)['id']
         if rat != 0:
             rescue.firstLimpet = rat
+            if rat not in rescue.rats:
+                rescue.rats.update(rat)
         else:
-            bot.reply('Couldn\'t find that Rat, sorry! Case not closed, try again!')
+            bot.reply('Couldn\'t find a Rat on '+str(rescue.platform)+' for '+str(firstlimpet[0])+', sorry! Case not closed, try again!')
             return
 
     rescue.open = False
