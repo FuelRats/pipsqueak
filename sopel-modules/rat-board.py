@@ -744,7 +744,7 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
         rat = getRatId(bot, firstlimpet[0], rescue.platform)['id']
         if rat != "0":
             rescue.firstLimpet = rat
-            bot.say(text='Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: '+url,recipient=firstlimpet[0])
+            bot.say(message='Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: '+url,recipient=firstlimpet[0])
             if rat not in rescue.rats:
                 rescue.rats.update(rat)
         else:
