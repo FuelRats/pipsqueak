@@ -336,7 +336,10 @@ class InstrumentedSet(EventEmitter, set):
         items = itertools.chain(*iterables)
         if not self.replace:
             copy, items = itertools.tee(items, 2)
-            self.changes.update((item, True) for item in copy)
+            try:
+                self.changes.update((item, True) for item in copy)
+            except:
+                self.changes.update((copy, True))
         return super().update(items)
 
     def __ior__(self, other):
