@@ -11,9 +11,9 @@ def getRatId(bot, ratname, platform=None):
 
     if ratname in savedratids.keys():
         if platform == None:
-            return savedratids[ratname]
-        if platform == getRatName(bot, ratid=savedratids[ratname]['id'])[1]:
-            return savedratids[ratname]
+            return savedratids.get(ratname)
+        if platform == getRatName(bot, ratid=savedratids.get(ratname)['id'])[1]:
+            return savedratids.get(ratname)
 
 
     try:
@@ -143,12 +143,12 @@ def getRatName(bot, ratid):
     :return: name of the rat
     """
     if str(ratid) in savedratnames.keys():
-        return savedratnames[ratid]['name'], savedratnames[ratid]['platform']
+        return savedratnames.get(ratid)['name'], savedratnames.get(ratid)['platform']
     try:
         result = callapi(bot=bot, method='GET', uri='/rats/' + str(ratid))
     except ratlib.api.http.APIError:
         print('got Api error during api call')
-        return 'unknown'
+        return 'unknown', 'unknown'
     try:
         data = result['data']
         name = data['CMDRname']
