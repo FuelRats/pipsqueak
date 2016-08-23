@@ -746,7 +746,7 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
             rescue.firstLimpet = rat
             bot.say('Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: '+url, firstlimpet[0])
             if rat not in rescue.rats:
-                rescue.rats.update(rat)
+                rescue.rats.update([rat])
         else:
             bot.reply('Couldn\'t find a Rat on '+str(rescue.platform)+' for '+str(firstlimpet[0])+', sorry! Case not closed, try again!')
             return
@@ -758,6 +758,7 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
     bot.say(
         ("Case {rescue.client_name} cleared!"+((" "+str(getRatName(bot, rescue.firstLimpet)[0])) if rescue.firstLimpet else "")+" Do the Paperwork: {url}").format(
             rescue=rescue, url=url), '#ratchat')
+    bot.reply('Case {rescue.client_name} got cleared!'.format(rescue=rescue))
     rescue.board.remove(rescue)
     save_case_later(
         bot, rescue,
@@ -980,7 +981,8 @@ def cmd_assign(bot, trigger, rescue, *rats):
         else:
             i = getRatId(bot, rat, platform=rescue.platform)
         # Check if id returned is an id, decide for unidentified rats or rats.
-        if i['id'] != '0':
+        idstr = str(i['id'])
+        if idstr != '0':
             # print('id was not 0.')
             rescue.rats.update([i['id']])
             ratlist.append(getRatName(bot, i['id'])[0])
@@ -1292,3 +1294,8 @@ def cmd_version(bot, trigger):
             time=format_timestamp(started)
         )
     )
+
+@commands('flush','resetnames','rn','flushnames','fn')
+def cmd_flush(bot, trigger):
+    flushNames()
+    bot.reply('Cached names flushed!')
