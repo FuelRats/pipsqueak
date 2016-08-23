@@ -1294,3 +1294,8 @@ def cmd_version(bot, trigger):
             time=format_timestamp(started)
         )
     )
+
+@commands('flush','resetnames','rn','flushnames','fn')
+def cmd_flush(bot, trigger):
+    flushNames()
+    bot.reply('Cached names flushed!')
