@@ -1299,3 +1299,11 @@ def cmd_version(bot, trigger):
 def cmd_flush(bot, trigger):
     flushNames()
     bot.reply('Cached names flushed!')
+
+@commands('host')
+def cmd_host(bot, trigger):
+    bot.reply('Your Host is: '+str(trigger.host))
+
+@commands('hostmask')
+def cmd_hostmask(bot, trigger):
+    bot.reply('Your hostmask is: '+str(trigger.hostmask))
