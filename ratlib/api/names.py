@@ -340,8 +340,7 @@ def getPrivLevel(trigger):
     if trigger.admin:
         return 8
     else:
-        if str(trigger.host) in privlevels.keys():
-            level = privlevels.get(str(trigger.host))
-            return level
-        else:
-            return -1
+        for key in privlevels.keys():
+            if str(trigger.host).endswith(key):
+                return privlevels.get(key)
+        return -1
