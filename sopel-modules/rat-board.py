@@ -679,6 +679,7 @@ def rule_ratsignal(bot, trigger):
 @commands('quote')
 @ratlib.sopel.filter_output
 @requires_case
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_quote(bot, trigger, rescue):
     """
     Recites all known information for the specified rescue
@@ -724,6 +725,7 @@ def cmd_quote(bot, trigger, rescue):
 @commands('clear', 'close')
 #@ratlib.sopel.filter_output
 @parameterize('r*','<client name or case number> [Rat that fired first limpet]')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_clear(bot, trigger, rescue, *firstlimpet):
     """
     Mark a case as closed.
@@ -769,6 +771,7 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
 @commands('list')
 @ratlib.sopel.filter_output
 @parameterize('w', usage="[-ir@]")
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_list(bot, trigger, params=''):
     """
     List the currently active, open cases.
@@ -847,6 +850,7 @@ def cmd_list(bot, trigger, params=''):
 @commands('grab')
 @ratlib.sopel.filter_output
 @parameterize('w', usage='<client name>')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_grab(bot, trigger, client):
     """
     Grab the last line the client said and add it to the case.
@@ -883,6 +887,7 @@ def cmd_grab(bot, trigger, client):
 @commands('inject')
 @ratlib.sopel.filter_output
 @parameterize('FT', usage='<client or case number> <text to add>')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_inject(bot, trigger, find_result, line):
     """
     Inject a custom line of text into the client's case.
@@ -910,6 +915,7 @@ def cmd_inject(bot, trigger, find_result, line):
 @commands('sub')
 @ratlib.sopel.filter_output
 @parameterize('rwT', usage='<client or case number> <line number> [<replacement text>]')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_sub(bot, trigger, rescue, lineno, line=None):
     """
     Substitute or delete an existing line of text to the client's case.  Does not perform autocorrection/autodetection
@@ -937,6 +943,7 @@ def cmd_sub(bot, trigger, rescue, lineno, line=None):
 @commands('active', 'activate', 'inactive', 'deactivate')
 @ratlib.sopel.filter_output
 @requires_case
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_active(bot, trigger, rescue):
     """
     Toggle a case active/inactive
@@ -953,6 +960,7 @@ def cmd_active(bot, trigger, rescue):
 @commands('epic')
 @ratlib.sopel.filter_output
 @requires_case
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_epic(bot, trigger, rescue):
     """
     Toggle a case epic/not epic
@@ -969,6 +977,7 @@ def cmd_epic(bot, trigger, rescue):
 @commands('assign', 'add', 'go')
 @ratlib.sopel.filter_output
 @parameterize('r+', usage="<client or case number> <rats...>")
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_assign(bot, trigger, rescue, *rats):
     """
     Assign rats to a client's case.
@@ -1002,6 +1011,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
 @commands('ratid', 'id')
 @ratlib.sopel.filter_output
 @parameterize('w', usage='<ratname>')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_ratid(bot, trigger, rat):
     """
     Get a rats' id from the api
@@ -1014,6 +1024,7 @@ def cmd_ratid(bot, trigger, rat):
 @commands('unassign', 'deassign', 'rm', 'remove', 'standdown')
 @ratlib.sopel.filter_output
 @parameterize('r+', usage="<client or case number> <rats...>")
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_unassign(bot, trigger, rescue, *rats):
     """
     Remove rats from a client's case.
@@ -1035,6 +1046,7 @@ def cmd_unassign(bot, trigger, rescue, *rats):
 @commands('codered', 'casered', 'cr')
 @ratlib.sopel.filter_output
 @requires_case
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_codered(bot, trigger, rescue):
     """
     Toggles the code red status of a case.
@@ -1056,6 +1068,7 @@ def cmd_codered(bot, trigger, rescue):
 
 
 @requires_case
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_platform(bot, trigger, rescue, platform=None):
     """
     Sets a case platform to PC or xbox.
@@ -1090,6 +1103,7 @@ def cmd_platform_xb(bot, trigger):
 @ratlib.sopel.filter_output
 @parameterize('rT', usage='<client or case number> <system name>')
 @ratlib.db.with_session
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_system(bot, trigger, rescue, system, db=None):
     """
     Sets a case's system.
@@ -1121,6 +1135,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
 @ratlib.sopel.filter_output
 @parameterize('rT', usage='<client or case number> <commander namename>')
 @ratlib.db.with_session
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_commander(bot, trigger, rescue, commander, db=None):
     """
     Sets a client's in-game commander name.
@@ -1178,6 +1193,7 @@ def ratmama_parse(bot, trigger):
             bot.say('Client '+result.rescue.client+' has reconnected to the IRC!')
 
 @commands('closed','recent')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_closed(bot, trigger):
     '''
     Lists the 5 last closed rescues to give the ability to reopen them
@@ -1212,6 +1228,7 @@ def getDummyRescue():
 
 @commands('reopen')
 @parameterize('+', usage="<id>")
+@require_overseer('Sorry pal, you\'re not an overseer or higher!')
 def cmd_reopen(bot, trigger, id):
     access = ratlib.sopel.best_channel_mode(bot, trigger.nick)
     print('access: '+str(access))
@@ -1229,27 +1246,9 @@ def cmd_reopen(bot, trigger, id):
         print('no access')
         bot.reply('Not authorized.')
 
-# Copied from Sopel repo as it is not available?
-def require_admin(message=None):
-    """Decorate a function to require the triggering user to be a bot admin.
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if not trigger.admin:
-                if message and not callable(message):
-                    bot.say(message)
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
-
 
 @commands('delete')
-@require_admin(message='Sorry pal, you\'re not an admin!')
+@require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
 @parameterize('+', usage='<id>')
 def cmd_delete(bot, trigger, id):
     try:
@@ -1263,6 +1262,7 @@ def cmd_delete(bot, trigger, id):
 
 @commands('title')
 @parameterize('rw*', '<case # or client name> <title to set>')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_title(bot, trigger, rescue, *title):
     comptitle = ""
     for s in title:
@@ -1273,6 +1273,7 @@ def cmd_title(bot, trigger, rescue, *title):
 
 @commands('pwl','pwlink','paperwork','paperworklink')
 @parameterize(params='r',usage='<client name or case number>')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_pwl(bot, trigger, case):
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
         rescue=case, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
@@ -1296,6 +1297,7 @@ def cmd_version(bot, trigger):
     )
 
 @commands('flush','resetnames','rn','flushnames','fn')
+@require_rat('Sorry, you need to be a registered and drilled rat to access this command.')
 def cmd_flush(bot, trigger):
     flushNames()
     bot.reply('Cached names flushed!')

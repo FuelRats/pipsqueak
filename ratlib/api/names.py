@@ -1,6 +1,7 @@
 import ratlib
 import ratlib.api
 import ratlib.api.http
+import functools
 
 urljoin = ratlib.api.http.urljoin
 savedratids = {}
@@ -211,3 +212,135 @@ def flushNames():
     savedratids.clear()
     savedratnames.clear()
     savedclientnames.clear()
+
+def require_netadmin(message=None):
+    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    If they are not, `message` will be said if given."""
+    def actual_decorator(function):
+        @functools.wraps(function)
+        def guarded(bot, trigger, *args, **kwargs):
+            if getPrivLevel(trigger)>=6:
+                if message and not callable(message):
+                    bot.say(message)
+            else:
+                return function(bot, trigger, *args, **kwargs)
+        return guarded
+    # Hack to allow decorator without parens
+    if callable(message):
+        return actual_decorator(message)
+    return actual_decorator
+
+def require_techrat(message=None):
+    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    If they are not, `message` will be said if given."""
+    def actual_decorator(function):
+        @functools.wraps(function)
+        def guarded(bot, trigger, *args, **kwargs):
+            if getPrivLevel(trigger)>=5:
+                if message and not callable(message):
+                    bot.say(message)
+            else:
+                return function(bot, trigger, *args, **kwargs)
+        return guarded
+    # Hack to allow decorator without parens
+    if callable(message):
+        return actual_decorator(message)
+    return actual_decorator
+
+def require_op(message=None):
+    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    If they are not, `message` will be said if given."""
+    def actual_decorator(function):
+        @functools.wraps(function)
+        def guarded(bot, trigger, *args, **kwargs):
+            if getPrivLevel(trigger)>=4:
+                if message and not callable(message):
+                    bot.say(message)
+            else:
+                return function(bot, trigger, *args, **kwargs)
+        return guarded
+    # Hack to allow decorator without parens
+    if callable(message):
+        return actual_decorator(message)
+    return actual_decorator
+
+def require_overseer(message=None):
+    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    If they are not, `message` will be said if given."""
+    def actual_decorator(function):
+        @functools.wraps(function)
+        def guarded(bot, trigger, *args, **kwargs):
+            if getPrivLevel(trigger)>=3:
+                if message and not callable(message):
+                    bot.say(message)
+            else:
+                return function(bot, trigger, *args, **kwargs)
+        return guarded
+    # Hack to allow decorator without parens
+    if callable(message):
+        return actual_decorator(message)
+    return actual_decorator
+
+def require_dispatch(message=None):
+    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    If they are not, `message` will be said if given."""
+    def actual_decorator(function):
+        @functools.wraps(function)
+        def guarded(bot, trigger, *args, **kwargs):
+            if getPrivLevel(trigger)>=2:
+                if message and not callable(message):
+                    bot.say(message)
+            else:
+                return function(bot, trigger, *args, **kwargs)
+        return guarded
+    # Hack to allow decorator without parens
+    if callable(message):
+        return actual_decorator(message)
+    return actual_decorator
+
+def require_rat(message=None):
+    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    If they are not, `message` will be said if given."""
+    def actual_decorator(function):
+        @functools.wraps(function)
+        def guarded(bot, trigger, *args, **kwargs):
+            if getPrivLevel(trigger)>=1:
+                if message and not callable(message):
+                    bot.say(message)
+            else:
+                return function(bot, trigger, *args, **kwargs)
+        return guarded
+    # Hack to allow decorator without parens
+    if callable(message):
+        return actual_decorator(message)
+    return actual_decorator
+
+def require_recruit(message=None):
+    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    If they are not, `message` will be said if given."""
+    def actual_decorator(function):
+        @functools.wraps(function)
+        def guarded(bot, trigger, *args, **kwargs):
+            if getPrivLevel(trigger)>=0:
+                if message and not callable(message):
+                    bot.say(message)
+            else:
+                return function(bot, trigger, *args, **kwargs)
+        return guarded
+    # Hack to allow decorator without parens
+    if callable(message):
+        return actual_decorator(message)
+    return actual_decorator
+
+privlevels = {'recruit.fuelrats.com':0, 'rat.fuelrats.com':1, 'dispatch.fuelrats.com':2, 'overseer.fuelrats.com':3, 'op.fuelrats.com':4, 'techrat.fuelrats.com':5, 'netadmin.fuelrats.com':6}
+
+def getPrivLevel(trigger):
+    if trigger.owner:
+        return 9
+    if trigger.admin:
+        return 8
+    else:
+        if str(trigger.host) in privlevels.keys():
+            return privlevels.get(str(trigger.host))
+        else:
+            return -1
