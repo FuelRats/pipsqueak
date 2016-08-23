@@ -335,12 +335,18 @@ def require_recruit(message=None):
 privlevels = {'recruit.fuelrats.com':0, 'rat.fuelrats.com':1, 'dispatch.fuelrats.com':2, 'overseer.fuelrats.com':3, 'op.fuelrats.com':4, 'techrat.fuelrats.com':5, 'netadmin.fuelrats.com':6}
 
 def getPrivLevel(trigger):
+    print('getting priv level for '+str(trigger.nick)+' - host is: '+str(trigger.host))
     if trigger.owner:
+        print('is owner. Returning 9.')
         return 9
     if trigger.admin:
+        print('is admin. returning 8.')
         return 8
     else:
         if str(trigger.host) in privlevels.keys():
-            return privlevels.get(str(trigger.host))
+            level = privlevels.get(str(trigger.host))
+            print('returning '+str(level))
+            return level
         else:
+            print('not in keys. Returning -1.')
             return -1
