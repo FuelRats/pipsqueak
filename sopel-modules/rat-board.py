@@ -981,7 +981,8 @@ def cmd_assign(bot, trigger, rescue, *rats):
         else:
             i = getRatId(bot, rat, platform=rescue.platform)
         # Check if id returned is an id, decide for unidentified rats or rats.
-        if i['id'] != '0':
+        idstr = str(i['id'])
+        if idstr != '0':
             # print('id was not 0.')
             rescue.rats.update([i['id']])
             ratlist.append(getRatName(bot, i['id'])[0])
@@ -1293,3 +1294,8 @@ def cmd_version(bot, trigger):
             time=format_timestamp(started)
         )
     )
+
+@commands('flush','resetnames','rn','flushnames','fn')
+def cmd_flush(bot, trigger):
+    flushNames()
+    bot.reply('Cached names flushed!')
