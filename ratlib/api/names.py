@@ -219,7 +219,7 @@ def require_netadmin(message=None):
     def actual_decorator(function):
         @functools.wraps(function)
         def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)>=6:
+            if getPrivLevel(trigger)<6:
                 if message and not callable(message):
                     bot.say(message)
             else:
@@ -236,7 +236,7 @@ def require_techrat(message=None):
     def actual_decorator(function):
         @functools.wraps(function)
         def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)>=5:
+            if getPrivLevel(trigger)<5:
                 if message and not callable(message):
                     bot.say(message)
             else:
@@ -253,7 +253,7 @@ def require_op(message=None):
     def actual_decorator(function):
         @functools.wraps(function)
         def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)>=4:
+            if getPrivLevel(trigger)<4:
                 if message and not callable(message):
                     bot.say(message)
             else:
@@ -270,7 +270,7 @@ def require_overseer(message=None):
     def actual_decorator(function):
         @functools.wraps(function)
         def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)>=3:
+            if getPrivLevel(trigger)<3:
                 if message and not callable(message):
                     bot.say(message)
             else:
@@ -287,7 +287,7 @@ def require_dispatch(message=None):
     def actual_decorator(function):
         @functools.wraps(function)
         def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)>=2:
+            if getPrivLevel(trigger)<2:
                 if message and not callable(message):
                     bot.say(message)
             else:
@@ -304,7 +304,7 @@ def require_rat(message=None):
     def actual_decorator(function):
         @functools.wraps(function)
         def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)>=1:
+            if getPrivLevel(trigger)<1:
                 if message and not callable(message):
                     bot.say(message)
             else:
@@ -321,7 +321,7 @@ def require_recruit(message=None):
     def actual_decorator(function):
         @functools.wraps(function)
         def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)>=0:
+            if getPrivLevel(trigger)<0:
                 if message and not callable(message):
                     bot.say(message)
             else:
