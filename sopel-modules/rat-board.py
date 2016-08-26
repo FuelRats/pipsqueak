@@ -1175,9 +1175,9 @@ def ratmama_parse(bot, trigger):
         cr = False
         if crstring != "OK":
             cr = True
-            newline = newline.replace(crstring, '\u00034\u0002'+crstring+'\u000F')
+            newline = newline.replace(crstring, color('\u0002'+crstring+'\u000F', colors.RED))
         if platform == 'XB':
-            newline = newline.replace(platform, '\u00033'+platform)
+            newline = newline.replace(platform, color(platform, colors.GREEN))
         result = append_quotes(bot, cmdr, [newline], create=True)
         if not result.rescue.system:
             result.rescue.system = system
