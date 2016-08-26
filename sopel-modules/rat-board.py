@@ -809,7 +809,7 @@ def cmd_list(bot, trigger, params=''):
         if platform == 'unknown':
             platform = ''
         if platform == 'xb':
-            platform = ' \u00033XB\u0003'
+            platform = color(' XB', colors.GREEN)
         if platform == 'pc':
             platform = ' PC'
         if showassigned:
