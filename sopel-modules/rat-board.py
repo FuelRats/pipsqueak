@@ -127,6 +127,8 @@ def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call, statuses=None
 
 
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
+
+
 class RescueBoard:
     """
     Manages all attached cases, including API calls.
@@ -406,7 +408,6 @@ def refresh_cases(bot, rescue=None):
     else:
         uri += "?open=true"
 
-
     # Exceptions here are the responsibility of the caller.
     result = callapi(bot, 'GET', uri)
     # print('refreshing returned '+str(result))
@@ -494,7 +495,7 @@ def save_case_later(bot, rescue, message=None, timeout=10):
     try:
         future.result(timeout=timeout)
     except concurrent.futures.TimeoutError as ex:
-        print('Timeout Error: '+str(ex))
+        print('Timeout Error: ' + str(ex))
         if message is None:
             message = (
                 "API is still not done updating case for {{rescue.client_name}}; continuing in background."
@@ -623,8 +624,6 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
     return rv
 
 
-
-
 from ratlib.sopel import parameterize
 
 
@@ -693,7 +692,7 @@ def cmd_quote(bot, trigger, rescue):
         tags.append(bold(color('CR', colors.RED)))
 
     fmt = (
-            ("Rescue Operation {title}: " if rescue.title else "") +
+              ("Rescue Operation {title}: " if rescue.title else "") +
               "{client}'s case #{index} at {system} ({tags}) opened {opened} ({opened_ago}),"
               " updated {updated} ({updated_ago})"
           ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
@@ -709,7 +708,6 @@ def cmd_quote(bot, trigger, rescue):
         title=rescue.title
     ))
 
-
     if rescue.rats:
         ratnames = []
         for rat in rescue.rats:
@@ -723,20 +721,20 @@ def cmd_quote(bot, trigger, rescue):
 
 
 @commands('clear', 'close')
-#@ratlib.sopel.filter_output
-@parameterize('r*','<client name or case number> [Rat that fired first limpet]')
+# @ratlib.sopel.filter_output
+@parameterize('r*', '<client name or case number> [Rat that fired first limpet]')
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_clear(bot, trigger, rescue, *firstlimpet):
     """
     Mark a case as closed.
     Required parameters: client name or case number and optionally a rat who fired the first limpet.
     """
-    print('firstlimpet = '+str(firstlimpet))
-    if len(firstlimpet)>1:
+    print('firstlimpet = ' + str(firstlimpet))
+    if len(firstlimpet) > 1:
         raise UsageError()
 
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
-            rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
+        rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     try:
         url = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)['shorturl']
     except:
@@ -746,19 +744,22 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
         rat = getRatId(bot, firstlimpet[0], rescue.platform)['id']
         if rat != "0":
             rescue.firstLimpet = rat
-            bot.say('Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: '+url, firstlimpet[0])
+            bot.say(
+                'Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: ' + url,
+                firstlimpet[0])
             if rat not in rescue.rats:
                 rescue.rats.update([rat])
         else:
-            bot.reply('Couldn\'t find a Rat on '+str(rescue.platform)+' for '+str(firstlimpet[0])+', sorry! Case not closed, try again!')
+            bot.reply('Couldn\'t find a Rat on ' + str(rescue.platform) + ' for ' + str(
+                firstlimpet[0]) + ', sorry! Case not closed, try again!')
             return
 
     rescue.open = False
     rescue.active = False
 
-
     bot.say(
-        ("Case {rescue.client_name} cleared!"+((" "+str(getRatName(bot, rescue.firstLimpet)[0])) if rescue.firstLimpet else "")+" Do the Paperwork: {url}").format(
+        ("Case {rescue.client_name} cleared!" + ((" " + str(getRatName(bot, rescue.firstLimpet)[
+                                                                0])) if rescue.firstLimpet else "") + " Do the Paperwork: {url}").format(
             rescue=rescue, url=url), '#ratchat')
     bot.reply('Case {rescue.client_name} got cleared!'.format(rescue=rescue))
     rescue.board.remove(rescue)
@@ -770,7 +771,7 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
 
 @commands('list')
 @ratlib.sopel.filter_output
-@parameterize('w', usage="[-ir@]")
+@parameterize('w', usage="[-iru@]")
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_list(bot, trigger, params=''):
     """
@@ -778,8 +779,10 @@ def cmd_list(bot, trigger, params=''):
 
     Supported parameters:
         -i: Also show inactive (but still open) cases.
-        -@: Show full case IDs.  (LONG)
         -r: Show assigned rats
+        -u: Show only cases with no assigned rats
+        -@: Show full case IDs.  (LONG)
+
     """
     if not params or params[0] != '-':
         params = '-'
@@ -787,6 +790,7 @@ def cmd_list(bot, trigger, params=''):
     showids = '@' in params and bot.config.ratbot.apiurl is not None
     show_inactive = 'i' in params
     showassigned = 'r' in params
+    unassigned = 'u' in params
     attr = 'client_name'
 
     board = bot.memory['ratbot']['board']
@@ -803,13 +807,13 @@ def cmd_list(bot, trigger, params=''):
     def format_rescue(rescue):
         cr = color("(CR)", colors.RED) if rescue.codeRed else ''
         id = ""
-        cl = (('Operation '+rescue.title) if rescue.title else (getattr(rescue, attr)))
+        cl = (('Operation ' + rescue.title) if rescue.title else (getattr(rescue, attr)))
         platform = rescue.platform
-        assignedratsstring=''
+        assignedratsstring = ''
         if platform == 'unknown':
             platform = ''
         if platform == 'xb':
-            platform = ' \u00033XB\u0003'
+            platform = color(' XB', colors.GREEN)
         if platform == 'pc':
             platform = ' PC'
         if showassigned:
@@ -842,7 +846,17 @@ def cmd_list(bot, trigger, params=''):
         s = 's' if num != 1 else ''
         t = "{num} {name} case{s}".format(num=num, name=name, s=s)
         if expand:
-            t += ": " + ", ".join(format_rescue(rescue) for rescue in cases)
+            # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the rescues have more than 0 assigned rats
+            # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was implemented.
+            templist = (format_rescue(rescue) if (
+            (not unassigned) or (len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)) else 'IGNOREME' for
+                        rescue in cases)
+            formatlist = []
+            for formatted in templist:
+                if formatted != 'IGNOREME':
+                    formatlist.append(formatted)
+            if len(formatlist) > 0:
+                t += ": " + ", ".join(formatlist)
         output.append(t)
     bot.say("; ".join(output))
 
@@ -997,13 +1011,13 @@ def cmd_assign(bot, trigger, rescue, *rats):
             ratlist.append(getRatName(bot, i['id'])[0])
         else:
             # print('id was 0')
-            bot.reply('Be advised: '+rat+' does not have a registered Rat for the case\'s platform!')
+            bot.reply('Be advised: ' + rat + ' does not have a registered Rat for the case\'s platform!')
             rescue.unidentifiedRats.update([rat])
             ratlist.append(removeTags(rat))
 
     bot.say(
         "{client_name}: Please add the following rat(s) to your friends list: {rats}"
-            .format(rescue=rescue, rats=", ".join(ratlist), client_name = rescue.client_name.replace(' ','_'))
+            .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.client_name.replace(' ', '_'))
     )
     save_case_later(bot, rescue)
 
@@ -1156,6 +1170,7 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
         )
     )
 
+
 @rule('Incoming Client:.* - O2:.*')
 def ratmama_parse(bot, trigger):
     '''
@@ -1164,7 +1179,7 @@ def ratmama_parse(bot, trigger):
     '''
     print('triggered ratmama_parse')
     line = trigger.group()
-    print('line: '+line)
+    print('line: ' + line)
     if Identifier(trigger.nick) == 'Ratmama[BOT]':
         import re
         newline = line.replace("Incoming Client:", "RATSIGNAL - CMDR")
@@ -1175,24 +1190,28 @@ def ratmama_parse(bot, trigger):
         cr = False
         if crstring != "OK":
             cr = True
-            newline = newline.replace(crstring, '\u00034\u0002'+crstring+'\u000F')
+            newline = newline.replace(crstring, color('\u0002' + crstring + '\u000F', colors.RED))
         if platform == 'XB':
-            newline = newline.replace(platform, '\u00033'+platform)
+            newline = newline.replace(platform, color(platform, colors.GREEN))
         result = append_quotes(bot, cmdr, [newline], create=True)
         if not result.rescue.system:
             result.rescue.system = system
-        newline = newline.replace(cmdr, '\u0002' + cmdr + '\u000F').replace(system,'\u0002' + result.rescue.system + '\u000F').replace(platform, '\u0002' + platform + '\u000F')
+        newline = newline.replace(cmdr, '\u0002' + cmdr + '\u000F').replace(system,
+                                                                            '\u0002' + result.rescue.system + '\u000F').replace(
+            platform, '\u0002' + platform + '\u000F')
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
         save_case_later(bot, result.rescue)
         if result.created:
-            bot.say(newline + ' (Case #'+str(result.rescue.boardindex)+')')
+            bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
             if cr:
-                bot.say(result.rescue.client + " Please note down your location then Save and Exit to Main Menu \u0002immediately!\u0002")
+                bot.say(
+                    result.rescue.client + " Please note down your location then Save and Exit to Main Menu \u0002immediately!\u0002")
         else:
-            bot.say('Client '+result.rescue.client+' has reconnected to the IRC!')
+            bot.say('Client ' + result.rescue.client + ' has reconnected to the IRC!')
 
-@commands('closed','recent')
+
+@commands('closed', 'recent')
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_closed(bot, trigger):
     '''
@@ -1216,32 +1235,39 @@ def cmd_closed(bot, trigger):
         except:
             bot.reply('Couldn\'t grab 5 cases. The output might look weird.')
         bot.reply(
-            "These are the newest closed rescues: 1: Client "+str(rescue0['client'])+" at "+str(rescue0['system'])+" - id: "+str(rescue0['id'])+" 2: Client "+str(rescue1['client'])+" at "+str(rescue1['system'])+" - id: "+str(rescue1['id']))
-        bot.reply("3: Client "+str(rescue2['client'])+" at "+str(rescue2['system'])+" - id: "+str(rescue2['id'])+" 4: Client "+str(rescue3['client'])+" at "+str(rescue3['system'])+" - id: "+str(rescue3['id']))
-        bot.reply("5: Client "+str(rescue4['client'])+" at "+str(rescue4['system'])+" - id: "+str(rescue4['id']))
+            "These are the newest closed rescues: 1: Client " + str(rescue0['client']) + " at " + str(
+                rescue0['system']) + " - id: " + str(rescue0['id']) + " 2: Client " + str(
+                rescue1['client']) + " at " + str(rescue1['system']) + " - id: " + str(rescue1['id']))
+        bot.reply("3: Client " + str(rescue2['client']) + " at " + str(rescue2['system']) + " - id: " + str(
+            rescue2['id']) + " 4: Client " + str(rescue3['client']) + " at " + str(rescue3['system']) + " - id: " + str(
+            rescue3['id']))
+        bot.reply(
+            "5: Client " + str(rescue4['client']) + " at " + str(rescue4['system']) + " - id: " + str(rescue4['id']))
 
     except ratlib.api.http.APIError:
         bot.reply('Got an APIError, sorry. Try again later!')
 
+
 def getDummyRescue():
-    return {'client':'dummy','system':'dummy','id':'dummy'}
+    return {'client': 'dummy', 'system': 'dummy', 'id': 'dummy'}
+
 
 @commands('reopen')
 @parameterize('+', usage="<id>")
 @require_overseer('Sorry pal, you\'re not an overseer or higher!')
 def cmd_reopen(bot, trigger, id):
     access = ratlib.sopel.best_channel_mode(bot, trigger.nick)
-    print('access: '+str(access))
+    print('access: ' + str(access))
     if access:
-        print('got access - id: '+str(id))
-        bot.reply('got access - id: '+str(id))
+        print('got access - id: ' + str(id))
+        bot.reply('got access - id: ' + str(id))
         try:
-            result = callapi(bot, 'PUT', data={'open':True}, uri='/rescues/'+str(id))
+            result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id))
             refresh_cases(bot)
             bot.reply('Reopened case. Cases refreshed, care for your case numbers!')
         except ratlib.api.http.APIError:
             # print('apierror.')
-            bot.reply('id '+str(id)+' does not exist or other API Error.')
+            bot.reply('id ' + str(id) + ' does not exist or other API Error.')
     else:
         print('no access')
         bot.reply('Not authorized.')
@@ -1252,13 +1278,14 @@ def cmd_reopen(bot, trigger, id):
 @parameterize('+', usage='<id>')
 def cmd_delete(bot, trigger, id):
     try:
-     result = callapi(bot, 'DELETE', uri='/rescues/'+str(id))
-     # print(result)
+        result = callapi(bot, 'DELETE', uri='/rescues/' + str(id))
+        # print(result)
     except ratlib.api.http.APIError as ex:
-        bot.reply('case with id '+str(id)+' does not exist or other APIError.')
+        bot.reply('case with id ' + str(id) + ' does not exist or other APIError.')
         print(ex)
         return
-    bot.reply('deleted case with id '+str(id)+' - THIS IS NOT REVERTABLE!')
+    bot.reply('deleted case with id ' + str(id) + ' - THIS IS NOT REVERTABLE!')
+
 
 @commands('title')
 @parameterize('rw*', '<case # or client name> <title to set>')
@@ -1267,12 +1294,13 @@ def cmd_title(bot, trigger, rescue, *title):
     comptitle = ""
     for s in title:
         comptitle = comptitle + s
-    rescue.title=comptitle
-    bot.reply('Set '+rescue.client+'\'s case Title to "'+comptitle+'"')
+    rescue.title = comptitle
+    bot.reply('Set ' + rescue.client + '\'s case Title to "' + comptitle + '"')
     save_case_later(bot, rescue)
 
-@commands('pwl','pwlink','paperwork','paperworklink')
-@parameterize(params='r',usage='<client name or case number>')
+
+@commands('pwl', 'pwlink', 'paperwork', 'paperworklink')
+@parameterize(params='r', usage='<client name or case number>')
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_pwl(bot, trigger, case):
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
@@ -1280,7 +1308,8 @@ def cmd_pwl(bot, trigger, case):
     shortened = url
     if bot.memory['ratbot']['shortener']:
         shortened = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)['shorturl']
-    bot.reply('Here you go: '+str(shortened))
+    bot.reply('Here you go: ' + str(shortened))
+
 
 # This should go elsewhere, but here for now.
 @commands('version', 'uptime')
@@ -1296,16 +1325,19 @@ def cmd_version(bot, trigger):
         )
     )
 
-@commands('flush','resetnames','rn','flushnames','fn')
+
+@commands('flush', 'resetnames', 'rn', 'flushnames', 'fn')
 @require_rat('Sorry, you need to be a registered and drilled rat to access this command.')
 def cmd_flush(bot, trigger):
     flushNames()
     bot.reply('Cached names flushed!')
 
+
 @commands('host')
 def cmd_host(bot, trigger):
-    bot.reply('Your Host is: '+str(trigger.host))
+    bot.reply('Your Host is: ' + str(trigger.host))
+
 
 @commands('hostmask')
 def cmd_hostmask(bot, trigger):
-    bot.reply('Your hostmask is: '+str(trigger.hostmask))
+    bot.reply('Your hostmask is: ' + str(trigger.hostmask))
