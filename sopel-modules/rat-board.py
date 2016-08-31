@@ -179,6 +179,7 @@ class RescueBoard:
                     continue
                 if key in self.indexes[index]:
                     warnings.warn("Key {key!r} is already in index {index!r}".format(key=key, index=index))
+                    bot.say('WARNING! A CASE HAS BEEN ASSIGNED AN INDEX THAT WAS ALREADY USED! REPORT THIS TO MARENTHYU AND ASK AN OVERSEER (OR HIGHER) TO DO !fbr - THANK YOU! (affected case #: '+str(key)+')')
                     continue
                 self.indexes[index][key] = rescue
 
@@ -390,7 +391,7 @@ class Rescue(TrackedBase):
         return when
 
 
-def refresh_cases(bot, rescue=None):
+def refresh_cases(bot, rescue=None, force=False):
     """
     Grab all open cases from the API so we can work with them.
     :param bot: Sopel bot
@@ -411,7 +412,11 @@ def refresh_cases(bot, rescue=None):
     # Exceptions here are the responsibility of the caller.
     result = callapi(bot, 'GET', uri)
     # print('refreshing returned '+str(result))
+    if force:
+        bot.memory['ratbot']['board'] = RescueBoard()
     board = bot.memory['ratbot']['board']
+
+
 
     if rescue:
         if not result['data']:
@@ -1263,7 +1268,7 @@ def cmd_reopen(bot, trigger, id):
         bot.reply('got access - id: ' + str(id))
         try:
             result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id))
-            refresh_cases(bot)
+            refresh_cases(bot, force=True)
             bot.reply('Reopened case. Cases refreshed, care for your case numbers!')
         except ratlib.api.http.APIError:
             # print('apierror.')
@@ -1337,7 +1342,9 @@ def cmd_flush(bot, trigger):
 def cmd_host(bot, trigger):
     bot.reply('Your Host is: ' + str(trigger.host))
 
-
-@commands('hostmask')
-def cmd_hostmask(bot, trigger):
-    bot.reply('Your hostmask is: ' + str(trigger.hostmask))
+@commands('refreshboard','resetboard', 'forceresetboard', 'forcerefreshboard', 'frb','fbr','boardrefresh')
+@require_overseer('Sorry, but you need to be a registered Overseer or higher to access this command.')
+def cmd_forceRefreshBoard(bot, trigger):
+    bot.reply('Force refreshing the Board. This removes all cases and grabs them from the API. DISPATCH, be advised: Case numbers may be changed!')
+    refresh_cases(bot, force=True)
+    bot.reply('Force refresh done.')
