@@ -1358,4 +1358,7 @@ def cmd_forceRefreshBoard(bot, trigger):
     bot.reply('Force refresh done.')
 
 def getFact(bot, factname, lang='en'):
-    return ratlib.db.Fact.find(db=bot.memory['ratbot']['db'](), name=factname, lang=lang).message
+    try:
+        return ratlib.db.Fact.find(db=bot.memory['ratbot']['db'](), name=factname, lang=lang).message
+    except AttributeError:
+        return ratlib.db.Fact.find(db=bot.memory['ratbot']['db'](), name=factname, lang='en').message
