@@ -319,6 +319,7 @@ class Rescue(TrackedBase):
     successful = TypeCoercedProperty(default=True, coerce=bool)
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
+    data = TrackedProperty(default={'langID':None})
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -1192,6 +1193,11 @@ def ratmama_parse(bot, trigger):
         system = re.search('(?<=System: ).*?(?= - )', newline).group()
         platform = re.search('(?<=Platform: ).*?(?= - )', newline).group()
         crstring = re.search('(?<=O2: ).*?(?= -)', newline).group()
+        langID = re.search('Language: .* \((.*)\)', newline).group(1)
+        try:
+            langID = langID[0:langID.index('-')]
+        except ValueError:
+            pass
         cr = False
         if crstring != "OK":
             cr = True
@@ -1206,12 +1212,14 @@ def ratmama_parse(bot, trigger):
             platform, '\u0002' + platform + '\u000F')
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
+        result.rescue.data.update({'langID':langID})
         save_case_later(bot, result.rescue)
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
             if cr:
+                prepcrstring = ratlib.db.Fact.find(db=bot.memory['ratbot']['db'](), name='prepcr',lang=langID)
                 bot.say(
-                    result.rescue.client + " Please note down your location then Save and Exit to Main Menu \u0002immediately!\u0002")
+                    result.rescue.client + " "+ prepcrstring)
         else:
             bot.say('Client ' + result.rescue.client + ' has reconnected to the IRC!')
 
