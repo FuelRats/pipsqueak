@@ -764,7 +764,7 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
 
     bot.say(
         ("Case {rescue.client_name} cleared!" + ((" " + str(getRatName(bot, rescue.firstLimpet)[
-                                                                0]) + ",") if rescue.firstLimpet else "") + " Do the Paperwork: {url}").format(
+                                                                0]) + ", d") if rescue.firstLimpet else " D") + "o the Paperwork: {url}").format(
             rescue=rescue, url=url), '#ratchat')
     bot.reply('Case {rescue.client_name} got cleared!'.format(rescue=rescue))
     rescue.board.remove(rescue)
