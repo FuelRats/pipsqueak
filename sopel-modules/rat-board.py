@@ -1198,13 +1198,13 @@ def ratmama_parse(bot, trigger):
             langID = langID[0:langID.index('-')]
         except ValueError:
             pass
+        result = append_quotes(bot, cmdr, [newline], create=True)
         cr = False
         if crstring != "OK":
             cr = True
             newline = newline.replace(crstring, color('\u0002' + crstring + '\u000F', colors.RED))
         if platform == 'XB':
             newline = newline.replace(platform, color(platform, colors.GREEN))
-        result = append_quotes(bot, cmdr, [newline], create=True)
         if not result.rescue.system:
             result.rescue.system = system
         newline = newline.replace(cmdr, '\u0002' + cmdr + '\u000F').replace(system,
