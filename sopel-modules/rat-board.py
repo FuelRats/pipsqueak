@@ -1188,7 +1188,7 @@ def ratmama_parse(bot, trigger):
     print('line: ' + line)
     if Identifier(trigger.nick) == 'Ratmama[BOT]':
         import re
-        newline = line.replace("Incoming Client:", "RATSIGNAL - CMDR")
+        newline = line.replace("Incoming Client:", bot.memory["ratboard"]["signal"].upper()+" - CMDR")
         cmdr = re.search('(?<=CMDR ).*?(?= - )', newline).group()
         system = re.search('(?<=System: ).*?(?= - )', newline).group()
         platform = re.search('(?<=Platform: ).*?(?= - )', newline).group()
