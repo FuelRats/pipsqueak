@@ -1217,7 +1217,7 @@ def ratmama_parse(bot, trigger):
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
             if cr:
-                prepcrstring = ratlib.db.Fact.find(db=bot.memory['ratbot']['db'](), name='prepcr',lang=langID)
+                prepcrstring = ratlib.db.Fact.find(db=bot.memory['ratbot']['db'](), name='prepcr',lang=langID).message
                 bot.say(
                     result.rescue.client + " "+ prepcrstring)
         else:
