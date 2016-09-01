@@ -1217,7 +1217,7 @@ def ratmama_parse(bot, trigger):
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
             if cr:
-                prepcrstring = ratlib.db.Fact.find(db=bot.memory['ratbot']['db'](), name='prepcr',lang=langID).message
+                prepcrstring = getFact(bot, factname='prepcr', lang=langID)
                 bot.say(
                     result.rescue.client + " "+ prepcrstring)
         else:
@@ -1356,3 +1356,6 @@ def cmd_forceRefreshBoard(bot, trigger):
     bot.reply('Force refreshing the Board. This removes all cases and grabs them from the API. DISPATCH, be advised: Case numbers may be changed!')
     refresh_cases(bot, force=True)
     bot.reply('Force refresh done.')
+
+def getFact(bot, factname, lang='en'):
+    return ratlib.db.Fact.find(db=bot.memory['ratbot']['db'](), name=factname, lang=lang).message
