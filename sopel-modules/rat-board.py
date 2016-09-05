@@ -319,7 +319,7 @@ class Rescue(TrackedBase):
     successful = TypeCoercedProperty(default=True, coerce=bool)
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
-    data = TrackedProperty(default={'langID':'unknown'})
+    data = TypeCoercedProperty(default={'langID':'unknown','markedForDeletion':False}, coerce=dict)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -1188,7 +1188,7 @@ def ratmama_parse(bot, trigger):
     print('line: ' + line)
     if Identifier(trigger.nick) == 'Ratmama[BOT]':
         import re
-        newline = line.replace("Incoming Client:", bot.memory["ratboard"]["signal"].upper()+" - CMDR")
+        newline = line.replace("Incoming Client:", bot.config.ratboard.signal.upper()+" - CMDR")
         cmdr = re.search('(?<=CMDR ).*?(?= - )', newline).group()
         system = re.search('(?<=System: ).*?(?= - )', newline).group()
         platform = re.search('(?<=Platform: ).*?(?= - )', newline).group()
@@ -1362,3 +1362,14 @@ def getFact(bot, factname, lang='en'):
         return ratlib.db.Fact.find(db=bot.memory['ratbot']['db'](), name=factname, lang=lang).message
     except AttributeError:
         return ratlib.db.Fact.find(db=bot.memory['ratbot']['db'](), name=factname, lang='en').message
+
+
+def rescueMarkedForDeletion(rescue):
+    return rescue.data.get('markedForDeletion').get('marked')
+
+def getDeletionReason(rescue):
+    return rescue.data.get('markedForDeletion').get('reason')
+
+def setRescueMarkedForDeletion(rescue, marked, reason):
+    rescue.data.update({'markedForDeletion':{'marked':marked,'reason':str(reason)}})
+
