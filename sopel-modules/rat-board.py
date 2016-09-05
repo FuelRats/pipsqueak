@@ -1304,7 +1304,7 @@ def cmd_reopen(bot, trigger, id):
 @require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
 @parameterize('+', usage='<id/list>')
 def cmd_delete(bot, trigger, id):
-    if id is not 'list':
+    if 'list'!=id:
         try:
            result = callapi(bot, 'DELETE', uri='/rescues/' + str(id))
             # print(result)

@@ -191,7 +191,7 @@ def handleWSMessage(payload, senderinstance):
     def filterRat(bot, data):
         ratId = data.get('RatID') or data.get('ratID') or data.get('RatId') or data.get('ratId') or data.get('ratid')
 
-        return getRatName(bot=bot, ratid=ratId)
+        return getRatName(bot=bot, ratid=ratId)[0]
 
     def onduty(data):
         # print('in function onduty!!!!!!!!')
@@ -271,13 +271,13 @@ def handleWSMessage(payload, senderinstance):
                 ind = len(lyintstr)
         lyintstr = str(int(lyintstr[0:ind]))
         if data['SourceCertainty'] == 'Fuelum':
-            bot.say(rat + ': '+str(data['CallJumps'])+'j from Fuelum. [Case '+ client+', Unknown Rat Location, RatTracker]')
+            bot.say(str(rat) + ': '+str(data['CallJumps'])+'j from Fuelum. [Case '+ str(client)+', Unknown Rat Location, RatTracker]')
             return
         if data['SourceCertainty'] != 'Exact' or data['DestinationCertainty'] != 'Exact':
-            bot.say(rat + ': ' + str(data[
-                                         'CallJumps']) + 'j - Estimate, no exact System. ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
+            bot.say(str(rat) + ': ' + str(data[
+                                         'CallJumps']) + 'j - Estimate, no exact System. ' + str(lyintstr) + 'LY [Case ' + str(client) + ', RatTracker]')
         else:
-            bot.say(rat + ': ' + str(data['CallJumps']) + 'j, ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
+            bot.say(str(rat) + ': ' + str(data['CallJumps']) + 'j, ' + str(lyintstr) + 'LY [Case ' + str(client) + ', RatTracker]')
 
     def clientupdate(data):
         client = filterClient(bot, data)
