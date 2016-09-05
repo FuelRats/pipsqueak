@@ -153,6 +153,7 @@ class MyClientProtocol(WebSocketClientProtocol):
         MyClientProtocol.bot.say('Successfully openend connection to Websocket!')
         # print('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
         self.sendMessage(str('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}').encode('utf-8'))
+        print('Subscribing to RT with message: '+str(json.dumps('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')))
         self.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
     def onMessage(self, payload, isBinary):
