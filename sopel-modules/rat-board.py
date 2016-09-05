@@ -822,38 +822,7 @@ def cmd_list(bot, trigger, params=''):
         inactives = list(filter(lambda x: not x.active, board.rescues))
         inactives.sort(key=_keyfn)
 
-    def format_rescue(rescue):
-        cr = color("(CR)", colors.RED) if rescue.codeRed else ''
-        id = ""
-        cl = (('Operation ' + rescue.title) if rescue.title else (getattr(rescue, attr)))
-        platform = rescue.platform
-        assignedratsstring = ''
-        if platform == 'unknown':
-            platform = ''
-        if platform == 'xb':
-            platform = color(' XB', colors.GREEN)
-        if platform == 'pc':
-            platform = ' PC'
-        if showassigned:
-            assignedratsstring = ' Assigned Rats: '
-            for rat in rescue.rats:
-                assignedratsstring += getRatName(bot, rat)[0] + ', '
-            for rat in rescue.unidentifiedRats:
-                assignedratsstring += rat + ', '
-            if len(rescue.rats) > 0 or len(rescue.rats) > 0:
-                assignedratsstring = assignedratsstring.strip(', ')
-                assignedratsstring = " " + assignedratsstring
 
-        if showids:
-            id = "@" + (rescue.id if rescue.id is not None else "none")
-        return "[{boardindex}{id}]{client}{cr}{platform}{assignedrats}".format(
-            boardindex=rescue.boardindex,
-            id=id,
-            client=cl,
-            cr=cr,
-            platform=platform,
-            assignedrats=assignedratsstring
-        )
 
     output = []
     for name, cases, expand in (('active', actives, True), ('inactive', inactives, show_inactive)):
@@ -866,7 +835,7 @@ def cmd_list(bot, trigger, params=''):
         if expand:
             # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the rescues have more than 0 assigned rats
             # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was implemented.
-            templist = (format_rescue(rescue) if (
+            templist = (format_rescue(bot, rescue, attr, showassigned, showids) if (
                 (not unassigned) or (len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)) else 'IGNOREME' for
                         rescue in cases)
             formatlist = []
@@ -878,6 +847,39 @@ def cmd_list(bot, trigger, params=''):
         output.append(t)
     bot.say("; ".join(output))
 
+
+def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=True ):
+    cr = color("(CR)", colors.RED) if rescue.codeRed else ''
+    id = ""
+    cl = (('Operation ' + rescue.title) if rescue.title else (getattr(rescue, attr)))
+    platform = rescue.platform
+    assignedratsstring = ''
+    if platform == 'unknown':
+        platform = ''
+    if platform == 'xb':
+        platform = color(' XB', colors.GREEN)
+    if platform == 'pc':
+        platform = ' PC'
+    if showassigned:
+        assignedratsstring = ' Assigned Rats: '
+        for rat in rescue.rats:
+            assignedratsstring += getRatName(bot, rat)[0] + ', '
+        for rat in rescue.unidentifiedRats:
+            assignedratsstring += rat + ', '
+        if len(rescue.rats) > 0 or len(rescue.rats) > 0:
+            assignedratsstring = assignedratsstring.strip(', ')
+            assignedratsstring = " " + assignedratsstring
+
+    if showids:
+        id = "@" + (rescue.id if rescue.id is not None else "none")
+    return "[{boardindex}{id}]{client}{cr}{platform}{assignedrats}".format(
+        boardindex=rescue.boardindex,
+        id=id,
+        client=cl,
+        cr=cr,
+        platform=platform,
+        assignedrats=assignedratsstring
+    )
 
 @commands('grab')
 @ratlib.sopel.filter_output
@@ -1300,16 +1302,23 @@ def cmd_reopen(bot, trigger, id):
 
 @commands('delete')
 @require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
-@parameterize('+', usage='<id>')
+@parameterize('+', usage='<id/list>')
 def cmd_delete(bot, trigger, id):
-    try:
-        result = callapi(bot, 'DELETE', uri='/rescues/' + str(id))
-        # print(result)
-    except ratlib.api.http.APIError as ex:
-        bot.reply('case with id ' + str(id) + ' does not exist or other APIError.')
-        print(ex)
-        return
-    bot.reply('deleted case with id ' + str(id) + ' - THIS IS NOT REVERTABLE!')
+    if id is not 'list':
+        try:
+           result = callapi(bot, 'DELETE', uri='/rescues/' + str(id))
+            # print(result)
+        except ratlib.api.http.APIError as ex:
+            bot.reply('case with id ' + str(id) + ' does not exist or other APIError.')
+            print(ex)
+            return
+        bot.reply('deleted case with id ' + str(id) + ' - THIS IS NOT REVERTABLE!')
+    else:
+        result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}')
+        caselist = []
+        for case in result['data']:
+            caselist.append(format_rescue(bot, case))
+        bot.reply('Cases marked for deletion: '+", ".join(caselist))
 
 
 @commands('title')
