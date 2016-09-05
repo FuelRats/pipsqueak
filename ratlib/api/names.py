@@ -143,7 +143,7 @@ def getRatName(bot, ratid):
     :param ratid: the id of the rat to find the name for
     :return: name of the rat
     """
-    if str(ratid) in savedratnames.keys():
+    if (str(ratid) is not '0') and str(ratid) in savedratnames.keys():
         return savedratnames.get(ratid)['name'], savedratnames.get(ratid)['platform']
     try:
         result = callapi(bot=bot, method='GET', uri='/rats/' + str(ratid))
@@ -156,6 +156,7 @@ def getRatName(bot, ratid):
         platform = data['platform']
         ret = name, platform
     except:
+        print('Couldn\'t parse Ratname from api response for ratid' + str(ratid))
         ret = 'unknown', 'unknown'
     # print('returning '+str(ret)+' as name for '+ratid)
     return ret
@@ -231,7 +232,7 @@ def require_netadmin(message=None):
     return actual_decorator
 
 def require_techrat(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats TechRat (as in, a rat that's part of the RatTech team.).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
@@ -248,7 +249,7 @@ def require_techrat(message=None):
     return actual_decorator
 
 def require_op(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats op (as in, an operator.).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
@@ -265,7 +266,7 @@ def require_op(message=None):
     return actual_decorator
 
 def require_overseer(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats overseer (as in, a highly experienced and trustworthy person).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
@@ -282,7 +283,7 @@ def require_overseer(message=None):
     return actual_decorator
 
 def require_dispatch(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats dispatch (as in, the currently active dispatch).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
@@ -299,7 +300,7 @@ def require_dispatch(message=None):
     return actual_decorator
 
 def require_rat(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats rat (as in, registered with the API and drilled).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
@@ -316,7 +317,7 @@ def require_rat(message=None):
     return actual_decorator
 
 def require_recruit(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats recruit (as in, a user registered with the API but undrilled).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
