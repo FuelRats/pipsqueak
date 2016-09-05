@@ -835,7 +835,7 @@ def cmd_list(bot, trigger, params=''):
         if expand:
             # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the rescues have more than 0 assigned rats
             # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was implemented.
-            templist = (format_rescue(bot, rescue, attr, showassigned, showids) if (
+            templist = (format_rescue(bot, rescue, attr, showassigned, showids, hideboardindexes=False) if (
                 (not unassigned) or (len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)) else 'IGNOREME' for
                         rescue in cases)
             formatlist = []
@@ -848,7 +848,7 @@ def cmd_list(bot, trigger, params=''):
     bot.say("; ".join(output))
 
 
-def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=True ):
+def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=True, hideboardindexes=True ):
     cr = color("(CR)", colors.RED) if rescue.codeRed else ''
     id = ""
     cl = (('Operation ' + rescue.title) if rescue.title else (getattr(rescue, attr)))
@@ -869,11 +869,11 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
         if len(rescue.rats) > 0 or len(rescue.rats) > 0:
             assignedratsstring = assignedratsstring.strip(', ')
             assignedratsstring = " " + assignedratsstring
-
+    bi = rescue.boardindex if not hideboardindexes else ''
     if showids:
         id = "@" + (rescue.id if rescue.id is not None else "none")
     return "[{boardindex}{id}]{client}{cr}{platform}{assignedrats}".format(
-        boardindex=rescue.boardindex,
+        boardindex=bi,
         id=id,
         client=cl,
         cr=cr,
