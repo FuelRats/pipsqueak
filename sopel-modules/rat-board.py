@@ -1317,7 +1317,8 @@ def cmd_delete(bot, trigger, id):
         result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}')
         caselist = []
         for case in result['data']:
-            caselist.append(format_rescue(bot, case))
+            rescue = Rescue.load(case)
+            caselist.append(format_rescue(bot, rescue))
         bot.reply('Cases marked for deletion: '+", ".join(caselist))
 
 

@@ -13,7 +13,7 @@ def getRatId(bot, ratname, platform=None):
     if ratname in savedratids.keys():
         if platform == None:
             return savedratids.get(ratname)
-        if platform == getRatName(bot, ratid=savedratids.get(ratname)['id'])[1]:
+        if platform == savedratids.get(ratname)['platform']:
             return savedratids.get(ratname)
 
 
@@ -203,7 +203,7 @@ def getClientName(bot, resId):
     try:
         result = callapi(bot=bot, method='GET', uri='/rescues/' + resId)
         data = result['data']
-        ret = data['client']['nickname']
+        ret = data['client']
     except:
         ret = 'unknown'
     savedclientnames.update({resId:ret})
