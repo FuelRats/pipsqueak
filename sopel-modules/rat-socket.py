@@ -155,10 +155,6 @@ class MyClientProtocol(WebSocketClientProtocol):
         MyClientProtocol.bot.say('Successfully openend connection to Websocket!')
         print('Authenticating with message: '+'{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
         self.sendMessage(str('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}').encode('utf-8'))
-        while not self.authed:
-            time.sleep(100)
-        print('Authed! Subscribing to RT with message: '+'{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
-        self.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
     def onMessage(self, payload, isBinary):
         if isBinary:
@@ -293,6 +289,9 @@ def handleWSMessage(payload):
     def authorize(data):
         MyClientProtocol.authed = True
         bot.say('Authenticated with the API!')
+        print(
+            'Authed! Subscribing to RT with message: ' + '{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
+        MyClientProtocol.sendMessage(MyClientProtocol, str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
     wsevents = {"OnDuty:update": onduty, 'welcome': welcome, 'FriendRequest:update': fr, 'WingRequest:update': wr,
                 'SysArrived:update': system, 'BeaconSpotted:update': bc, 'InstanceSuccessful:update': inst,
