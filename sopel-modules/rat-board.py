@@ -319,7 +319,7 @@ class Rescue(TrackedBase):
     successful = TypeCoercedProperty(default=True, coerce=bool)
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
-    data = TypeCoercedProperty(default={'langID':'unknown','markedForDeletion':{'marked':False, 'reason':'None.'}}, coerce=dict)
+    data = TypeCoercedProperty(default={'langID':'unknown','markedForDeletion':{'marked':False, 'reason':'None.', 'reporter':'Noone.'}}, coerce=dict)
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -1370,6 +1370,16 @@ def rescueMarkedForDeletion(rescue):
 def getDeletionReason(rescue):
     return rescue.data.get('markedForDeletion').get('reason')
 
-def setRescueMarkedForDeletion(rescue, marked, reason):
-    rescue.data.update({'markedForDeletion':{'marked':marked,'reason':str(reason)}})
+def getDeletionReporter(rescue):
+    return rescue.data.get('markedForDeletion').get('reporter')
 
+def setRescueMarkedForDeletion(rescue, marked, reason, reporter):
+    rescue.data.update({'markedForDeletion':{'marked':marked,'reason':str(reason),'reporter':str(reporter)}})
+
+@commands('md')
+@parameterize('rt','<client/board #> <reason>')
+@require_rat('Sorry, but you need to be a registered and drilled Rat to use this command.')
+def cmd_md(bot, trigger, case, reason):
+    bot.reply('Closing case of '+str(case.client)+' (Case #'+str(case.id)+') and marking it for deletion.')
+    cmd_clear(bot, trigger, case)
+    setRescueMarkedForDeletion(rescue=case, marked=True, reason=reason, reporter=trigger.nick)
