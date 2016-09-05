@@ -294,7 +294,7 @@ def handleWSMessage(payload, senderinstance):
         print(
             'Authed! Subscribing to RT with message: ' + '{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
         senderinstance.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
-        
+
 
     wsevents = {"OnDuty:update": onduty, 'welcome': welcome, 'FriendRequest:update': fr, 'WingRequest:update': wr,
                 'SysArrived:update': system, 'BeaconSpotted:update': bc, 'InstanceSuccessful:update': inst,
@@ -304,7 +304,10 @@ def handleWSMessage(payload, senderinstance):
 
     if action in wsevents.keys():
         # print('Action is in wskeys!!')
-        wsevents[action](data=data)
+        try:
+            wsevents[action](data=data)
+        except Exception as ex:
+            bot.say('Got an error while handling WebSocket Event. Report this to marenthyu: '+str(ex.__traceback__))
 
 def save_case(bot, rescue):
     """
