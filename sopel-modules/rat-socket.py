@@ -294,8 +294,8 @@ def handleWSMessage(payload, senderinstance):
         print(
             'Authed! Subscribing to RT with message: ' + '{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
         senderinstance.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
-        print('Sent subscription request. Requesting rescues via WS for Absolver: '+'{ "action":"rescues:read" }')
-        senderinstance.sendMessage(str('{ "action":"rescues:read" }').encode('utf-8'))
+        print('Sent subscription request. Requesting rescues via WS for Absolver: '+'{ "action":"rescues:read", "data":{} }')
+        senderinstance.sendMessage(str('{ "action":"rescues:read", "data":{} }').encode('utf-8'))
 
     wsevents = {"OnDuty:update": onduty, 'welcome': welcome, 'FriendRequest:update': fr, 'WingRequest:update': wr,
                 'SysArrived:update': system, 'BeaconSpotted:update': bc, 'InstanceSuccessful:update': inst,
