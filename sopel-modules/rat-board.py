@@ -123,6 +123,7 @@ def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call, statuses=None
     uri = urljoin(bot.config.ratbot.apiurl, uri)
     # print('will call uri '+uri)
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
+    print('Calling api with data: '+str(data))
     with bot.memory['ratbot']['apilock']:
         return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers, statuses=statuses)
 
@@ -495,7 +496,7 @@ def save_case_later(bot, rescue, message=None, timeout=10):
     """
     if not bot.config.ratbot.apiurl:
         rescue.touch()
-    print('Saving Case: '+str(json.dumps(rescue, default=lambda o: o.__dict__)))
+    # Let's not. print('Saving Case: '+str(json.dumps(rescue, default=lambda o: o.__dict__)))
     future = save_case(bot, rescue)
     if not future:
         return None
