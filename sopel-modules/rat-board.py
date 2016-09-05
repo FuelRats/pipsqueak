@@ -123,7 +123,7 @@ def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call, statuses=None
     uri = urljoin(bot.config.ratbot.apiurl, uri)
     # print('will call uri '+uri)
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
-    print('Calling api with data: '+str(data))
+    print('Calling api with data: ' + str(data))
     with bot.memory['ratbot']['apilock']:
         return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers, statuses=statuses)
 
@@ -144,6 +144,7 @@ class RescueBoard:
 
     MAX_POOLED_CASES = 10
     bot = None
+
     def __init__(self):
         self._lock = threading.RLock()
         self.indexes = {k: {} for k in self.INDEX_TYPES.keys()}
@@ -181,7 +182,9 @@ class RescueBoard:
                     continue
                 if key in self.indexes[index]:
                     warnings.warn("Key {key!r} is already in index {index!r}".format(key=key, index=index))
-                    self.bot.say('WARNING! A CASE HAS BEEN ASSIGNED AN INDEX THAT WAS ALREADY USED! REPORT THIS TO MARENTHYU AND ASK AN OVERSEER (OR HIGHER) TO DO !fbr - THANK YOU! (affected case #: '+str(key)+')')
+                    self.bot.say(
+                        'WARNING! A CASE HAS BEEN ASSIGNED AN INDEX THAT WAS ALREADY USED! REPORT THIS TO MARENTHYU AND ASK AN OVERSEER (OR HIGHER) TO DO !fbr - THANK YOU! (affected case #: ' + str(
+                            key) + ')')
                     continue
                 self.indexes[index][key] = rescue
 
@@ -321,7 +324,8 @@ class Rescue(TrackedBase):
     successful = TypeCoercedProperty(default=True, coerce=bool)
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
-    data = TrackedProperty(default={'langID':'unknown','markedForDeletion':{'marked':False, 'reason':'None.', 'reporter':'Noone.'}})
+    data = TrackedProperty(
+        default={'langID': 'unknown', 'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}})
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -418,8 +422,6 @@ def refresh_cases(bot, rescue=None, force=False):
     if force:
         bot.memory['ratbot']['board'] = RescueBoard()
     board = bot.memory['ratbot']['board']
-
-
 
     if rescue:
         if not result['data']:
@@ -737,9 +739,10 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
     Mark a case as closed.
     Required parameters: client name or case number and optionally a rat who fired the first limpet.
     """
-    func_clear(bot, trigger, rescue, *firstlimpet)
+    func_clear(bot, trigger, rescue, False, *firstlimpet)
 
-def func_clear(bot, trigger, rescue, *firstlimpet):
+
+def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     """
     Actual implementation for the clear
     """
@@ -777,10 +780,11 @@ def func_clear(bot, trigger, rescue, *firstlimpet):
             rescue=rescue, url=url), '#ratchat')
     bot.reply('Case {rescue.client_name} got cleared!'.format(rescue=rescue))
     rescue.board.remove(rescue)
-    save_case_later(
-        bot, rescue,
-        "API is still not done with clearing case {!r}; continuing in background.".format(trigger.group(3))
-    )
+    if not markingForDeletion:
+        save_case_later(
+            bot, rescue,
+            "API is still not done with clearing case {!r}; continuing in background.".format(trigger.group(3))
+        )
 
 
 @commands('list')
@@ -863,7 +867,7 @@ def cmd_list(bot, trigger, params=''):
             # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the rescues have more than 0 assigned rats
             # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was implemented.
             templist = (format_rescue(rescue) if (
-            (not unassigned) or (len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)) else 'IGNOREME' for
+                (not unassigned) or (len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)) else 'IGNOREME' for
                         rescue in cases)
             formatlist = []
             for formatted in templist:
@@ -1196,7 +1200,7 @@ def ratmama_parse(bot, trigger):
     print('line: ' + line)
     if Identifier(trigger.nick) == 'Ratmama[BOT]':
         import re
-        newline = line.replace("Incoming Client:", bot.config.ratboard.signal.upper()+" - CMDR")
+        newline = line.replace("Incoming Client:", bot.config.ratboard.signal.upper() + " - CMDR")
         cmdr = re.search('(?<=CMDR ).*?(?= - )', newline).group()
         system = re.search('(?<=System: ).*?(?= - )', newline).group()
         platform = re.search('(?<=Platform: ).*?(?= - )', newline).group()
@@ -1220,14 +1224,14 @@ def ratmama_parse(bot, trigger):
             platform, '\u0002' + platform + '\u000F')
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
-        result.rescue.data.update({'langID':langID})
+        result.rescue.data.update({'langID': langID})
         save_case_later(bot, result.rescue)
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
             if cr:
                 prepcrstring = getFact(bot, factname='prepcr', lang=langID)
                 bot.say(
-                    result.rescue.client + " "+ prepcrstring)
+                    result.rescue.client + " " + prepcrstring)
         else:
             bot.say('Client ' + result.rescue.client + ' has reconnected to the IRC!')
 
@@ -1358,12 +1362,15 @@ def cmd_flush(bot, trigger):
 def cmd_host(bot, trigger):
     bot.reply('Your Host is: ' + str(trigger.host))
 
-@commands('refreshboard','resetboard', 'forceresetboard', 'forcerefreshboard', 'frb','fbr','boardrefresh')
+
+@commands('refreshboard', 'resetboard', 'forceresetboard', 'forcerefreshboard', 'frb', 'fbr', 'boardrefresh')
 @require_overseer('Sorry, but you need to be a registered Overseer or higher to access this command.')
 def cmd_forceRefreshBoard(bot, trigger):
-    bot.reply('Force refreshing the Board. This removes all cases and grabs them from the API. DISPATCH, be advised: Case numbers may be changed!')
+    bot.reply(
+        'Force refreshing the Board. This removes all cases and grabs them from the API. DISPATCH, be advised: Case numbers may be changed!')
     refresh_cases(bot, force=True)
     bot.reply('Force refresh done.')
+
 
 def getFact(bot, factname, lang='en'):
     try:
@@ -1375,21 +1382,24 @@ def getFact(bot, factname, lang='en'):
 def rescueMarkedForDeletion(rescue):
     return rescue.data.get('markedForDeletion').get('marked')
 
+
 def getDeletionReason(rescue):
     return rescue.data.get('markedForDeletion').get('reason')
+
 
 def getDeletionReporter(rescue):
     return rescue.data.get('markedForDeletion').get('reporter')
 
+
 def setRescueMarkedForDeletion(bot, rescue, marked, reason, reporter):
-    rescue.data.update({'markedForDeletion':{'marked':marked,'reason':str(reason),'reporter':str(reporter)}})
+    rescue.data.update({'markedForDeletion': {'marked': marked, 'reason': str(reason), 'reporter': str(reporter)}})
     save_case_later(bot, rescue, forceFull=True)
 
 
 @commands('md')
-@parameterize('rt','<client/board #> <reason>')
+@parameterize('rt', '<client/board #> <reason>')
 @require_rat('Sorry, but you need to be a registered and drilled Rat to use this command.')
 def cmd_md(bot, trigger, case, reason):
-    bot.reply('Closing case of '+str(case.client)+' (Case #'+str(case.id)+') and marking it for deletion.')
-    func_clear(bot, trigger, case)
+    bot.reply('Closing case of ' + str(case.client) + ' (Case #' + str(case.id) + ') and marking it for deletion.')
+    func_clear(bot, trigger, case, markingForDeletion=True)
     setRescueMarkedForDeletion(bot=bot, rescue=case, marked=True, reason=reason, reporter=trigger.nick)
