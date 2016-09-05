@@ -449,7 +449,7 @@ def refresh_cases(bot, rescue=None, force=False):
                 board.remove(case)
 
 
-def save_case(bot, rescue):
+def save_case(bot, rescue, forceFull=False):
     """
     Begins saving changes to a case.  Returns the future.
 
@@ -458,7 +458,7 @@ def save_case(bot, rescue):
     """
 
     with rescue.change():
-        data = rescue.save(full=(rescue.id is None))
+        data = rescue.save(full=((rescue.id is None) or forceFull))
         rescue.commit()
 
     if not bot.config.ratbot.apiurl:
@@ -483,7 +483,7 @@ def save_case(bot, rescue):
     return bot.memory['ratbot']['executor'].submit(task)
 
 
-def save_case_later(bot, rescue, message=None, timeout=10):
+def save_case_later(bot, rescue, message=None, timeout=10, forceFull=False):
     """
     Schedules a case to be saved and waits up to timeout seconds for a result.  Outputs message as a notice if the
     timeout expires.
@@ -497,7 +497,7 @@ def save_case_later(bot, rescue, message=None, timeout=10):
     if not bot.config.ratbot.apiurl:
         rescue.touch()
     # Let's not. print('Saving Case: '+str(json.dumps(rescue, default=lambda o: o.__dict__)))
-    future = save_case(bot, rescue)
+    future = save_case(bot, rescue, forceFull)
     if not future:
         return None
     try:
