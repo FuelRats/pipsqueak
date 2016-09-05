@@ -12,6 +12,7 @@ http://sopel.chat/
 import sys
 from threading import Thread
 import json
+import time
 
 # Sopel imports
 from sopel.formatting import bold, color, colors
@@ -147,13 +148,16 @@ def connectSocket(bot, trigger):
 class MyClientProtocol(WebSocketClientProtocol):
     bot = None
     board = None
+    authed = False
 
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
         MyClientProtocol.bot.say('Successfully openend connection to Websocket!')
-        # print('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
+        print('Authenticating with message: '+'{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
         self.sendMessage(str('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}').encode('utf-8'))
-        print('Subscribing to RT with message: '+'{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
+        while not self.authed:
+            time.sleep(100)
+        print('Authed! Subscribing to RT with message: '+'{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
         self.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
     def onMessage(self, payload, isBinary):
@@ -286,10 +290,13 @@ def handleWSMessage(payload):
                 bot.say(rat + ': ' + client + '\'s System is ' + res.system + '! Case updated. [RatTracker]')
                 save_case(bot, res)
         # bot.say('Client name: ' + client + ', Ratname: ' + rat)
+    def authorize(data):
+        MyClientProtocol.authed = True
+        bot.say('Authenticated with the API!')
 
     wsevents = {"OnDuty:update": onduty, 'welcome': welcome, 'FriendRequest:update': fr, 'WingRequest:update': wr,
                 'SysArrived:update': system, 'BeaconSpotted:update': bc, 'InstanceSuccessful:update': inst,
-                'Fueled:update': fueled, 'CallJumps:update': calljumps, 'ClientSystem:update':clientupdate}
+                'Fueled:update': fueled, 'CallJumps:update': calljumps, 'ClientSystem:update':clientupdate, 'authorization':authorize}
     # print('keys of wsevents: '+str(wsevents.keys()))
     # print(action)
 
