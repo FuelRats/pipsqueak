@@ -13,6 +13,7 @@ import sys
 from threading import Thread
 import json
 import time
+import traceback
 
 # Sopel imports
 from sopel.formatting import bold, color, colors
@@ -306,8 +307,10 @@ def handleWSMessage(payload, senderinstance):
         # print('Action is in wskeys!!')
         try:
             wsevents[action](data=data)
-        except Exception as ex:
-            bot.say('Got an error while handling WebSocket Event. Report this to marenthyu: '+str(ex.__traceback__))
+        except:
+            bot.say('Got an error while handling WebSocket Event. Report this to Marenthyu including the time this happened. Thank you!')
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
 
 def save_case(bot, rescue):
     """
