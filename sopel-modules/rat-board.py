@@ -876,7 +876,7 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
     reporter = ''
     if showmarkedfordeletionreason and rescue.data is not None:
         reason = ', Reason: '+str(rescue.data['markedForDeletion']['reason'])
-        reporter = ', reporter:'+str(rescue.data['markedForDeletion']['reporter'])
+        reporter = ', reporter: '+str(rescue.data['markedForDeletion']['reporter'])
     return "[{boardindex}{id}]{client}{cr}{platform}{assignedrats}{reason}{reporter}".format(
         boardindex=bi,
         id=id,
