@@ -1326,7 +1326,9 @@ def cmd_delete(bot, trigger, id):
         for case in result['data']:
             rescue = Rescue.load(case)
             caselist.append(format_rescue(bot, rescue))
-        bot.reply('Cases marked for deletion: '+", ".join(caselist))
+        bot.reply('Cases marked for deletion:')
+        for case in caselist:
+            bot.reply(str(case))
 
 
 @commands('title')
