@@ -1379,8 +1379,9 @@ def getDeletionReason(rescue):
 def getDeletionReporter(rescue):
     return rescue.data.get('markedForDeletion').get('reporter')
 
-def setRescueMarkedForDeletion(rescue, marked, reason, reporter):
+def setRescueMarkedForDeletion(bot, rescue, marked, reason, reporter):
     rescue.data.update({'markedForDeletion':{'marked':marked,'reason':str(reason),'reporter':str(reporter)}})
+    save_case_later(bot, rescue)
 
 @commands('md')
 @parameterize('rt','<client/board #> <reason>')
@@ -1388,4 +1389,4 @@ def setRescueMarkedForDeletion(rescue, marked, reason, reporter):
 def cmd_md(bot, trigger, case, reason):
     bot.reply('Closing case of '+str(case.client)+' (Case #'+str(case.id)+') and marking it for deletion.')
     func_clear(bot, trigger, case)
-    setRescueMarkedForDeletion(rescue=case, marked=True, reason=reason, reporter=trigger.nick)
+    setRescueMarkedForDeletion(bot=bot, rescue=case, marked=True, reason=reason, reporter=trigger.nick)
