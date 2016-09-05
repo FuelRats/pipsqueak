@@ -161,7 +161,7 @@ class MyClientProtocol(WebSocketClientProtocol):
 
 
         else:
-            # print("Text message received: {0}".format(payload.decode('utf8')))
+            print("Text message received: {0}".format(payload.decode('utf8')))
             handleWSMessage(payload)
 
     def onClose(self, wasClean, code, reason):
