@@ -735,6 +735,12 @@ def cmd_clear(bot, trigger, rescue, *firstlimpet):
     Mark a case as closed.
     Required parameters: client name or case number and optionally a rat who fired the first limpet.
     """
+    func_clear(bot, trigger, rescue, *firstlimpet)
+
+def func_clear(bot, trigger, rescue, *firstlimpet):
+    """
+    Actual implementation for the clear
+    """
     print('firstlimpet = ' + str(firstlimpet))
     if len(firstlimpet) > 1:
         raise UsageError()
@@ -1381,5 +1387,5 @@ def setRescueMarkedForDeletion(rescue, marked, reason, reporter):
 @require_rat('Sorry, but you need to be a registered and drilled Rat to use this command.')
 def cmd_md(bot, trigger, case, reason):
     bot.reply('Closing case of '+str(case.client)+' (Case #'+str(case.id)+') and marking it for deletion.')
-    cmd_clear(bot, trigger, case)
+    func_clear(bot, trigger, case)
     setRescueMarkedForDeletion(rescue=case, marked=True, reason=reason, reporter=trigger.nick)
