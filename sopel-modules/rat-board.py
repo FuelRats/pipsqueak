@@ -15,6 +15,7 @@ import collections
 import itertools
 import warnings
 import functools
+import json
 
 import sys
 import contextlib
@@ -67,7 +68,7 @@ def setup(bot):
     ratlib.sopel.setup(bot)
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['board'] = RescueBoard()
-
+    bot.memory['ratbot']['board'].bot = bot
     if not hasattr(bot.config, 'ratboard') or not bot.config.ratboard.signal:
         signal = 'ratsignal'
     else:
@@ -141,7 +142,7 @@ class RescueBoard:
     }
 
     MAX_POOLED_CASES = 10
-
+    bot = None
     def __init__(self):
         self._lock = threading.RLock()
         self.indexes = {k: {} for k in self.INDEX_TYPES.keys()}
@@ -179,7 +180,7 @@ class RescueBoard:
                     continue
                 if key in self.indexes[index]:
                     warnings.warn("Key {key!r} is already in index {index!r}".format(key=key, index=index))
-                    bot.say('WARNING! A CASE HAS BEEN ASSIGNED AN INDEX THAT WAS ALREADY USED! REPORT THIS TO MARENTHYU AND ASK AN OVERSEER (OR HIGHER) TO DO !fbr - THANK YOU! (affected case #: '+str(key)+')')
+                    self.bot.say('WARNING! A CASE HAS BEEN ASSIGNED AN INDEX THAT WAS ALREADY USED! REPORT THIS TO MARENTHYU AND ASK AN OVERSEER (OR HIGHER) TO DO !fbr - THANK YOU! (affected case #: '+str(key)+')')
                     continue
                 self.indexes[index][key] = rescue
 
@@ -494,7 +495,7 @@ def save_case_later(bot, rescue, message=None, timeout=10):
     """
     if not bot.config.ratbot.apiurl:
         rescue.touch()
-
+    print('Saving Case: '+str(json.dumps(rescue, default=lambda o: o.__dict__)))
     future = save_case(bot, rescue)
     if not future:
         return None
@@ -1381,7 +1382,7 @@ def getDeletionReporter(rescue):
 
 def setRescueMarkedForDeletion(bot, rescue, marked, reason, reporter):
     rescue.data.update({'markedForDeletion':{'marked':marked,'reason':str(reason),'reporter':str(reporter)}})
-    save_case_later(bot, rescue)
+
 
 @commands('md')
 @parameterize('rt','<client/board #> <reason>')
