@@ -149,14 +149,14 @@ class MyClientProtocol(WebSocketClientProtocol):
     bot = None
     board = None
     authed = False
-    instance = None
+
 
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
         MyClientProtocol.bot.say('Successfully openend connection to Websocket!')
         print('Authenticating with message: '+'{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
         self.sendMessage(str('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}').encode('utf-8'))
-        MyClientProtocol.instance = self
+
 
     def onMessage(self, payload, isBinary):
         if isBinary:
@@ -165,7 +165,7 @@ class MyClientProtocol(WebSocketClientProtocol):
 
         else:
             print("Text message received: {0}".format(payload.decode('utf8')))
-            handleWSMessage(payload)
+            handleWSMessage(payload, self)
 
     def onClose(self, wasClean, code, reason):
         # print('onclose')
@@ -173,7 +173,7 @@ class MyClientProtocol(WebSocketClientProtocol):
         WebSocketClientProtocol.onClose(self, wasClean, code, reason)
 
 
-def handleWSMessage(payload):
+def handleWSMessage(payload, senderinstance):
     response = json.loads(payload.decode('utf8'))
     action = response['meta']['action']
     try:
@@ -293,7 +293,7 @@ def handleWSMessage(payload):
         bot.say('Authenticated with the API!')
         print(
             'Authed! Subscribing to RT with message: ' + '{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
-        MyClientProtocol.instance.sendMessage(MyClientProtocol, str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
+        senderinstance.sendMessage(MyClientProtocol, str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
     wsevents = {"OnDuty:update": onduty, 'welcome': welcome, 'FriendRequest:update': fr, 'WingRequest:update': wr,
                 'SysArrived:update': system, 'BeaconSpotted:update': bc, 'InstanceSuccessful:update': inst,
