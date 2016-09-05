@@ -1383,6 +1383,7 @@ def getDeletionReporter(rescue):
 
 def setRescueMarkedForDeletion(bot, rescue, marked, reason, reporter):
     rescue.data.update({'markedForDeletion':{'marked':marked,'reason':str(reason),'reporter':str(reporter)}})
+    save_case_later(bot, rescue, forceFull=True)
 
 
 @commands('md')
