@@ -319,7 +319,7 @@ class Rescue(TrackedBase):
     successful = TypeCoercedProperty(default=True, coerce=bool)
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
-    data = TrackedProperty(default={'langID':None})
+    data = TrackedProperty(default={'langID':'unknown'})
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
