@@ -1445,9 +1445,9 @@ def cmd_md(bot, trigger, case, reason):
 @require_overseer('Sorry, but you need to be an overseer or higher to use this command!')
 def cmd_mdremove(bot, trigger, caseid):
     try:
-        result = callapi(bot, method='GET', uri='/rescues/'+str(id))
+        result = callapi(bot, method='GET', uri='/rescues/'+str(caseid))
         rescue = Rescue.load(result['data'])
         setRescueMarkedForDeletion(bot, rescue, marked=False)
         bot.reply('Successfully removed '+str(rescue.client)+'\'s case from the marked for deletion list.')
     except:
-        bot.reply('Couldn\'t find a case with id '+str(id)+' or other APIError')
+        bot.reply('Couldn\'t find a case with id '+str(caseid)+' or other APIError')
