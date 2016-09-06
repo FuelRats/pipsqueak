@@ -69,8 +69,8 @@ def configure(config):
 
 
 def shutdown(bot=None):
-    # Ignored by sopel?!?!?!
-    print('shutdown for socket')
+    # Ignored by sopel?!?!?! - Sometimes.
+    print('[Websocket] shutdown for socket')
     reactor.stop()
 
 
@@ -104,10 +104,11 @@ def sockettest(bot, trigger):
     """
     Just try it.
     """
-    bot.say('Sorry Pal, but you need to restart the bot to attempt a Manual Reconnect!')
+    bot.say('Sorry Pal, but you need to restart the bot to attempt a Manual Reconnect! (Stupid, i know -_-)')
 
 
 @commands('connectsocket', 'connect')
+@require_techrat('I am sorry, but this command is restricted for TechRats and above.')
 @ratlib.sopel.filter_output
 def connectSocket(bot, trigger):
     """
@@ -154,23 +155,23 @@ class MyClientProtocol(WebSocketClientProtocol):
 
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
-        MyClientProtocol.bot.say('Successfully openend connection to Websocket!')
-        print('Authenticating with message: '+'{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
+        MyClientProtocol.bot.say('[Websocket] Successfully openend connection to Websocket!')
+        print('[Websocket] Authenticating with message: '+'{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
         self.sendMessage(str('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}').encode('utf-8'))
 
 
     def onMessage(self, payload, isBinary):
         if isBinary:
-            print("Binary message received: {0} bytes".format(len(payload)))
+            print("[Websocket] Binary message received: {0} bytes".format(len(payload)))
 
 
         else:
-            print("Text message received: {0}".format(payload.decode('utf8')))
+            print("[Websocket] Text message received: {0}".format(payload.decode('utf8')))
             handleWSMessage(payload, self)
 
     def onClose(self, wasClean, code, reason):
         # print('onclose')
-        MyClientProtocol.bot.say('Closed connection with Websocket. Reason: ' + str(reason))
+        MyClientProtocol.bot.say('[Websocket] Closed connection with Websocket. Reason: ' + str(reason))
         WebSocketClientProtocol.onClose(self, wasClean, code, reason)
 
 
@@ -180,7 +181,7 @@ def handleWSMessage(payload, senderinstance):
     try:
         data = response['data']
     except KeyError as ex:
-        MyClientProtocol.bot.say('Couldn\'t grab Data field. Here\'s the Error field: '+str(response['errors']))
+        MyClientProtocol.bot.say('[Websocket] Couldn\'t grab Data field. Here\'s the Error field: '+str(response['errors']))
         return
     say = MyClientProtocol.bot.say
     bot = MyClientProtocol.bot
@@ -291,9 +292,9 @@ def handleWSMessage(payload, senderinstance):
         # bot.say('Client name: ' + client + ', Ratname: ' + rat)
     def authorize(data):
         MyClientProtocol.authed = True
-        bot.say('Authenticated with the API!')
+        bot.say('[Websocket] Authenticated with the API!')
         print(
-            'Authed! Subscribing to RT with message: ' + '{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
+            '[Websocket] Authed! Subscribing to RT with message: ' + '{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
         senderinstance.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
 
@@ -308,7 +309,7 @@ def handleWSMessage(payload, senderinstance):
         try:
             wsevents[action](data=data)
         except:
-            bot.say('Got an error while handling WebSocket Event. Report this to Marenthyu including the time this happened. Thank you!')
+            bot.say('[Websocket] Got an error while handling WebSocket Event. Report this to Marenthyu including the time this happened. Thank you!')
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)
 
@@ -338,7 +339,7 @@ def save_case(bot, rescue):
         result = callapi(bot, method, uri, data=data)
         rescue.commit()
         if 'data' not in result or not result['data']:
-            raise RuntimeError("API response returned unusable data.")
+            raise RuntimeError("[Websocket] API response returned unusable data.")
         with rescue.change():
             rescue.refresh(result['data'])
         return rescue
@@ -362,5 +363,5 @@ class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
     def retry(self, connector=None):
-        MyClientProtocol.bot.say('Reconnecting to API Websocket in ' + str(self.delay) + ' seconds...')
+        MyClientProtocol.bot.say('[Websocket] Reconnecting to API Websocket in ' + str(self.delay) + ' seconds...')
         ReconnectingClientFactory.retry(self)

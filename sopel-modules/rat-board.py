@@ -100,7 +100,7 @@ def setup(bot):
             f = open(bot.config.ratbot.apidebug, 'w')
         bot.memory['ratbot']['apilog'] = f
         bot.memory['ratbot']['apilock'] = threading.Lock()
-        print("Logging API calls to " + bot.config.ratbot.apidebug)
+        print("[RatBoard] Logging API calls to " + bot.config.ratbot.apidebug)
 
     try:
         refresh_cases(bot)
@@ -121,9 +121,9 @@ def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call, statuses=None
     :return: the data dict the api call returned.
     '''
     uri = urljoin(bot.config.ratbot.apiurl, uri)
-    # print('will call uri '+uri)
+    # print('[RatBoard] will call uri '+uri)
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
-    print('Calling api with data: ' + str(data))
+    print('[RatBoard] Calling api with data: ' + str(data))
     with bot.memory['ratbot']['apilock']:
         return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers, statuses=statuses)
 
@@ -418,7 +418,7 @@ def refresh_cases(bot, rescue=None, force=False):
 
     # Exceptions here are the responsibility of the caller.
     result = callapi(bot, 'GET', uri)
-    # print('refreshing returned '+str(result))
+    # print('[RatBoard] refreshing returned '+str(result))
     if force:
         bot.memory['ratbot']['board'] = RescueBoard()
     board = bot.memory['ratbot']['board']
@@ -498,14 +498,14 @@ def save_case_later(bot, rescue, message=None, timeout=10, forceFull=False):
     """
     if not bot.config.ratbot.apiurl:
         rescue.touch()
-    # Let's not. print('Saving Case: '+str(json.dumps(rescue, default=lambda o: o.__dict__)))
+    # Let's not. print('[RatBoard] Saving Case: '+str(json.dumps(rescue, default=lambda o: o.__dict__)))
     future = save_case(bot, rescue, forceFull)
     if not future:
         return None
     try:
         future.result(timeout=timeout)
     except concurrent.futures.TimeoutError as ex:
-        print('Timeout Error: ' + str(ex))
+        print('[RatBoard] Timeout Error: ' + str(ex))
         if message is None:
             message = (
                 "API is still not done updating case for {{rescue.client_name}}; continuing in background."
@@ -749,7 +749,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     """
     Actual implementation for the clear
     """
-    print('firstlimpet = ' + str(firstlimpet))
+    # print('[RatBoard] firstlimpet = ' + str(firstlimpet))
     if len(firstlimpet) > 1:
         raise UsageError()
 
@@ -758,7 +758,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     try:
         url = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)['shorturl']
     except:
-        print('Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
+        print('[RatBoard] Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
 
     if len(firstlimpet) == 1:
         rat = getRatId(bot, firstlimpet[0], rescue.platform)['id']
@@ -1036,11 +1036,11 @@ def cmd_assign(bot, trigger, rescue, *rats):
         # Check if id returned is an id, decide for unidentified rats or rats.
         idstr = str(i['id'])
         if idstr != '0':
-            # print('id was not 0.')
+            # print('[RatBoard] id was not 0.')
             rescue.rats.update([i['id']])
             ratlist.append(getRatName(bot, i['id'])[0])
         else:
-            # print('id was 0')
+            # print('[RatBoard] id was 0')
             bot.reply('Be advised: ' + rat + ' does not have a registered Rat for the case\'s platform!')
             rescue.unidentifiedRats.update([rat])
             ratlist.append(removeTags(rat))
@@ -1207,9 +1207,9 @@ def ratmama_parse(bot, trigger):
     Parse Incoming Kiwiirc clients (gets announced by ratmama)
     :param trigger: line that triggered this
     '''
-    print('triggered ratmama_parse')
+    # print('[RatBoard] triggered ratmama_parse')
     line = trigger.group()
-    print('line: ' + line)
+    # print('[RatBoard] line: ' + line)
     if Identifier(trigger.nick) == 'Ratmama[BOT]':
         import re
         newline = line.replace("Incoming Client:", bot.config.ratboard.signal.upper() + " - CMDR")
@@ -1293,21 +1293,14 @@ def getDummyRescue():
 @parameterize('+', usage="<id>")
 @require_overseer('Sorry pal, you\'re not an overseer or higher!')
 def cmd_reopen(bot, trigger, id):
-    access = ratlib.sopel.best_channel_mode(bot, trigger.nick)
-    print('access: ' + str(access))
-    if access:
-        print('got access - id: ' + str(id))
-        bot.reply('got access - id: ' + str(id))
         try:
             result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id))
             refresh_cases(bot, force=True)
             bot.reply('Reopened case. Cases refreshed, care for your case numbers!')
         except ratlib.api.http.APIError:
-            # print('apierror.')
+            # print('[RatBoard] apierror.')
             bot.reply('id ' + str(id) + ' does not exist or other API Error.')
-    else:
-        print('no access')
-        bot.reply('Not authorized.')
+
 
 
 @commands('delete')
@@ -1320,10 +1313,10 @@ def func_delete(bot, trigger, id):
     if 'list'!=id:
         try:
            result = callapi(bot, 'DELETE', uri='/rescues/' + str(id))
-            # print(result)
+            # print('[RatBoard] ' + str(result))
         except ratlib.api.http.APIError as ex:
             bot.reply('case with id ' + str(id) + ' does not exist or other APIError.')
-            print(ex)
+            print('[RatBoard] '+str(ex))
             return
         bot.reply('deleted case with id ' + str(id) + ' - THIS IS NOT REVERTABLE!')
     else:
