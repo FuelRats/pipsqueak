@@ -706,7 +706,7 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
 
     fmt = (
               ("Rescue Operation {title}: " if rescue.title else "") +
-              "{client}'s case "+"#{index}" if showboardindex else ""+" at {system} ({tags}) opened {opened} ({opened_ago}),"
+              "{client}'s case "+("#{index}" if showboardindex else "")+" at {system} ({tags}) opened {opened} ({opened_ago}),"
               " updated {updated} ({updated_ago})"
           ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
 
@@ -740,7 +740,9 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
 def cmd_clear(bot, trigger, rescue, *firstlimpet):
     """
     Mark a case as closed.
-    Required parameters: client name or case number and optionally a rat who fired the first limpet.
+    Required parameters: client name or case number
+    optional parameter: The rat that fired the first limpet
+    aliases: clear, close
     """
     func_clear(bot, trigger, rescue, False, *firstlimpet)
 
@@ -992,6 +994,7 @@ def cmd_active(bot, trigger, rescue):
     """
     Toggle a case active/inactive
     required parameters: client name.
+    aliases: active, activate, inactive, deactivate
     """
     rescue.active = not rescue.active
     bot.say(
@@ -1026,6 +1029,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
     """
     Assign rats to a client's case.
     required parameters: client name, rat name(s).
+    aliases: assign, add, go
     """
     ratlist = []
     for rat in rats:
@@ -1060,6 +1064,7 @@ def cmd_ratid(bot, trigger, rat):
     """
     Get a rats' id from the api
     required parameters: rat name
+    aliases: ratid, id
     """
     id = getRatId(bot=bot, ratname=rat)
     bot.say('Rat id for ' + str(id['name']) + ' is ' + str(id['id']))
@@ -1072,6 +1077,8 @@ def cmd_ratid(bot, trigger, rat):
 def cmd_unassign(bot, trigger, rescue, *rats):
     """
     Remove rats from a client's case.
+    required parameters: client name or board index and the rats to unassign
+    aliases: unassign, deassign, rm, remove, standdown
     """
     rescue.unidentifiedRats -= set(rats)
     for rat in rats:
@@ -1096,6 +1103,7 @@ def cmd_codered(bot, trigger, rescue):
     Toggles the code red status of a case.
     A code red is when the client is so low on fuel that their life support
     system has failed, indicated by the infamous blue timer on their HUD.
+    aliases: codered, casered, cr
     """
     rescue.codeRed = not rescue.codeRed
     if rescue.codeRed:
@@ -1152,6 +1160,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     """
     Sets a case's system.
     required parameters: Client name or case number, system location
+    aliases: sys, system, loc, location
     """
     if not system:
         raise UsageError()
@@ -1184,6 +1193,7 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
     """
     Sets a client's in-game commander name.
     required parameters: Client name or case number, commander name
+    aliases: cmdr, commander
     """
     if not commander:
         raise UsageError()
@@ -1253,6 +1263,7 @@ def ratmama_parse(bot, trigger):
 def cmd_closed(bot, trigger):
     '''
     Lists the 5 last closed rescues to give the ability to reopen them
+    aliases: closed, recent
     '''
     try:
         result = callapi(bot=bot, uri='/rescues?open=false&limit=5&order=updatedAt&direction=DESC', method='GET')
@@ -1293,6 +1304,9 @@ def getDummyRescue():
 @parameterize('+', usage="<id>")
 @require_overseer('Sorry pal, you\'re not an overseer or higher!')
 def cmd_reopen(bot, trigger, id):
+        """
+        Reopens a case by its full database ID
+        """
         try:
             result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id))
             refresh_cases(bot, force=True)
@@ -1307,6 +1321,11 @@ def cmd_reopen(bot, trigger, id):
 @require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
 @parameterize('+', usage='<id/list>')
 def cmd_delete(bot, trigger, id):
+    """
+    Parameters:
+        id - Delete a rescue by its full database ID
+        list - Shows the Marked for Deletion List™
+    """
     func_delete(bot, trigger, id)
 
 def func_delete(bot, trigger, id):
@@ -1335,12 +1354,18 @@ def func_delete(bot, trigger, id):
 @commands('mdlist')
 @require_overseer('Sorry pal, you\'re not an overseer or higher!')
 def cmd_mdlist(bot, trigger):
+    """
+    Shows the Marked for Deletion List™
+    """
     func_delete(bot, trigger, 'list')
 
 @commands('quoteid')
 @require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
 @parameterize('+', usage='<id>')
 def cmd_quoteid(bot, trigger, id):
+    """
+    Quotes a case by its database id
+    """
     try:
         result = callapi(bot, method='GET', uri='/rescues/'+str(id))
         rescue = Rescue.load(result['data'])
@@ -1353,6 +1378,10 @@ def cmd_quoteid(bot, trigger, id):
 @parameterize('rw*', '<case # or client name> <title to set>')
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_title(bot, trigger, rescue, *title):
+    """
+    Sets the Operation Title of a rescue.
+    required parameters: boardindex or clientname and Title to set
+    """
     comptitle = ""
     for s in title:
         comptitle = comptitle + s
@@ -1365,6 +1394,11 @@ def cmd_title(bot, trigger, rescue, *title):
 @parameterize(params='r', usage='<client name or case number>')
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_pwl(bot, trigger, case):
+    """
+    Creates the link for the paperwork of any currently open rescue and shortens it (if the shortener module is active)
+    required parameters: client name or board index
+    aliases: pwl, pwlink, paperwork, paperworklink
+    """
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
         rescue=case, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     shortened = url
@@ -1376,6 +1410,10 @@ def cmd_pwl(bot, trigger, case):
 # This should go elsewhere, but here for now.
 @commands('version', 'uptime')
 def cmd_version(bot, trigger):
+    """
+    Shows the bot's current version and Uptime
+    aliases: version, uptime
+    """
     from ratlib import format_timedelta, format_timestamp
     started = bot.memory['ratbot']['stats']['started']
     bot.say(
@@ -1391,18 +1429,29 @@ def cmd_version(bot, trigger):
 @commands('flush', 'resetnames', 'rn', 'flushnames', 'fn')
 @require_rat('Sorry, you need to be a registered and drilled rat to access this command.')
 def cmd_flush(bot, trigger):
+    """
+    Resets the cached RatNames. Helps with Bugged rat names on !assign
+    aliases: flush, resetnames, rn, flushnames, fn
+    """
     flushNames()
     bot.reply('Cached names flushed!')
 
 
 @commands('host')
 def cmd_host(bot, trigger):
+    """
+    Shows you your current host to verify priviliges
+    """
     bot.reply('Your Host is: ' + str(trigger.host))
 
 
 @commands('refreshboard', 'resetboard', 'forceresetboard', 'forcerefreshboard', 'frb', 'fbr', 'boardrefresh')
 @require_overseer('Sorry, but you need to be a registered Overseer or higher to access this command.')
 def cmd_forceRefreshBoard(bot, trigger):
+    """
+    Forcefully resets the Board. This removes all "Ghost" Cases as they are grabbed from the API. Boardindexes will get lost and changed by this
+    aliases: refreshboard, resetboard, forceresetboard, forcerefreshboard, br, fbr, boardrefresh (kinda went overBOARD with that. hah. puns.)
+    """
     bot.reply(
         'Force refreshing the Board. This removes all cases and grabs them from the API. DISPATCH, be advised: Case numbers may be changed!')
     refresh_cases(bot, force=True)
@@ -1437,7 +1486,12 @@ def setRescueMarkedForDeletion(bot, rescue, marked, reason='None.', reporter='No
 @parameterize('rt', '<client/board #> <reason>')
 @require_rat('Sorry, but you need to be a registered and drilled Rat to use this command.')
 def cmd_md(bot, trigger, case, reason):
-    bot.reply('Closing case of ' + str(case.client) + ' (Case #' + str(case.id) + ') and marking it for deletion.')
+    """
+    Closes a rescue and adds it to the Marked for Deletion List™
+    required parameters: client name or board index and the reason it should be deleted
+    aliases: md, mdadd
+    """
+    bot.reply('Closing case of ' + str(case.client) + ' (Case #' + str(case.id) + ') and adding it to the Marked for Deletion List™.')
     func_clear(bot, trigger, case, markingForDeletion=True)
     setRescueMarkedForDeletion(bot=bot, rescue=case, marked=True, reason=reason, reporter=trigger.nick)
 
@@ -1445,10 +1499,15 @@ def cmd_md(bot, trigger, case, reason):
 @parameterize('w', '<id>')
 @require_overseer('Sorry, but you need to be an overseer or higher to use this command!')
 def cmd_mdremove(bot, trigger, caseid):
+    """
+    Remove a case from the Marked for Deletion List™ (Does NOT reopen the case!)
+    required parameter: database id
+    aliases: mdremove, mdr, mdd, mddeny
+    """
     try:
         result = callapi(bot, method='GET', uri='/rescues/'+str(caseid))
         rescue = Rescue.load(result['data'])
         setRescueMarkedForDeletion(bot, rescue, marked=False)
-        bot.reply('Successfully removed '+str(rescue.client)+'\'s case from the marked for deletion list.')
+        bot.reply('Successfully removed '+str(rescue.client)+'\'s case from the Marked for Deletion List™.')
     except:
         bot.reply('Couldn\'t find a case with id '+str(caseid)+' or other APIError')

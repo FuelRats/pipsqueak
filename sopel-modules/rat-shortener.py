@@ -75,6 +75,12 @@ def shortenUrl(bot, url, keyword=None):
 @commands('short','shortener','shorten')
 @parameterize("w*","<url to shorten> [keyword]")
 def shorten_cmd(bot, trigger, url, *keywords):
+    """
+    Shortens a given URL
+    required parameter: url to shorten
+    optional parameter: keyword to append to the link (if it is not used already)
+    aliases: short, shortener, shorten
+    """
     if len(keywords) > 0:
         keyword = keywords[0]
     else:
