@@ -92,8 +92,10 @@ def func_connect(bot):
     if reactor._started:
         bot.say('[Websocket] Reactor already running!')
         return
-    mainchannel = str(bot.config.core.channels).split(",")[0]
-    bot.say('[Websocket] Gotcha, connecting to the API\'s Websocket!', recipient=mainchannel)
+    try:
+        bot.say('[Websocket] Gotcha, connecting to the API\'s Websocket!')
+    except:
+        pass
     MyClientProtocol.bot = bot
     MyClientProtocol.board = bot.memory['ratbot']['board']
     factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
@@ -101,7 +103,7 @@ def func_connect(bot):
     factory.protocol = MyClientProtocol
     # print('in connect')
     hostname = str(bot.config.socket.websocketurl).replace("ws://", '').replace("wss://", '')
-    print('Hostname: '+hostname)
+    print('[Websocket] Hostname: '+hostname)
     if (bot.config.socket.websocketurl.startswith('wss://')):
 
         reactor.connectSSL(hostname,
