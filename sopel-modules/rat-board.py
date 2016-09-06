@@ -694,6 +694,9 @@ def cmd_quote(bot, trigger, rescue):
     Recites all known information for the specified rescue
     Required parameters: client name or case number.
     """
+    func_quote(bot, trigger, rescue)
+
+def func_quote(bot, trigger, rescue, showboardindex=True):
     tags = ['unknown platform' if not rescue.platform or rescue.platform == 'unknown' else rescue.platform.upper()]
 
     if rescue.epic:
@@ -703,7 +706,7 @@ def cmd_quote(bot, trigger, rescue):
 
     fmt = (
               ("Rescue Operation {title}: " if rescue.title else "") +
-              "{client}'s case #{index} at {system} ({tags}) opened {opened} ({opened_ago}),"
+              "{client}'s case "+"#{index}" if showboardindex else ""+" at {system} ({tags}) opened {opened} ({opened_ago}),"
               " updated {updated} ({updated_ago})"
           ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
 
@@ -1326,9 +1329,23 @@ def cmd_delete(bot, trigger, id):
         for case in result['data']:
             rescue = Rescue.load(case)
             caselist.append(format_rescue(bot, rescue))
-        bot.reply('Cases marked for deletion:')
+        if (len(caselist)==0):
+            bot.reply('No Cases marked for deletion!')
+        else:
+            bot.reply('Cases marked for deletion:')
         for case in caselist:
             bot.reply(str(case))
+
+@commands('quoteid')
+@require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
+@parameterize('+', usage='<id>')
+def cmd_quoteid(bot, trigger, id):
+    try:
+        result = callapi(bot, method='GET', uri='/rescues/'+str(id))
+        rescue = Rescue.load(result['data'])
+        func_quote(bot, trigger, rescue, showboardindex=False)
+    except:
+        bot.reply('Couldn\'t find a case with id '+str(id)+' or other APIError')
 
 
 @commands('title')
@@ -1410,15 +1427,27 @@ def getDeletionReporter(rescue):
     return rescue.data.get('markedForDeletion').get('reporter')
 
 
-def setRescueMarkedForDeletion(bot, rescue, marked, reason, reporter):
+def setRescueMarkedForDeletion(bot, rescue, marked, reason='None.', reporter='Noone.'):
     rescue.data.update({'markedForDeletion': {'marked': marked, 'reason': str(reason), 'reporter': str(reporter)}})
     save_case_later(bot, rescue, forceFull=True)
 
 
-@commands('md')
+@commands('md','mdadd')
 @parameterize('rt', '<client/board #> <reason>')
 @require_rat('Sorry, but you need to be a registered and drilled Rat to use this command.')
 def cmd_md(bot, trigger, case, reason):
     bot.reply('Closing case of ' + str(case.client) + ' (Case #' + str(case.id) + ') and marking it for deletion.')
     func_clear(bot, trigger, case, markingForDeletion=True)
     setRescueMarkedForDeletion(bot=bot, rescue=case, marked=True, reason=reason, reporter=trigger.nick)
+
+@commands('mdremove','mdr','mdd','mddeny')
+@parameterize('w', '<id>')
+@require_overseer('Sorry, but you need to be an overseer or higher to use this command!')
+def cmd_mdremove(bot, trigger, caseid):
+    try:
+        result = callapi(bot, method='GET', uri='/rescues/'+str(id))
+        rescue = Rescue.load(result['data'])
+        setRescueMarkedForDeletion(bot, rescue, marked=False)
+        bot.reply('Successfully removed '+str(rescue.client)+'\'s case from the marked for deletion list.')
+    except:
+        bot.reply('Couldn\'t find a case with id '+str(id)+' or other APIError')
