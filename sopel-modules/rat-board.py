@@ -1314,6 +1314,9 @@ def cmd_reopen(bot, trigger, id):
 @require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
 @parameterize('+', usage='<id/list>')
 def cmd_delete(bot, trigger, id):
+    func_delete(bot, trigger, id)
+
+def func_delete(bot, trigger, id):
     if 'list'!=id:
         try:
            result = callapi(bot, 'DELETE', uri='/rescues/' + str(id))
@@ -1335,6 +1338,11 @@ def cmd_delete(bot, trigger, id):
             bot.reply('Cases marked for deletion:')
         for case in caselist:
             bot.reply(str(case))
+
+@commands('mdlist')
+@require_overseer('Sorry pal, you\'re not an overseer or higher!')
+def cmd_mdlist(bot, trigger):
+    func_delete(bot, trigger, 'list')
 
 @commands('quoteid')
 @require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
