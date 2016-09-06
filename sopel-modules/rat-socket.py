@@ -86,16 +86,13 @@ def setup(bot):
         websocketurl = bot.config.socket.websocketurl
         websocketport = bot.config.socket.websocketport
 
-    func_connect(bot)
+    # ---> Does not work as te board is not nessesarily set up yet! func_connect(bot)
 
 def func_connect(bot):
     if reactor._started:
         bot.say('[Websocket] Reactor already running!')
         return
-    try:
-        bot.say('[Websocket] Gotcha, connecting to the API\'s Websocket!')
-    except:
-        pass
+    bot.say('[Websocket] Gotcha, connecting to the API\'s Websocket!')
     MyClientProtocol.bot = bot
     MyClientProtocol.board = bot.memory['ratbot']['board']
     factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
