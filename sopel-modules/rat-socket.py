@@ -86,6 +86,7 @@ def setup(bot):
         websocketurl = bot.config.socket.websocketurl
         websocketport = bot.config.socket.websocketport
 
+    func_connect(bot)
 
 def func_connect(bot):
     if reactor._started:
