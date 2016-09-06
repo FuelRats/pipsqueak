@@ -12,6 +12,8 @@ http://sopel.chat/
 import sys
 from threading import Thread
 import json
+import time
+import traceback
 
 # Sopel imports
 from sopel.formatting import bold, color, colors
@@ -67,8 +69,8 @@ def configure(config):
 
 
 def shutdown(bot=None):
-    # Ignored by sopel?!?!?!
-    print('shutdown for socket')
+    # Ignored by sopel?!?!?! - Sometimes.
+    print('[Websocket] shutdown for socket')
     reactor.stop()
 
 
@@ -83,6 +85,37 @@ def setup(bot):
     else:
         websocketurl = bot.config.socket.websocketurl
         websocketport = bot.config.socket.websocketport
+
+    # ---> Does not work as te board is not nessesarily set up yet! func_connect(bot)
+
+def func_connect(bot):
+    if reactor._started:
+        bot.say('[Websocket] Reactor already running!')
+        return
+    bot.say('[Websocket] Gotcha, connecting to the API\'s Websocket!')
+    MyClientProtocol.bot = bot
+    MyClientProtocol.board = bot.memory['ratbot']['board']
+    factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
+
+    factory.protocol = MyClientProtocol
+    # print('in connect')
+    hostname = str(bot.config.socket.websocketurl).replace("ws://", '').replace("wss://", '')
+    print('[Websocket] Hostname: '+hostname)
+    if (bot.config.socket.websocketurl.startswith('wss://')):
+
+        reactor.connectSSL(hostname,
+                           int(bot.config.socket.websocketport),
+                           factory, contextFactory=optionsForClientTLS(hostname = hostname))
+    else:
+
+        reactor.connectTCP(hostname,
+                           int(bot.config.socket.websocketport),
+                           factory)
+
+    # print('pls')
+    thread = Thread(target=reactor.run, kwargs={'installSignalHandlers': 0})
+
+    thread.start()
 
 class Socket:
     def __enter__(self):
@@ -102,81 +135,54 @@ def sockettest(bot, trigger):
     """
     Just try it.
     """
-    bot.say('Sorry Pal, but you need to restart the bot to attempt a Manual Reconnect!')
+    bot.say('Sorry Pal, but you need to restart the bot to attempt a Manual Reconnect! (Stupid, i know -_-)')
 
 
 @commands('connectsocket', 'connect')
+@require_techrat('I am sorry, but this command is restricted for TechRats and above.')
 @ratlib.sopel.filter_output
 def connectSocket(bot, trigger):
     """
     Connects the Bot to the API's websocket. This command may be removed Without notice and executed on bot startup.
     """
-    if reactor._started:
-        bot.say('Already connected!')
-        return
-    bot.say('Gotcha, connecting to the API\'s Websocket!')
-    MyClientProtocol.bot = bot
-    MyClientProtocol.board = bot.memory['ratbot']['board']
-    factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
-
-    factory.protocol = MyClientProtocol
-    # print('in connect')
-    hostname = str(bot.config.socket.websocketurl).replace("ws://", '').replace("wss://", '')
-    print('Hostname: '+hostname)
-    if (bot.config.socket.websocketurl.startswith('wss://')):
-
-        reactor.connectSSL(hostname,
-                           int(bot.config.socket.websocketport),
-                           factory, contextFactory=optionsForClientTLS(hostname = hostname))
-    else:
-
-        reactor.connectTCP(hostname,
-                           int(bot.config.socket.websocketport),
-                           factory)
-
-    # print('pls')
-    thread = Thread(target=reactor.run, kwargs={'installSignalHandlers': 0})
-
-    thread.start()
-
-
-    # reactor.run(installSignalHandlers=0)
-    # print('Im in?')
+    func_connect(bot)
 
 
 class MyClientProtocol(WebSocketClientProtocol):
     bot = None
     board = None
+    authed = False
+
 
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
-        MyClientProtocol.bot.say('Successfully openend connection to Websocket!')
-        # print('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
+        MyClientProtocol.bot.say('[Websocket] Successfully openend connection to Websocket!')
+        print('[Websocket] Authenticating with message: '+'{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
         self.sendMessage(str('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}').encode('utf-8'))
-        self.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
+
 
     def onMessage(self, payload, isBinary):
         if isBinary:
-            print("Binary message received: {0} bytes".format(len(payload)))
+            print("[Websocket] Binary message received: {0} bytes".format(len(payload)))
 
 
         else:
-            # print("Text message received: {0}".format(payload.decode('utf8')))
-            handleWSMessage(payload)
+            print("[Websocket] Text message received: {0}".format(payload.decode('utf8')))
+            handleWSMessage(payload, self)
 
     def onClose(self, wasClean, code, reason):
         # print('onclose')
-        MyClientProtocol.bot.say('Closed connection with Websocket. Reason: ' + str(reason))
+        MyClientProtocol.bot.say('[Websocket] Closed connection with Websocket. Reason: ' + str(reason))
         WebSocketClientProtocol.onClose(self, wasClean, code, reason)
 
 
-def handleWSMessage(payload):
+def handleWSMessage(payload, senderinstance):
     response = json.loads(payload.decode('utf8'))
     action = response['meta']['action']
     try:
         data = response['data']
     except KeyError as ex:
-        MyClientProtocol.bot.say('Couldn\'t grab Data field. Here\'s the Error field: '+str(response['errors']))
+        MyClientProtocol.bot.say('[Websocket] Couldn\'t grab Data field. Here\'s the Error field: '+str(response['errors']))
         return
     say = MyClientProtocol.bot.say
     bot = MyClientProtocol.bot
@@ -188,7 +194,7 @@ def handleWSMessage(payload):
     def filterRat(bot, data):
         ratId = data.get('RatID') or data.get('ratID') or data.get('RatId') or data.get('ratId') or data.get('ratid')
 
-        return getRatName(bot=bot, ratid=ratId)
+        return getRatName(bot=bot, ratid=ratId)[0]
 
     def onduty(data):
         # print('in function onduty!!!!!!!!')
@@ -199,7 +205,7 @@ def handleWSMessage(payload):
             say(str(filterRat(bot, data)) + ' is now off Duty! [Reported by RatTracker]')
 
     def welcome(data):
-        say('Successfully welcomed to Websocket!')
+        say('[Websocket] Successfully welcomed to Websocket!')
 
     def fr(data):
         client = filterClient(bot, data)
@@ -268,13 +274,13 @@ def handleWSMessage(payload):
                 ind = len(lyintstr)
         lyintstr = str(int(lyintstr[0:ind]))
         if data['SourceCertainty'] == 'Fuelum':
-            bot.say(rat + ': '+str(data['CallJumps'])+'j from Fuelum. [Case '+ client+', Unknown Rat Location, RatTracker]')
+            bot.say(str(rat) + ': '+str(data['CallJumps'])+'j from Fuelum. [Case '+ str(client)+', Unknown Rat Location, RatTracker]')
             return
         if data['SourceCertainty'] != 'Exact' or data['DestinationCertainty'] != 'Exact':
-            bot.say(rat + ': ' + str(data[
-                                         'CallJumps']) + 'j - Estimate, no exact System. ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
+            bot.say(str(rat) + ': ' + str(data[
+                                         'CallJumps']) + 'j - Estimate, no exact System. ' + str(lyintstr) + 'LY [Case ' + str(client) + ', RatTracker]')
         else:
-            bot.say(rat + ': ' + str(data['CallJumps']) + 'j, ' + lyintstr + 'LY [Case ' + client + ', RatTracker]')
+            bot.say(str(rat) + ': ' + str(data['CallJumps']) + 'j, ' + str(lyintstr) + 'LY [Case ' + str(client) + ', RatTracker]')
 
     def clientupdate(data):
         client = filterClient(bot, data)
@@ -285,16 +291,28 @@ def handleWSMessage(payload):
                 bot.say(rat + ': ' + client + '\'s System is ' + res.system + '! Case updated. [RatTracker]')
                 save_case(bot, res)
         # bot.say('Client name: ' + client + ', Ratname: ' + rat)
+    def authorize(data):
+        MyClientProtocol.authed = True
+        bot.say('[Websocket] Authenticated with the API!')
+        print(
+            '[Websocket] Authed! Subscribing to RT with message: ' + '{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
+        senderinstance.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
+
 
     wsevents = {"OnDuty:update": onduty, 'welcome': welcome, 'FriendRequest:update': fr, 'WingRequest:update': wr,
                 'SysArrived:update': system, 'BeaconSpotted:update': bc, 'InstanceSuccessful:update': inst,
-                'Fueled:update': fueled, 'CallJumps:update': calljumps, 'ClientSystem:update':clientupdate}
+                'Fueled:update': fueled, 'CallJumps:update': calljumps, 'ClientSystem:update':clientupdate, 'authorization':authorize}
     # print('keys of wsevents: '+str(wsevents.keys()))
     # print(action)
 
     if action in wsevents.keys():
         # print('Action is in wskeys!!')
-        wsevents[action](data=data)
+        try:
+            wsevents[action](data=data)
+        except:
+            bot.say('[Websocket] Got an error while handling WebSocket Event. Report this to Marenthyu including the time this happened. Thank you!')
+            exc_type, exc_value, exc_traceback = sys.exc_info()
+            traceback.print_exception(exc_type, exc_value, exc_traceback)
 
 def save_case(bot, rescue):
     """
@@ -322,7 +340,7 @@ def save_case(bot, rescue):
         result = callapi(bot, method, uri, data=data)
         rescue.commit()
         if 'data' not in result or not result['data']:
-            raise RuntimeError("API response returned unusable data.")
+            raise RuntimeError("[Websocket] API response returned unusable data.")
         with rescue.change():
             rescue.refresh(result['data'])
         return rescue
@@ -346,5 +364,5 @@ class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
     def retry(self, connector=None):
-        MyClientProtocol.bot.say('Reconnecting to API Websocket in ' + str(self.delay) + ' seconds...')
+        MyClientProtocol.bot.say('[Websocket] Reconnecting to API Websocket in ' + str(self.delay) + ' seconds...')
         ReconnectingClientFactory.retry(self)
