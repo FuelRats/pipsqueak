@@ -86,6 +86,36 @@ def setup(bot):
         websocketurl = bot.config.socket.websocketurl
         websocketport = bot.config.socket.websocketport
 
+
+def func_connect(bot):
+    if reactor._started:
+        bot.say('[Websocket] Reactor already running!')
+        return
+    bot.say('[Websocket] Gotcha, connecting to the API\'s Websocket!')
+    MyClientProtocol.bot = bot
+    MyClientProtocol.board = bot.memory['ratbot']['board']
+    factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
+
+    factory.protocol = MyClientProtocol
+    # print('in connect')
+    hostname = str(bot.config.socket.websocketurl).replace("ws://", '').replace("wss://", '')
+    print('Hostname: '+hostname)
+    if (bot.config.socket.websocketurl.startswith('wss://')):
+
+        reactor.connectSSL(hostname,
+                           int(bot.config.socket.websocketport),
+                           factory, contextFactory=optionsForClientTLS(hostname = hostname))
+    else:
+
+        reactor.connectTCP(hostname,
+                           int(bot.config.socket.websocketport),
+                           factory)
+
+    # print('pls')
+    thread = Thread(target=reactor.run, kwargs={'installSignalHandlers': 0})
+
+    thread.start()
+
 class Socket:
     def __enter__(self):
         return self._lock.__enter__()
@@ -114,37 +144,7 @@ def connectSocket(bot, trigger):
     """
     Connects the Bot to the API's websocket. This command may be removed Without notice and executed on bot startup.
     """
-    if reactor._started:
-        bot.say('Already connected!')
-        return
-    bot.say('Gotcha, connecting to the API\'s Websocket!')
-    MyClientProtocol.bot = bot
-    MyClientProtocol.board = bot.memory['ratbot']['board']
-    factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
-
-    factory.protocol = MyClientProtocol
-    # print('in connect')
-    hostname = str(bot.config.socket.websocketurl).replace("ws://", '').replace("wss://", '')
-    print('Hostname: '+hostname)
-    if (bot.config.socket.websocketurl.startswith('wss://')):
-
-        reactor.connectSSL(hostname,
-                           int(bot.config.socket.websocketport),
-                           factory, contextFactory=optionsForClientTLS(hostname = hostname))
-    else:
-
-        reactor.connectTCP(hostname,
-                           int(bot.config.socket.websocketport),
-                           factory)
-
-    # print('pls')
-    thread = Thread(target=reactor.run, kwargs={'installSignalHandlers': 0})
-
-    thread.start()
-
-
-    # reactor.run(installSignalHandlers=0)
-    # print('Im in?')
+    func_connect(bot)
 
 
 class MyClientProtocol(WebSocketClientProtocol):
@@ -204,7 +204,7 @@ def handleWSMessage(payload, senderinstance):
             say(str(filterRat(bot, data)) + ' is now off Duty! [Reported by RatTracker]')
 
     def welcome(data):
-        say('Successfully welcomed to Websocket!')
+        say('[Websocket] Successfully welcomed to Websocket!')
 
     def fr(data):
         client = filterClient(bot, data)
