@@ -1,4 +1,4 @@
-#coding: utf8
+# coding: utf8
 """
 rat-facts.py - Fact reciting module
 Copyright 2015, Dimitri "Tyrope" Molenaars <tyrope@tyrope.nl>
@@ -21,6 +21,7 @@ from sopel.tools import SopelMemory, Identifier
 from sqlalchemy import exc, inspect
 from ratlib.db import Fact, with_session
 import ratlib.sopel
+from ratlib.api.names import *
 
 
 class RatfactsSection(StaticSection):
@@ -69,7 +70,7 @@ def import_facts(bot, merge=False, db=None):
                 for name, message in v.items():
                     if isinstance(message, dict):  # New-style facts.json with attribution
                         yield Fact(name=name, lang=k, message=message['fact'], author=message.get('author'))
-                    else:   # Newer-style facts.json with language but not attribution -- or explicit deletion of fact.
+                    else:  # Newer-style facts.json with language but not attribution -- or explicit deletion of fact.
                         yield Fact(name=name, lang=k, message=message)
             else:  # Old-style facts.json, single language
                 yield Fact(name=k, lang=lang, message=v)
@@ -160,8 +161,9 @@ def find_fact(bot, text, exact=False, db=None):
 def format_fact(fact):
     return (
         "\x02{fact.name}-{fact.lang}\x02 - {fact.message} ({author})"
-        .format(fact=fact, author=("by " + fact.author) if fact.author else 'unknown')
+            .format(fact=fact, author=("by " + fact.author) if fact.author else 'unknown')
     )
+
 
 @commands(r'[^\s]+')
 def cmd_recite_fact(bot, trigger):
@@ -203,11 +205,6 @@ def cmd_fact(bot, trigger, db=None):
     option = parts.pop(0).lower() if parts else None
     extra = parts[0] if parts else None
 
-    access = 0
-    if command in('full', 'rescan', 'import', 'add', 'del', 'delete', 'set', 'remove'):
-        access = ratlib.sopel.best_channel_mode(bot, trigger.nick)
-
-
     if not command:
         # List known facts.
         unique_facts = list(Fact.unique_names(db))
@@ -215,15 +212,16 @@ def cmd_fact(bot, trigger, db=None):
             return bot.reply("Like Jon Snow, I know nothing.  (Or there's a problem with the fact database.)")
         return bot.say("{} known fact(s): {}".format(len(unique_facts), ", ".join(unique_facts)))
 
-    if command == 'import':
-        if access & (HALFOP | OP):
-            import_facts(bot, merge=(option == '-f'))
-            return bot.say("Facts imported.")
-        return bot.reply("Not authorized.")
+    @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
+    def cmd_fact_import(bot, trigger):
+        import_facts(bot, merge=(option == '-f'))
+        return bot.say("Facts imported.")
 
-    if command == 'full':
-        if not (access & (HALFOP | OP)):
-            return bot.reply("Not authorized.")
+    if command == 'import':
+        return cmd_fact_import(bot, trigger)
+
+    @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
+    def cmd_fact_full(bot, trigger):
         if not trigger.is_privmsg:
             bot.reply("Messaging you the complete fact database.")
         pm("Language search order is {}".format(", ".join(bot.memory['ratfacts']['lang'])))
@@ -232,20 +230,22 @@ def cmd_fact(bot, trigger, db=None):
         pm("-- End of list --")
         return NOLIMIT
 
-    if command in ('add', 'set', 'del', 'delete', 'remove'):
-        if not (access & (HALFOP | OP)):
-            return bot.reply("Not authorized.")
+    if command == 'full':
+        return cmd_fact_full(bot, trigger)
+
+    @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
+    def cmd_fact_edit(bot, trigger):
         if not option:
             bot.reply("Missing fact.")
             return NOLIMIT
         if '-' not in option:
             bot.reply(
                 "Fact must include a language specifier.  (Perhaps you meant '{name}-{lang}'?)"
-                .format(name=option, lang=bot.memory['ratfacts']['lang'][0])
+                    .format(name=option, lang=bot.memory['ratfacts']['lang'][0])
             )
             return NOLIMIT
         name, lang = option.rsplit('-', 1)
-        if command in('add', 'set'):
+        if command in ('add', 'set'):
             message = extra.strip() if extra else None
             if not message:
                 bot.reply("Can't add a blank fact.")
@@ -263,6 +263,9 @@ def cmd_fact(bot, trigger, db=None):
         else:
             bot.reply("No such fact.")
         return NOLIMIT
+
+    if command in ('add', 'set', 'del', 'delete', 'remove'):
+        return cmd_fact_edit(bot, trigger)
 
     def _translation_stats(exists, missing, s='translation', p='translations'):
         if exists:
@@ -292,8 +295,8 @@ def cmd_fact(bot, trigger, db=None):
 
         query = (
             db.query(Fact, sq_opp)
-            .select_from(sq.outerjoin(Fact, (sq_opp == fact_opp) & (fact_col == command)))
-            .order_by(Fact.message.is_(None), sq_opp)
+                .select_from(sq.outerjoin(Fact, (sq_opp == fact_opp) & (fact_col == command)))
+                .order_by(Fact.message.is_(None), sq_opp)
         )
         exists = set()
         missing = set()
