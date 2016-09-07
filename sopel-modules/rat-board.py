@@ -242,6 +242,7 @@ class RescueBoard:
                         if new in self.indexes[index]:
                             warnings.warn("Key {key!r} is already in index {index!r}".format(key=new, index=index))
                         else:
+                            print('Updating index '+str(index)+' with '+str(new))
                             self.indexes[index][new] = rescue
 
     def create(self):
