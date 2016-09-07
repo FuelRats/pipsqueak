@@ -49,6 +49,9 @@ def getRatId(bot, ratname, platform=None):
                         returnlist.append(ret)
             strippedname = removeTags(ratname)
             for retelement in returnlist:
+                print('Is '+retelement['name'] + ' == ' + ratname+'? '+str(retelement['name']==ratname))
+                print('Is ' + retelement['name'] + ' == ' + strippedname+'? ' + str(retelement['name']==strippedname))
+                print('Is ' + retelement['name'] + ' == ' + strippedname.replace('_', ' ') + '? ' + str(retelement['name'] == ratname))
                 if (retelement['name']==ratname) or (retelement['name']==strippedname) or (retelement['name']==strippedname.replace('_', ' ')):
                     ret = retelement
         savedratids.update({ratname: ret})
