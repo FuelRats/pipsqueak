@@ -138,7 +138,7 @@ class RescueBoard:
     INDEX_TYPES = {
         'boardindex': operator.attrgetter('boardindex'),
         'id': operator.attrgetter('id'),
-        'client': lambda x: None if not x.client else str(x.data['IRCNick']).lower(),
+        'client': lambda x: None if not x.data['IRCNick'] else str(x.data['IRCNick']).lower(),
 
     }
 
@@ -286,6 +286,7 @@ class RescueBoard:
             rescue = self.indexes['id'].get(search[1:], None),
             return FindRescueResult(rescue, False if rescue else None)
 
+        print('Indexes: '+str(self.indexes))
         rescue = self.indexes['client'].get(search.lower())
         if not rescue:
             spacesearch = search.replace('_', ' ')
