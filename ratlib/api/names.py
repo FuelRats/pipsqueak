@@ -12,8 +12,10 @@ def getRatId(bot, ratname, platform=None):
 
     if ratname in savedratids.keys():
         if platform == None:
+            print('platform was None and '+ratname+' was in keys. returning '+str(savedratids.get(ratname)))
             return savedratids.get(ratname)
         elif platform == savedratids.get(ratname)['platform']:
+            print('platform was on the gotten name. Returning '+str(savedratids.get(ratname)))
             return savedratids.get(ratname)
 
 
@@ -37,7 +39,7 @@ def getRatId(bot, ratname, platform=None):
             id = None
             ratnam = None
             if len(data) == 0:
-                # print('data length 0')
+                print('data length 0')
                 raise Exception
             for user in data:
                 for cmdr in user['CMDRs']:
@@ -51,7 +53,7 @@ def getRatId(bot, ratname, platform=None):
             for retelement in returnlist:
                 print('Is '+retelement['name'] + ' == ' + ratname+'? '+str(retelement['name']==ratname))
                 print('Is ' + retelement['name'] + ' == ' + strippedname+'? ' + str(retelement['name']==strippedname))
-                print('Is ' + retelement['name'] + ' == ' + strippedname.replace('_', ' ') + '? ' + str(retelement['name'] == ratname))
+                print('Is ' + retelement['name'] + ' == ' + strippedname.replace('_', ' ') + '? ' + str(retelement['name'] == strippedname.replace('_', ' ')))
                 if (retelement['name']==ratname) or (retelement['name']==strippedname) or (retelement['name']==strippedname.replace('_', ' ')):
                     ret = retelement
         savedratids.update({ratname: ret})
@@ -91,7 +93,7 @@ def getRatId(bot, ratname, platform=None):
                             returnlist.append(ret)
                 strippedname = removeTags(ratname)
                 for retelement in returnlist:
-                    if (retelement['name'] == ratname) or (retelement['name'] == str(strippedname)) or (retelement['name']==str(strippedname).lower()):
+                    if (retelement['name'] == ratname) or (retelement['name'] == str(strippedname)) or (retelement['name']==str(strippedname).replace('_', ' ')):
                         ret = retelement
             savedratids.update({strippedname: ret})
             savedratnames.update({id: {'name':ret['name'], 'platform':ret['platform'], 'id':ret['id']}})
