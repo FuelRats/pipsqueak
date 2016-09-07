@@ -239,7 +239,7 @@ class RescueBoard:
                         if new in self.indexes[index]:
                             warnings.warn("Key {key!r} is already in index {index!r}".format(key=new, index=index))
                         else:
-                            print('Updating index '+str(index)+' with '+str(new))
+                            # print('Updating index '+str(index)+' with '+str(new))
                             self.indexes[index][new] = rescue
 
     def create(self):
@@ -284,7 +284,7 @@ class RescueBoard:
             rescue = self.indexes['id'].get(search[1:], None),
             return FindRescueResult(rescue, False if rescue else None)
 
-        print('Indexes: '+str(self.indexes))
+        # print('Indexes: '+str(self.indexes))
         rescue = self.indexes['client'].get(search.lower())
         if not rescue:
             spacesearch = search.replace('_', ' ')
@@ -1251,11 +1251,8 @@ def ratmama_parse(bot, trigger):
             platform, '\u0002' + platform + '\u000F')
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
-        print('data before update: '+str(result.rescue.data))
-        print('updating with '+str({'langID': langID, 'IRCNick':ircnick}))
         with bot.memory['ratbot']['board'].change(result.rescue):
             result.rescue.data.update({'langID': langID, 'IRCNick':ircnick})
-        print('data after update: '+str(result.rescue.data))
         save_case_later(bot, result.rescue)
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
