@@ -1490,14 +1490,14 @@ def setRescueMarkedForDeletion(bot, rescue, marked, reason='None.', reporter='No
     save_case_later(bot, rescue, forceFull=True)
 
 
-@commands('md','mdadd')
+@commands('md','mdadd','markfordeletion','markfordelete')
 @parameterize('rt', '<client/board #> <reason>')
 @require_rat('Sorry, but you need to be a registered and drilled Rat to use this command.')
 def cmd_md(bot, trigger, case, reason):
     """
     Closes a rescue and adds it to the Marked for Deletion List™
     required parameters: client name or board index and the reason it should be deleted
-    aliases: md, mdadd
+    aliases: md, mdadd, markfordeletion, markfordelete
     """
     bot.reply('Closing case of ' + str(case.client) + ' (Case #' + str(case.id) + ') and adding it to the Marked for Deletion List™.')
     func_clear(bot, trigger, case, markingForDeletion=True)
