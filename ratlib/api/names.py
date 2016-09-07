@@ -14,10 +14,10 @@ def getRatId(bot, ratname, platform=None):
         element = savedratids.get(ratname)
         strippedname = removeTags(ratname)
         if (platform == None) and ((element['name']==ratname) or element['name']==strippedname or element['name']==strippedname.replace('_',' ')):
-            print('platform was None and '+ratname+' was in keys and the name matched. returning '+str(element))
+            # print('platform was None and '+ratname+' was in keys and the name matched. returning '+str(element))
             return element
         elif (platform == element['platform']) and ((element['name']==ratname) or element['name']==strippedname or element['name']==strippedname.replace('_',' ')):
-            print('platform was on the gotten name and names matched. Returning '+str(element))
+            # print('platform was on the gotten name and names matched. Returning '+str(element))
             return element
 
 
@@ -59,7 +59,7 @@ def getRatId(bot, ratname, platform=None):
             id = None
             ratnam = None
             if len(data) == 0:
-                print('data length 0')
+                # print('data length 0')
                 raise Exception
             for user in data:
                 for cmdr in user['CMDRs']:
@@ -71,9 +71,9 @@ def getRatId(bot, ratname, platform=None):
                         returnlist.append(ret)
             strippedname = removeTags(ratname)
             for retelement in returnlist:
-                print('Is '+retelement['name'] + ' == ' + ratname+'? '+str(retelement['name']==ratname))
-                print('Is ' + retelement['name'] + ' == ' + strippedname+'? ' + str(retelement['name']==strippedname))
-                print('Is ' + retelement['name'] + ' == ' + strippedname.replace('_', ' ') + '? ' + str(retelement['name'] == strippedname.replace('_', ' ')))
+                # print('Is '+retelement['name'] + ' == ' + ratname+'? '+str(retelement['name']==ratname))
+                # print('Is ' + retelement['name'] + ' == ' + strippedname+'? ' + str(retelement['name']==strippedname))
+                # print('Is ' + retelement['name'] + ' == ' + strippedname.replace('_', ' ') + '? ' + str(retelement['name'] == strippedname.replace('_', ' ')))
                 if (retelement['name']==ratname) or (retelement['name']==strippedname) or (retelement['name']==strippedname.replace('_', ' ')):
                     ret = retelement
         savedratids.update({ratname: ret})
@@ -157,7 +157,7 @@ def idFallback(bot, ratname, platform=None):
                 return {'id': '0', 'name': ratname, 'error': ex, 'platform':'unknown',
                         'description': 'no rats with that commandername or nickname or gamertag found.'}
     except ratlib.api.http.APIError as ex:
-        print('APIError: couldnt find RatId for ' + ratname)
+        print('[NamesAPI] APIError: couldnt find RatId for ' + ratname)
         return {'id': '0', 'name': ratname, 'platform':'unknown', 'error': ex, 'description': 'API Error while trying to fetch Rat'}
 
 
