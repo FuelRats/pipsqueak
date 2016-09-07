@@ -678,6 +678,8 @@ def rule_ratsignal(bot, trigger):
             .format(nick=trigger.nick, tags=", ".join(result.tags()) if result else "<unknown>")
     )
     bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
+    with bot.memory['ratbot']['board'].change(result.rescue):
+        result.rescue.data.update({'IRCNick':Identifier(trigger.nick)})
     save_case_later(
         bot, result.rescue,
         "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick)
