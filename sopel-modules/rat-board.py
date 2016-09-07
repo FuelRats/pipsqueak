@@ -138,7 +138,7 @@ class RescueBoard:
     INDEX_TYPES = {
         'boardindex': operator.attrgetter('boardindex'),
         'id': operator.attrgetter('id'),
-        'client': lambda x: None if not x.client else x.client.lower(),
+        'client': lambda x: None if not x.client else str(x.data['IRCNick']).lower(),
 
     }
 
@@ -325,7 +325,7 @@ class Rescue(TrackedBase):
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
     data = TrackedProperty(
-        default={'langID': 'unknown', 'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}})
+        default={'langID': 'unknown', 'IRCNick':str(client), 'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}})
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -1231,6 +1231,10 @@ def ratmama_parse(bot, trigger):
         crstring = re.search('(?<=O2: ).*?(?= -)', newline).group()
         langID = re.search('Language: .* \((.*)\)', newline).group(1)
         try:
+            ircnick = re.search('(?<= - IRC Nickname: ).*', newline).group()
+        except:
+            ircnick = cmdr
+        try:
             langID = langID[0:langID.index('-')]
         except ValueError:
             pass
@@ -1248,7 +1252,7 @@ def ratmama_parse(bot, trigger):
             platform, '\u0002' + platform + '\u000F')
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
-        result.rescue.data.update({'langID': langID})
+        result.rescue.data.update({'langID': langID, 'IRCNick':ircnick})
         save_case_later(bot, result.rescue)
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
