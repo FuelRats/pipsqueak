@@ -13,7 +13,7 @@ def getRatId(bot, ratname, platform=None):
     if ratname in savedratids.keys():
         if platform == None:
             return savedratids.get(ratname)
-        if platform == savedratids.get(ratname)['platform']:
+        elif platform == savedratids.get(ratname)['platform']:
             return savedratids.get(ratname)
 
 
@@ -30,7 +30,7 @@ def getRatId(bot, ratname, platform=None):
             firstmatch = data[0]
             id = firstmatch['CMDRs'][0]
             ratnam, ratplat = getRatName(bot, id)
-            ret = {'id': id, 'name':ratnam , 'platform':firstmatch['platform']}
+            ret = {'id': id, 'name':ratnam , 'platform':ratplat}
 
         else:
             ret = {'id':None, 'name':None, 'platform':None}
@@ -42,27 +42,27 @@ def getRatId(bot, ratname, platform=None):
             for user in data:
                 for cmdr in user['CMDRs']:
                     ratnam, ratplat = getRatName(bot, cmdr)
-                    rat = {'id':cmdr, 'platform':ratplat}
+                    rat = {'id':cmdr, 'platform':ratplat, 'name':ratnam}
                     if rat['platform'] == platform:
                         id = rat['id']
-                        ret = {'id':rat['id'], 'name': ratnam, 'platform':rat['platform']}
+                        ret = {'id':id, 'name': ratnam, 'platform':platform}
                         returnlist.append(ret)
             strippedname = removeTags(ratname)
             for retelement in returnlist:
                 if (retelement['name']==ratname) or (retelement['name']==strippedname) or (retelement['name']==strippedname.replace('_', ' ')):
                     ret = retelement
         savedratids.update({ratname: ret})
-        savedratnames.update({id: {'name': ratnam, 'platform': ret['platform']}})
+        savedratnames.update({id: {'name': ratnam, 'platform': ret['platform'], 'id':ret['id']}})
         return ret
     except:
         # print('didnt find with tags, trying without')
         try:
             strippedname = removeTags(ratname)
-            if strippedname in savedratids.keys():
+            if strippedname in savedratids.keys() and (platform == savedratids.get(strippedname)['platform'] or platform == None):
                 return savedratids[strippedname]
             uri = '/users?nicknames=' + strippedname
             result = callapi(bot=bot, method='GET', uri=uri)
-            print(result)
+            # print(result)
             data = result['data']
             # print(data)
             returnlist = []
@@ -70,7 +70,7 @@ def getRatId(bot, ratname, platform=None):
                 firstmatch = data[0]
                 id = firstmatch['CMDRs'][0]
                 ratnam, ratplat = getRatName(bot, id)
-                ret = {'id': id, 'name': ratnam, 'platform': firstmatch['platform']}
+                ret = {'id': id, 'name': ratnam, 'platform': ratplat}
 
             else:
                 ret = {'id': None, 'name': None, 'platform': None}
@@ -88,10 +88,10 @@ def getRatId(bot, ratname, platform=None):
                             returnlist.append(ret)
                 strippedname = removeTags(ratname)
                 for retelement in returnlist:
-                    if (retelement['name'] == ratname) or (retelement['name'] == strippedname):
+                    if (retelement['name'] == ratname) or (retelement['name'] == str(strippedname)) or (retelement['name']==str(strippedname).lower()):
                         ret = retelement
             savedratids.update({strippedname: ret})
-            savedratnames.update({id: {'name':ratnam, 'platform':ret['platform']}})
+            savedratnames.update({id: {'name':ret['name'], 'platform':ret['platform'], 'id':ret['id']}})
             return ret
         except:
             # print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
@@ -112,7 +112,7 @@ def idFallback(bot, ratname, platform=None):
 
     """
     strippedname = removeTags(ratname)
-
+    print('[NamesAPI] Had to call idFallback for '+str(ratname))
     try:
         uri = '/rats?CMDRname=' + strippedname + (('&platform='+platform) if platform is not None else '')
         result = callapi(bot=bot, method='GET', uri=uri)
