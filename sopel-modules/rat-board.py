@@ -1256,7 +1256,8 @@ def ratmama_parse(bot, trigger):
         result.rescue.platform = platform.lower()
         print('data before update: '+str(result.rescue.data))
         print('updating with '+str({'langID': langID, 'IRCNick':ircnick}))
-        result.rescue.data.update({'langID': langID, 'IRCNick':ircnick})
+        with bot.memory['ratbot']['board'].change(result.rescue):
+            result.rescue.data.update({'langID': langID, 'IRCNick':ircnick})
         print('data after update: '+str(result.rescue.data))
         save_case_later(bot, result.rescue)
         if result.created:
