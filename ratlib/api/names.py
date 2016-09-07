@@ -31,9 +31,27 @@ def getRatId(bot, ratname, platform=None):
         # print(data)
         returnlist = []
         if platform == None:
+            if len(data) == 0:
+                raise Exception
             firstmatch = data[0]
-            id = firstmatch['CMDRs'][0]
-            ratnam, ratplat = getRatName(bot, id)
+            strippedname = removeTags(ratname)
+            retlist = []
+            cmdr = 0
+
+            for cmdr in firstmatch['CMDRs']:
+                id = cmdr
+                tempnam, tempplat = getRatName(bot, cmdr)
+                if (tempnam==ratname or tempnam==strippedname or tempnam==strippedname.replace('_', ' ')):
+                    retlist.append({'id': cmdr, 'name':tempnam , 'platform':tempplat})
+            if len(retlist) == 0:
+                ratnam = tempnam
+                ratplat = tempplat
+                id = cmdr
+            else:
+                id = retlist[0]['id']
+                ratnam = retlist[0]['name']
+                ratplat = retlist[0]['platform']
+
             ret = {'id': id, 'name':ratnam , 'platform':ratplat}
 
         else:
