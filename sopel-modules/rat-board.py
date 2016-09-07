@@ -476,13 +476,14 @@ def save_case(bot, rescue, forceFull=False):
         method = "POST"
 
     def task():
-        result = callapi(bot, method, uri, data=data)
-        rescue.commit()
-        if 'data' not in result or not result['data']:
-            raise RuntimeError("API response returned unusable data.")
-        with rescue.change():
-            rescue.refresh(result['data'])
-        return rescue
+        with bot.memory['ratbot']['board'].change(rescue):
+            result = callapi(bot, method, uri, data=data)
+            rescue.commit()
+            if 'data' not in result or not result['data']:
+                raise RuntimeError("API response returned unusable data.")
+            with rescue.change():
+                rescue.refresh(result['data'])
+            return rescue
 
     return bot.memory['ratbot']['executor'].submit(task)
 
