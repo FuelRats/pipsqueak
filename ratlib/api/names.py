@@ -11,12 +11,14 @@ savedclientnames = {}
 def getRatId(bot, ratname, platform=None):
 
     if ratname in savedratids.keys():
-        if platform == None:
-            print('platform was None and '+ratname+' was in keys. returning '+str(savedratids.get(ratname)))
-            return savedratids.get(ratname)
-        elif platform == savedratids.get(ratname)['platform']:
-            print('platform was on the gotten name. Returning '+str(savedratids.get(ratname)))
-            return savedratids.get(ratname)
+        element = savedratids.get(ratname)
+        strippedname = removeTags(ratname)
+        if (platform == None) and ((element['name']==ratname) or element['name']==strippedname or element['name']==strippedname.replace('_',' ')):
+            print('platform was None and '+ratname+' was in keys and the name matched. returning '+str(element))
+            return element
+        elif (platform == element['platform']) and ((element['name']==ratname) or element['name']==strippedname or element['name']==strippedname.replace('_',' ')):
+            print('platform was on the gotten name and names matched. Returning '+str(element))
+            return element
 
 
     try:
