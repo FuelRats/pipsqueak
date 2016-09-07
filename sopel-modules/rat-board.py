@@ -1140,12 +1140,14 @@ def cmd_platform(bot, trigger, rescue, platform=None):
 
 # For some reason, this can't be tricked with functools.partial.
 @commands('pc')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_platform_pc(bot, trigger):
     """Sets a case's platform to PC"""
     return cmd_platform(bot, trigger, platform='pc')
 
 
 @commands('xb(?:ox)?(?:-?(?:1|one))?')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_platform_xb(bot, trigger):
     """Sets a case's platform to XB"""
     return cmd_platform(bot, trigger, platform='xb')
