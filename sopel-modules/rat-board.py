@@ -182,9 +182,6 @@ class RescueBoard:
                     continue
                 if key in self.indexes[index]:
                     warnings.warn("Key {key!r} is already in index {index!r}".format(key=key, index=index))
-                    self.bot.say(
-                        'WARNING! A CASE HAS BEEN ASSIGNED AN INDEX THAT WAS ALREADY USED! REPORT THIS TO MARENTHYU AND ASK AN OVERSEER (OR HIGHER) TO DO !fbr - THANK YOU! (affected case #: ' + str(
-                            key) + ')')
                     continue
                 self.indexes[index][key] = rescue
 
