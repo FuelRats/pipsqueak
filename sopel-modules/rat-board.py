@@ -324,7 +324,7 @@ class Rescue(TrackedBase):
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
     data = TrackedProperty(
-        default={'langID': 'unknown', 'IRCNick':str(client), 'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}})
+        default={'langID': 'unknown', 'IRCNick':'<unknown IRC Nickname>', 'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}})
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -943,6 +943,10 @@ def cmd_inject(bot, trigger, find_result, line):
     if not line:
         raise UsageError()
     result = append_quotes(bot, find_result, line, create=True)
+    if result.created:
+        with bot.memory['ratbot']['board'].change(result.rescue):
+            result.rescue.data.update({'IRCNick': result.rescue.client})
+        save_case_later(bot, result.rescue, forceFull=True)
 
     bot.say(
         "{rescue.client_name}'s case {verb} with: \"{line}\"  ({tags})"
@@ -1519,3 +1523,15 @@ def cmd_mdremove(bot, trigger, caseid):
         bot.reply('Successfully removed '+str(rescue.client)+'\'s case from the Marked for Deletion List™.')
     except:
         bot.reply('Couldn\'t find a case with id '+str(caseid)+' or other APIError')
+
+@commands('ircnick', 'nick', 'nickname')
+@parameterize('rt')
+@require_rat('Sorry, but you need to be a registered and drilled Rat to use this command.')
+def cmd_nick(bot, trigger, case, newnick):
+    """
+    Sets a new nickname for this case.
+    """
+    with bot.memory['ratbot']['board'].change(case):
+        case.data.update({'IRCNick':newnick})
+    save_case_later(bot, case, forceFull=True)
+    bot.reply('Set Nick to '+str(newnick))
