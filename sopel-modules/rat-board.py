@@ -138,7 +138,7 @@ class RescueBoard:
     INDEX_TYPES = {
         'boardindex': operator.attrgetter('boardindex'),
         'id': operator.attrgetter('id'),
-        'client': lambda x: None if not x.client else x.client.lower(),
+        'client': lambda x: None if not x.data['IRCNick'] else str(x.data['IRCNick']).lower(),
 
     }
 
@@ -182,9 +182,6 @@ class RescueBoard:
                     continue
                 if key in self.indexes[index]:
                     warnings.warn("Key {key!r} is already in index {index!r}".format(key=key, index=index))
-                    self.bot.say(
-                        'WARNING! A CASE HAS BEEN ASSIGNED AN INDEX THAT WAS ALREADY USED! REPORT THIS TO MARENTHYU AND ASK AN OVERSEER (OR HIGHER) TO DO !fbr - THANK YOU! (affected case #: ' + str(
-                            key) + ')')
                     continue
                 self.indexes[index][key] = rescue
 
@@ -242,6 +239,7 @@ class RescueBoard:
                         if new in self.indexes[index]:
                             warnings.warn("Key {key!r} is already in index {index!r}".format(key=new, index=index))
                         else:
+                            # print('Updating index '+str(index)+' with '+str(new))
                             self.indexes[index][new] = rescue
 
     def create(self):
@@ -286,6 +284,7 @@ class RescueBoard:
             rescue = self.indexes['id'].get(search[1:], None),
             return FindRescueResult(rescue, False if rescue else None)
 
+        # print('Indexes: '+str(self.indexes))
         rescue = self.indexes['client'].get(search.lower())
         if not rescue:
             spacesearch = search.replace('_', ' ')
@@ -325,7 +324,7 @@ class Rescue(TrackedBase):
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
     data = TrackedProperty(
-        default={'langID': 'unknown', 'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}})
+        default={'langID': 'unknown', 'IRCNick':str(client), 'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}})
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -679,6 +678,8 @@ def rule_ratsignal(bot, trigger):
             .format(nick=trigger.nick, tags=", ".join(result.tags()) if result else "<unknown>")
     )
     bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
+    with bot.memory['ratbot']['board'].change(result.rescue):
+        result.rescue.data.update({'IRCNick':str(client)})
     save_case_later(
         bot, result.rescue,
         "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick)
@@ -1231,6 +1232,10 @@ def ratmama_parse(bot, trigger):
         crstring = re.search('(?<=O2: ).*?(?= -)', newline).group()
         langID = re.search('Language: .* \((.*)\)', newline).group(1)
         try:
+            ircnick = re.search('(?<= - IRC Nickname: ).*', newline).group()
+        except:
+            ircnick = cmdr
+        try:
             langID = langID[0:langID.index('-')]
         except ValueError:
             pass
@@ -1248,7 +1253,8 @@ def ratmama_parse(bot, trigger):
             platform, '\u0002' + platform + '\u000F')
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
-        result.rescue.data.update({'langID': langID})
+        with bot.memory['ratbot']['board'].change(result.rescue):
+            result.rescue.data.update({'langID': langID, 'IRCNick':ircnick})
         save_case_later(bot, result.rescue)
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
@@ -1484,14 +1490,14 @@ def setRescueMarkedForDeletion(bot, rescue, marked, reason='None.', reporter='No
     save_case_later(bot, rescue, forceFull=True)
 
 
-@commands('md','mdadd')
+@commands('md','mdadd','markfordeletion','markfordelete')
 @parameterize('rt', '<client/board #> <reason>')
 @require_rat('Sorry, but you need to be a registered and drilled Rat to use this command.')
 def cmd_md(bot, trigger, case, reason):
     """
     Closes a rescue and adds it to the Marked for Deletion List™
     required parameters: client name or board index and the reason it should be deleted
-    aliases: md, mdadd
+    aliases: md, mdadd, markfordeletion, markfordelete
     """
     bot.reply('Closing case of ' + str(case.client) + ' (Case #' + str(case.id) + ') and adding it to the Marked for Deletion List™.')
     func_clear(bot, trigger, case, markingForDeletion=True)
