@@ -11,14 +11,18 @@ savedclientnames = {}
 def getRatId(bot, ratname, platform=None):
 
     if ratname in savedratids.keys():
-        if platform == None:
-            return savedratids.get(ratname)
-        if platform == getRatName(bot, ratid=savedratids.get(ratname)['id'])[1]:
-            return savedratids.get(ratname)
+        element = savedratids.get(ratname)
+        strippedname = removeTags(ratname)
+        if (platform == None) and ((element['name']==ratname) or element['name']==strippedname or element['name']==strippedname.replace('_',' ')):
+            # print('platform was None and '+ratname+' was in keys and the name matched. returning '+str(element))
+            return element
+        elif (platform == element['platform']) and ((element['name']==ratname) or element['name']==strippedname or element['name']==strippedname.replace('_',' ')):
+            # print('platform was on the gotten name and names matched. Returning '+str(element))
+            return element
 
 
     try:
-        uri = '/users?nicknames=' + ratname
+        uri = '/nicknames/search/' + ratname
         # print('looking for name '+ratname)
         # print('uri: '+str(uri))
         result = callapi(bot=bot, method='GET', uri=uri)
@@ -27,10 +31,30 @@ def getRatId(bot, ratname, platform=None):
         # print(data)
         returnlist = []
         if platform == None:
+            if len(data) == 0:
+                raise Exception
             firstmatch = data[0]
-            id = firstmatch['CMDRs'][0]
-            ratnam, ratplat = getRatName(bot, id)
-            ret = {'id': id, 'name':ratnam , 'platform':firstmatch['platform']}
+            strippedname = removeTags(ratname)
+            retlist = []
+            tempnam = 'unknown name'
+            tempplat = 'unknown platform'
+
+            for ratobject in firstmatch['CMDRs']:
+                id = ratobject['id']
+                tempnam = ratobject['CMDRname']
+                tempplat = ratobject['platform']
+                if (tempnam==ratname or tempnam==strippedname or tempnam==strippedname.replace('_', ' ')):
+                    retlist.append({'id': id, 'name':tempnam , 'platform':tempplat})
+            if len(retlist) == 0:
+                ratnam = tempnam
+                ratplat = tempplat
+                id = 0
+            else:
+                id = retlist[0]['id']
+                ratnam = retlist[0]['name']
+                ratplat = retlist[0]['platform']
+
+            ret = {'id': id, 'name':ratnam , 'platform':ratplat}
 
         else:
             ret = {'id':None, 'name':None, 'platform':None}
@@ -40,60 +64,23 @@ def getRatId(bot, ratname, platform=None):
                 # print('data length 0')
                 raise Exception
             for user in data:
-                for cmdr in user['CMDRs']:
-                    ratnam, ratplat = getRatName(bot, cmdr)
-                    rat = {'id':cmdr, 'platform':ratplat}
+                for ratobject in user['rats']:
+                    ratnam = ratobject['CMDRname']
+                    ratplat = ratobject['platform']
+                    cmdr = ratobject['id']
+                    rat = {'id':cmdr, 'platform':ratplat, 'name':ratnam}
                     if rat['platform'] == platform:
                         id = rat['id']
-                        ret = {'id':rat['id'], 'name': ratnam, 'platform':rat['platform']}
+                        ret = {'id':id, 'name': ratnam, 'platform':platform}
                         returnlist.append(ret)
             strippedname = removeTags(ratname)
             for retelement in returnlist:
-                if (retelement['name']==ratname) or (retelement['name']==strippedname):
+                 if (retelement['name']==ratname) or (retelement['name']==strippedname) or (retelement['name']==strippedname.replace('_', ' ')):
                     ret = retelement
         savedratids.update({ratname: ret})
-        savedratnames.update({id: {'name': ratnam, 'platform': ret['platform']}})
+        savedratnames.update({id: {'name': ratnam, 'platform': ret['platform'], 'id':ret['id']}})
         return ret
     except:
-        # print('didnt find with tags, trying without')
-        try:
-            strippedname = removeTags(ratname)
-            if strippedname in savedratids.keys():
-                return savedratids[strippedname]
-            uri = '/users?nicknames=' + strippedname
-            result = callapi(bot=bot, method='GET', uri=uri)
-            print(result)
-            data = result['data']
-            # print(data)
-            returnlist = []
-            if platform == None:
-                firstmatch = data[0]
-                id = firstmatch['CMDRs'][0]
-                ratnam, ratplat = getRatName(bot, id)
-                ret = {'id': id, 'name': ratnam, 'platform': firstmatch['platform']}
-
-            else:
-                ret = {'id': None, 'name': None, 'platform': None}
-                id = None
-                if len(data) == 0:
-                    # print('data length 0, calling fallback.')
-                    return idFallback(bot, ratname, platform=platform)
-                for user in data:
-                    for cmdr in user['CMDRs']:
-                        ratnam, ratplat = getRatName(bot, cmdr)
-                        rat = {'id': cmdr, 'platform': ratplat}
-                        if rat['platform'] == platform:
-                            id = rat['id']
-                            ret = {'id': rat['id'], 'name': ratnam, 'platform': rat['platform']}
-                            returnlist.append(ret)
-                strippedname = removeTags(ratname)
-                for retelement in returnlist:
-                    if (retelement['name'] == ratname) or (retelement['name'] == strippedname):
-                        ret = retelement
-            savedratids.update({strippedname: ret})
-            savedratnames.update({id: {'name':ratnam, 'platform':ret['platform']}})
-            return ret
-        except:
             # print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
             return idFallback(bot, ratname, platform=platform)
 
@@ -112,7 +99,7 @@ def idFallback(bot, ratname, platform=None):
 
     """
     strippedname = removeTags(ratname)
-
+    print('[NamesAPI] Had to call idFallback for '+str(ratname))
     try:
         uri = '/rats?CMDRname=' + strippedname + (('&platform='+platform) if platform is not None else '')
         result = callapi(bot=bot, method='GET', uri=uri)
@@ -132,7 +119,7 @@ def idFallback(bot, ratname, platform=None):
                 return {'id': '0', 'name': ratname, 'error': ex, 'platform':'unknown',
                         'description': 'no rats with that commandername or nickname or gamertag found.'}
     except ratlib.api.http.APIError as ex:
-        print('APIError: couldnt find RatId for ' + ratname)
+        print('[NamesAPI] APIError: couldnt find RatId for ' + ratname)
         return {'id': '0', 'name': ratname, 'platform':'unknown', 'error': ex, 'description': 'API Error while trying to fetch Rat'}
 
 
@@ -143,7 +130,7 @@ def getRatName(bot, ratid):
     :param ratid: the id of the rat to find the name for
     :return: name of the rat
     """
-    if str(ratid) in savedratnames.keys():
+    if (str(ratid) is not '0') and str(ratid) in savedratnames.keys():
         return savedratnames.get(ratid)['name'], savedratnames.get(ratid)['platform']
     try:
         result = callapi(bot=bot, method='GET', uri='/rats/' + str(ratid))
@@ -156,6 +143,7 @@ def getRatName(bot, ratid):
         platform = data['platform']
         ret = name, platform
     except:
+        print('Couldn\'t parse Ratname from api response for ratid' + str(ratid))
         ret = 'unknown', 'unknown'
     # print('returning '+str(ret)+' as name for '+ratid)
     return ret
@@ -202,7 +190,7 @@ def getClientName(bot, resId):
     try:
         result = callapi(bot=bot, method='GET', uri='/rescues/' + resId)
         data = result['data']
-        ret = data['client']['nickname']
+        ret = data['client']
     except:
         ret = 'unknown'
     savedclientnames.update({resId:ret})
@@ -231,7 +219,7 @@ def require_netadmin(message=None):
     return actual_decorator
 
 def require_techrat(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats TechRat (as in, a rat that's part of the RatTech team.).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
@@ -248,7 +236,7 @@ def require_techrat(message=None):
     return actual_decorator
 
 def require_op(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats op (as in, an operator.).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
@@ -265,7 +253,7 @@ def require_op(message=None):
     return actual_decorator
 
 def require_overseer(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats overseer (as in, a highly experienced and trustworthy person).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
@@ -282,7 +270,7 @@ def require_overseer(message=None):
     return actual_decorator
 
 def require_dispatch(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats dispatch (as in, the currently active dispatch).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
@@ -299,7 +287,7 @@ def require_dispatch(message=None):
     return actual_decorator
 
 def require_rat(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats rat (as in, registered with the API and drilled).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
@@ -316,7 +304,7 @@ def require_rat(message=None):
     return actual_decorator
 
 def require_recruit(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+    """Decorate a function to require the triggering user to be a FuelRats recruit (as in, a user registered with the API but undrilled).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
         @functools.wraps(function)
