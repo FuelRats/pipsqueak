@@ -19,6 +19,7 @@ import json
 
 import sys
 import contextlib
+import traceback
 
 # Sopel imports
 from sopel.formatting import bold, color, colors
@@ -505,6 +506,8 @@ def save_case_later(bot, rescue, message=None, timeout=10, forceFull=False):
         future.result(timeout=timeout)
     except concurrent.futures.TimeoutError as ex:
         print('[RatBoard] Timeout Error: ' + str(ex))
+        exc_type, exc_value, exc_traceback = sys.exc_info()
+        traceback.print_exception(exc_type, exc_value, exc_traceback)
         if message is None:
             message = (
                 "API is still not done updating case for {{rescue.client_name}}; continuing in background."
