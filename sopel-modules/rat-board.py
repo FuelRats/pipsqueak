@@ -1528,6 +1528,8 @@ def cmd_nick(bot, trigger, case, newnick):
     Sets a new nickname for this case.
     """
     with bot.memory['ratbot']['board'].change(case):
+        print('data before nick change: '+str(case.data))
         case.data.update({'IRCNick':newnick})
-    save_case_later(bot, case)
+        print('data after change: '+str(case.data))
+    save_case_later(bot, case, forceFull=True)
     bot.reply('Set Nick to '+str(newnick))
