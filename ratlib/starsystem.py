@@ -93,10 +93,10 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     :param db: Database handle
     """
     start = time()
-    # print('Starting refresh at '+str(start))
+    print('Starting refresh at '+str(start))
     edsm_url = bot.config.ratbot.edsm_url or "http://edsm.net/api-v1/systems?coords=1"
     status = get_status(db)
-    # print('status: '+str(status))
+    print('status: '+str(status))
     edsm_maxage = float(bot.config.ratbot.edsm_maxage) or 60*12*12
     if not (
         force or
@@ -104,21 +104,24 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
         (datetime.datetime.now(tz=datetime.timezone.utc) - status.starsystem_refreshed).total_seconds() > edsm_maxage
     ):
         # No refresh needed.
-        # print('not force and no refresh needed')
+        print('not force and no refresh needed')
         return False
 
     if callback:
         callback()
 
     if background:
-        # print('background!')
+        print('Sending edsm refresh to background!')
         return bot.memory['ratbot']['executor'].submit(
             _refresh_database, bot, force=True, callback=None, background=False
         )
 
     fetch_start = time()
     print('Started Database refresh......')
-    data = requests.get(edsm_url).json()
+    req = requests.get(edsm_url)
+    if req.status_code != 200:
+        print('ERROR When calling EDSM - Status code was '+str(req.status_code))
+        return
     print('Fetch done!')
     fetch_end = time()
     # with open('run/systems.json') as f:

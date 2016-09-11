@@ -71,14 +71,15 @@ def getRatId(bot, ratname, platform=None):
                     rat = {'id':cmdr, 'platform':ratplat, 'name':ratnam}
                     if rat['platform'] == platform:
                         id = rat['id']
-                        ret = {'id':id, 'name': ratnam, 'platform':platform}
+                        ret = {'id':cmdr, 'name': ratnam, 'platform':platform}
                         returnlist.append(ret)
             strippedname = removeTags(ratname)
             for retelement in returnlist:
                  if (retelement['name']==ratname) or (retelement['name']==strippedname) or (retelement['name']==strippedname.replace('_', ' ')):
                     ret = retelement
-        savedratids.update({ratname: ret})
-        savedratnames.update({id: {'name': ratnam, 'platform': ret['platform'], 'id':ret['id']}})
+        if ret != {'id':None, 'name':None, 'platform':None}:
+            savedratids.update({ratname: ret})
+            savedratnames.update({id: {'name': ratnam, 'platform': ret['platform'], 'id':ret['id']}})
         return ret
     except:
             # print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
