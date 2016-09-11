@@ -943,6 +943,10 @@ def cmd_inject(bot, trigger, find_result, line):
     if not line:
         raise UsageError()
     result = append_quotes(bot, find_result, line, create=True)
+    if result.created:
+        with bot.memory['ratbot']['board'].change(result.rescue):
+            result.rescue.data.update({'IRCNick': result.rescue.client})
+        save_case_later(bot, result.rescue, forceFull=True)
 
     bot.say(
         "{rescue.client_name}'s case {verb} with: \"{line}\"  ({tags})"
@@ -1528,8 +1532,6 @@ def cmd_nick(bot, trigger, case, newnick):
     Sets a new nickname for this case.
     """
     with bot.memory['ratbot']['board'].change(case):
-        print('data before nick change: '+str(case.data))
         case.data.update({'IRCNick':newnick})
-        print('data after change: '+str(case.data))
     save_case_later(bot, case, forceFull=True)
     bot.reply('Set Nick to '+str(newnick))
