@@ -71,8 +71,8 @@ def getRatId(bot, ratname, platform=None):
                     rat = {'id':cmdr, 'platform':ratplat, 'name':ratnam}
                     if rat['platform'] == platform:
                         id = rat['id']
-                        ret = {'id':cmdr, 'name': ratnam, 'platform':platform}
-                        returnlist.append(ret)
+                        ret = {'id':id, 'name': ratnam, 'platform':platform}
+                        returnlist.append(ret.copy())
             strippedname = removeTags(ratname)
             for retelement in returnlist:
                  if (retelement['name']==ratname) or (retelement['name']==strippedname) or (retelement['name']==strippedname.replace('_', ' ')):
