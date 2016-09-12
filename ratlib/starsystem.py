@@ -93,10 +93,10 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     :param db: Database handle
     """
     start = time()
-    # print('Starting refresh at '+str(start))
+    print('Starting refresh at '+str(start))
     edsm_url = bot.config.ratbot.edsm_url or "http://edsm.net/api-v1/systems?coords=1"
     status = get_status(db)
-    # print('status: '+str(status))
+    print('status: '+str(status))
     edsm_maxage = float(bot.config.ratbot.edsm_maxage) or 60*12*12
     if not (
         force or
@@ -104,31 +104,34 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
         (datetime.datetime.now(tz=datetime.timezone.utc) - status.starsystem_refreshed).total_seconds() > edsm_maxage
     ):
         # No refresh needed.
-        # print('not force and no refresh needed')
+        print('not force and no refresh needed')
         return False
 
     if callback:
         callback()
 
     if background:
-        # print('background!')
+        print('Sending edsm refresh to background!')
         return bot.memory['ratbot']['executor'].submit(
             _refresh_database, bot, force=True, callback=None, background=False
         )
 
     fetch_start = time()
     print('Started Database refresh......')
-    data = requests.get(edsm_url).json()
-    # print('Fetch done!')
+    req = requests.get(edsm_url)
+    if req.status_code != 200:
+        print('ERROR When calling EDSM - Status code was '+str(req.status_code))
+        return
+    print('Fetch done!')
     fetch_end = time()
     # with open('run/systems.json') as f:
     #     import json
     #     data = json.load(f)
 
-    # print('Wiping old data')
+    print('Wiping old data')
     db.query(Starsystem).delete()  # Wipe all old data
     db.query(StarsystemPrefix).delete()  # Wipe all old data
-    # print('done wiping, moving along...')
+    print('done wiping, moving along...')
     # Pass 1: Load JSON data into stats table.
     systems = []
     ct = 0
@@ -145,27 +148,27 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             'word_ct': word_ct
         }
 
-    # print('loading data into db....')
+    print('loading data into db....')
     load_start = time()
     for chunk in chunkify(data, 5000):
         db.bulk_insert_mappings(Starsystem, [_format_system(s) for s in chunk])
-        # print(ct)
+        print(ct)
     del data
     db.connection().execute("ANALYZE " + Starsystem.__tablename__)
-    # print('done loading!')
+    print('done loading!')
     load_end = time()
 
     stats_start = time()
     # Pass 2: Calculate statistics.
     # 2A: Quick insert of prefixes for single-name systems
-    # print('line 162')
+    print('line 162')
     db.connection().execute(
         sql.insert(StarsystemPrefix).from_select(
             (StarsystemPrefix.first_word, StarsystemPrefix.word_ct),
             db.query(Starsystem.name_lower, Starsystem.word_ct).filter(Starsystem.word_ct == 1).distinct()
         )
     )
-    # print('line 169')
+    print('line 169')
     def _gen():
         for s in (
             db.query(Starsystem)
@@ -176,12 +179,12 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             yield (first_word, s.word_ct), words, s
 
     ct = 0
-    # print('for chunk line 180')
+    print('for chunk line 180')
     for chunk in chunkify(itertools.groupby(_gen(), operator.itemgetter(0)), 100):
-        # print('ct: '+str(ct))
+        print('ct: '+str(ct))
         for (first_word, word_ct), group in chunk:
             ct += 1
-            # print('ct: '+str(ct))
+            print('ct in loop: '+str(ct))
             const_words = None
             for _, words, system in group:
                 if const_words is None:
@@ -194,12 +197,12 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             prefix = StarsystemPrefix(
                 first_word=first_word, word_ct=word_ct, const_words=" ".join(const_words)
             )
-            # print('prefix: '+prefix)
+            print('prefix: '+str(prefix))
             db.add(prefix)
         # print(ct)
-        # print('db.flush')
+        print('db.flush for ct '+str(ct))
         db.flush()
-    # print('db. connection().execute line 200')
+    print('db. connection().execute line 200')
     db.connection().execute(
         sql.update(
             Starsystem, values={
@@ -228,12 +231,12 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
         ) AS t
         WHERE t.id=starsystem_prefix.id
         """.format(sp=StarsystemPrefix.__tablename__, s=Starsystem.__tablename__)
-    # print('db. connection().execute line 211, exestring: '+exestring)
+    print('db. connection().execute line 211, exestring: '+str(exestring))
 
     db.connection().execute(
         exestring
     )
-    # print('Done with stats.')
+    print('Done with stats.')
     stats_end = time()
 
     # Update refresh time
@@ -241,12 +244,12 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     status.starsystem_refreshed = sql.func.clock_timestamp()
     db.add(status)
     db.commit()
-    # print('calc bloom...')
+    print('calc bloom...')
     bloom_start = time()
     refresh_bloom(bot)
     bloom_end = time()
     end = time()
-    # print('Done with all!, collecting stats.')
+    print('Done with all!, collecting stats.')
     stats = {
         'stats': stats_end - stats_start, 'load': load_end - load_start, 'fetch': fetch_end - fetch_start,
         'bloom': bloom_end - bloom_start
