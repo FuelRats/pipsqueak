@@ -1047,7 +1047,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
             i = getRatId(bot, rat, platform=rescue.platform)
         # Check if id returned is an id, decide for unidentified rats or rats.
         idstr = str(i['id'])
-        if idstr != '0':
+        if idstr != '0' and idstr != 'None':
             # print('[RatBoard] id was not 0.')
             rescue.rats.update([i['id']])
             ratlist.append(getRatName(bot, i['id'])[0])
