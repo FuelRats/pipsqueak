@@ -111,24 +111,6 @@ def setup(bot):
         traceback.print_exc()
 
 
-def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call, statuses=None):
-    '''
-    Calls the API with the given method endpoint and data.
-    :param bot: bot to pull config from and log error messages to irc
-    :param method: GET PUT POST etc.
-    :param uri: the endpoint to use, ex /rats
-    :param data: body for request
-    :param _fn: http call function to use
-    :return: the data dict the api call returned.
-    '''
-    uri = urljoin(bot.config.ratbot.apiurl, uri)
-    # print('[RatBoard] will call uri '+uri)
-    headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
-    print('[RatBoard] Calling api with data: ' + str(data))
-    with bot.memory['ratbot']['apilock']:
-        return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers, statuses=statuses)
-
-
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
 
 
@@ -1093,7 +1075,7 @@ def cmd_unassign(bot, trigger, rescue, *rats):
         rat = str(getRatId(bot, rat)['id'])
         if rat != '0':
             rescue.rats -= {rat}
-            callapi(bot, 'PUT', '/rescues/' + str(rescue.id) + '/unassign/' + rat)
+            callapi(bot, 'PUT', '/rescues/' + str(rescue.id) + '/unassign/' + rat, triggernick=str(trigger.nick))
 
     bot.say(
         "Removed from {rescue.client_name}'s case: {rats}"
@@ -1281,7 +1263,7 @@ def cmd_closed(bot, trigger):
     aliases: closed, recent
     '''
     try:
-        result = callapi(bot=bot, uri='/rescues?open=false&limit=5&order=updatedAt&direction=DESC', method='GET')
+        result = callapi(bot=bot, uri='/rescues?open=false&limit=5&order=updatedAt&direction=DESC', method='GET', triggernick=str(trigger.nick))
         data = result['data']
         rescue0 = getDummyRescue()
         rescue1 = getDummyRescue()
@@ -1323,7 +1305,7 @@ def cmd_reopen(bot, trigger, id):
         Reopens a case by its full database ID
         """
         try:
-            result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id))
+            result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
             refresh_cases(bot, force=True)
             bot.reply('Reopened case. Cases refreshed, care for your case numbers!')
         except ratlib.api.http.APIError:
@@ -1346,7 +1328,7 @@ def cmd_delete(bot, trigger, id):
 def func_delete(bot, trigger, id):
     if 'list'!=id:
         try:
-           result = callapi(bot, 'DELETE', uri='/rescues/' + str(id))
+           result = callapi(bot, 'DELETE', uri='/rescues/' + str(id), triggernick=str(trigger.nick))
             # print('[RatBoard] ' + str(result))
         except ratlib.api.http.APIError as ex:
             bot.reply('case with id ' + str(id) + ' does not exist or other APIError.')
@@ -1354,7 +1336,7 @@ def func_delete(bot, trigger, id):
             return
         bot.reply('deleted case with id ' + str(id) + ' - THIS IS NOT REVERTABLE!')
     else:
-        result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}')
+        result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}', triggernick=str(trigger.nick))
         caselist = []
         for case in result['data']:
             rescue = Rescue.load(case)
@@ -1382,7 +1364,7 @@ def cmd_quoteid(bot, trigger, id):
     Quotes a case by its database id
     """
     try:
-        result = callapi(bot, method='GET', uri='/rescues/'+str(id))
+        result = callapi(bot, method='GET', uri='/rescues/'+str(id), triggernick=str(trigger.nick))
         rescue = Rescue.load(result['data'])
         func_quote(bot, trigger, rescue, showboardindex=False)
     except:
@@ -1520,7 +1502,7 @@ def cmd_mdremove(bot, trigger, caseid):
     aliases: mdremove, mdr, mdd, mddeny
     """
     try:
-        result = callapi(bot, method='GET', uri='/rescues/'+str(caseid))
+        result = callapi(bot, method='GET', uri='/rescues/'+str(caseid), triggernick=str(trigger.nick))
         rescue = Rescue.load(result['data'])
         setRescueMarkedForDeletion(bot, rescue, marked=False)
         bot.reply('Successfully removed '+str(rescue.client)+'\'s case from the Marked for Deletion List™.')
