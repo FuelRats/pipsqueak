@@ -162,7 +162,7 @@ def removeTags(string):
 
     return string[0:i]
 
-def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
+def callapi(bot, method, uri, triggernick=None, data=None, _fn=ratlib.api.http.call):
     '''
     Calls the API with the gived method endpoint and data.
     :param bot: bot to pull config from and log error messages to irc
@@ -174,6 +174,8 @@ def callapi(bot, method, uri, data=None, _fn=ratlib.api.http.call):
     '''
     uri = urljoin(bot.config.ratbot.apiurl, uri)
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
+    if triggernick is not None:
+        headers.update({"X-Command-By":str(triggernick)})
     with bot.memory['ratbot']['apilock']:
         return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers)
 
