@@ -664,10 +664,10 @@ def rule_ratsignal(bot, trigger):
     )
     bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
     with bot.memory['ratbot']['board'].change(result.rescue):
-        result.rescue.data.update({'IRCNick':str(client)})
+        result.rescue.data.update({'IRCNick':str(client), 'langID':'en', 'markedForDeletion':{'marked':false, 'reason': 'None.', 'reporter': 'Noone.'}})
     save_case_later(
         bot, result.rescue,
-        "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick)
+        "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick), forceFull=True
     )
 
 
@@ -902,6 +902,11 @@ def cmd_grab(bot, trigger, client):
     if not result:
         return bot.reply("Case was not found and could not be created.")
 
+    if result.created:
+        with bot.memory['ratbot']['board'].change(result.rescue):
+            result.rescue.data.update({'IRCNick': result.rescue.client, 'langID':'en', 'markedForDeletion':{'marked':false, 'reason': 'None.', 'reporter': 'Noone.'}})
+
+
     bot.say(
         "{rescue.client_name}'s case {verb} with: \"{line}\"  ({tags})"
             .format(
@@ -912,7 +917,7 @@ def cmd_grab(bot, trigger, client):
     save_case_later(
         bot, result.rescue,
         "API is still not done with grab for {rescue.client_name}; continuing in background.".format(
-            rescue=result.rescue)
+            rescue=result.rescue), forceFull=True
     )
 
 
@@ -930,7 +935,7 @@ def cmd_inject(bot, trigger, find_result, line):
     result = append_quotes(bot, find_result, line, create=True)
     if result.created:
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'IRCNick': result.rescue.client})
+            result.rescue.data.update({'IRCNick': result.rescue.client, 'langID':'en', 'markedForDeletion':{'marked':false, 'reason': 'None.', 'reporter': 'Noone.'}})
         save_case_later(bot, result.rescue, forceFull=True)
 
     bot.say(
@@ -1243,8 +1248,8 @@ def ratmama_parse(bot, trigger):
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'langID': langID, 'IRCNick':ircnick})
-        save_case_later(bot, result.rescue)
+            result.rescue.data.update({'langID': langID, 'IRCNick':ircnick, 'markedForDeletion':{'marked':false, 'reason': 'None.', 'reporter': 'Noone.'}})
+        save_case_later(bot, result.rescue, forceFull=True)
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
             if cr:
