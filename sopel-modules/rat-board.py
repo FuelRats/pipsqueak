@@ -664,7 +664,7 @@ def rule_ratsignal(bot, trigger):
     )
     bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
     with bot.memory['ratbot']['board'].change(result.rescue):
-        result.rescue.data.update({'IRCNick':str(client), 'langID':'en', 'markedForDeletion':{'marked':false, 'reason': 'None.', 'reporter': 'Noone.'}})
+        result.rescue.data.update({'IRCNick':str(client), 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
     save_case_later(
         bot, result.rescue,
         "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick), forceFull=True
@@ -904,7 +904,7 @@ def cmd_grab(bot, trigger, client):
 
     if result.created:
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'IRCNick': result.rescue.client, 'langID':'en', 'markedForDeletion':{'marked':false, 'reason': 'None.', 'reporter': 'Noone.'}})
+            result.rescue.data.update({'IRCNick': result.rescue.client, 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
 
 
     bot.say(
@@ -935,7 +935,7 @@ def cmd_inject(bot, trigger, find_result, line):
     result = append_quotes(bot, find_result, line, create=True)
     if result.created:
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'IRCNick': result.rescue.client, 'langID':'en', 'markedForDeletion':{'marked':false, 'reason': 'None.', 'reporter': 'Noone.'}})
+            result.rescue.data.update({'IRCNick': result.rescue.client, 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
         save_case_later(bot, result.rescue, forceFull=True)
 
     bot.say(
@@ -1248,7 +1248,7 @@ def ratmama_parse(bot, trigger):
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'langID': langID, 'IRCNick':ircnick, 'markedForDeletion':{'marked':false, 'reason': 'None.', 'reporter': 'Noone.'}})
+            result.rescue.data.update({'langID': langID, 'IRCNick':ircnick, 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
         save_case_later(bot, result.rescue, forceFull=True)
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
@@ -1268,7 +1268,7 @@ def cmd_closed(bot, trigger):
     aliases: closed, recent
     '''
     try:
-        result = callapi(bot=bot, uri='/rescues?open=false&limit=5&order=updatedAt&direction=DESC', method='GET', triggernick=str(trigger.nick))
+        result = callapi(bot=bot, uri='/rescues?open=False&limit=5&order=updatedAt&direction=DESC', method='GET', triggernick=str(trigger.nick))
         data = result['data']
         rescue0 = getDummyRescue()
         rescue1 = getDummyRescue()
