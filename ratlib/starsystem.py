@@ -25,6 +25,7 @@ from ratlib.bloom import BloomFilter
 
 
 def chunkify(it, size):
+    print('chunkifying it: '+str(it))
     if not isinstance(it, collections_abc.Iterator):
         it = iter(it)
     go = True
@@ -151,6 +152,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     print('loading data into db....')
     load_start = time()
     for chunk in chunkify(data, 5000):
+        print('Chunkified. Currfent chunk: '+str(chunk))
         db.bulk_insert_mappings(Starsystem, [_format_system(s) for s in chunk])
         print(ct)
     del data
