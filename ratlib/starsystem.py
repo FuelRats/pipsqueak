@@ -160,8 +160,12 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
 
     print('loading data into db....')
     load_start = time()
+    dataremaining = len(data)
+    print('data length: '+str(dataremaining))
     for chunk in chunkify(data, 5000):
         db.bulk_insert_mappings(Starsystem, [_format_system(s) for s in chunk])
+        dataremaining -= 5000
+        print('remaining: '+str(dataremaining))
     print('Done with chunkified stuff, deleting data var to free up mem. Analyzing stuff.')
     del data
     db.connection().execute("ANALYZE " + Starsystem.__tablename__)
