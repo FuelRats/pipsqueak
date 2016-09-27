@@ -126,8 +126,8 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
         data = []
         response = req.json()
         for part in response.keys():
-            print('requesting from: '+edsm_url[0:edsm_url.rfind('/')-1] + str(part))
-            partreq = requests.get(edsm_url[0:edsm_url.rfind('/')-1] + str(part))
+            print('requesting from: '+edsm_url[0:edsm_url.rfind('/')+1] + str(part))
+            partreq = requests.get(edsm_url[0:edsm_url.rfind('/')+1] + str(part))
             partdata = partreq.json()
             data.extend(partdata)
     else:
