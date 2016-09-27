@@ -151,6 +151,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
 
     print('loading data into db....')
     load_start = time()
+    print('got start time, it was '+str(load_start)+' - moving along.')
     for chunk in chunkify(data, 5000):
         print('Chunkified. Currfent chunk: '+str(chunk))
         db.bulk_insert_mappings(Starsystem, [_format_system(s) for s in chunk])
