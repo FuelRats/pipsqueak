@@ -125,6 +125,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     if req.status_code != 200:
         print('ERROR When calling EDSM - Status code was '+str(req.status_code))
         return
+    data = req.json()
     print('Fetch done!')
     fetch_end = time()
     # with open('run/systems.json') as f:
