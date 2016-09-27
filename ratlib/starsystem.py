@@ -30,6 +30,7 @@ def chunkify(it, size):
         it = iter(it)
     go = True
     def _gen():
+        print('In _gen()')
         nonlocal go
         try:
             remaining = size
@@ -38,6 +39,7 @@ def chunkify(it, size):
                 yield next(it)
         except StopIteration:
             go = False
+            print('ran into exception. Raising.')
             raise
     while go:
         yield _gen()
@@ -153,7 +155,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     load_start = time()
     print('got start time, it was '+str(load_start)+' - moving along.')
     for chunk in chunkify(data, 5000):
-        print('Chunkified. Currfent chunk: '+str(chunk))
+        print('Chunkified. Current chunk: '+str(chunk))
         db.bulk_insert_mappings(Starsystem, [_format_system(s) for s in chunk])
         print(ct)
     print('Done with chunkified stuff, deleting data var. Analyzing stuff.')
