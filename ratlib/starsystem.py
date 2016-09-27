@@ -95,6 +95,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     start = time()
     print('Starting refresh at '+str(start))
     edsm_url = bot.config.ratbot.edsm_url or "http://edsm.net/api-v1/systems?coords=1"
+    chunked = bot.config.ratbot.chunked_systems == 'True'
     status = get_status(db)
     edsm_maxage = float(bot.config.ratbot.edsm_maxage) or 60*12*12
     if not (
@@ -121,7 +122,15 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     if req.status_code != 200:
         print('ERROR When calling EDSM - Status code was '+str(req.status_code))
         return
-    data = req.json()
+    if chunked:
+        data = []
+        response = req.json()
+        for part in response.keys():
+            partreq = requests.get(edsm_url[0:edsm_url.rfind('/')] + str(part))
+            partdata = partreq.json()
+            data.extend(partdata)
+    else:
+        data = req.json()
     print('Fetch done, Code was 200, data loaded into var!')
     fetch_end = time()
     # with open('run/systems.json') as f:

@@ -69,7 +69,12 @@ apiurl = http://dev.api.fuelrats.com
 # apidebug = logs/api.log
 
 # URL to use to retrieve starsystem data.
-edsm_url = http://edsm.net/api-v1/systems?coords=1
+edsm_url = http://orthanc.localecho.net/json/sysinfo.json
+
+# Use chuncked data format for systems as seen on orthanc
+# If False, standard edsm format (systems themselves as json objects) will be used.
+# Values: True or False (care for capitalisation, it's Python!)
+chunked_systems = True
 
 # If starsystem data is older than this (in seconds), !sysrefresh can refresh it.
 edsm_maxage = 43200
