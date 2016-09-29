@@ -125,7 +125,8 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     if chunked:
         data = []
         response = req.json()
-        for part in response.keys():
+        for part in response:
+            part = part.get('SectorName')
             print('requesting from: '+edsm_url[0:edsm_url.rfind('/')+1] + str(part))
             partreq = requests.get(edsm_url[0:edsm_url.rfind('/')+1] + str(part))
             partdata = partreq.json()
