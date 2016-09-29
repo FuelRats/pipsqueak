@@ -47,6 +47,7 @@ urljoin = ratlib.api.http.urljoin
 target_case_max = 9  # Target highest boardindex to assign
 HISTORY_MAX = 10000  # Max number of nicks we'll remember history for at once.
 
+defaultdata = {'IRCNick':'unknown client name', 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}, "status":{"FriendRequest":False, "WingRequest":False, "SysArrived":False, "BeaconSpotted":False, "InstanceSuccessful":False, "Fueled":False}, "boardIndex":None}
 
 ## Start setup section ###
 class RatboardSection(StaticSection):
@@ -664,7 +665,8 @@ def rule_ratsignal(bot, trigger):
     )
     bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
     with bot.memory['ratbot']['board'].change(result.rescue):
-        result.rescue.data.update({'IRCNick':str(client), 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
+        result.rescue.data.update(defaultdata)
+        result.rescue.data.update({'IRCNick':str(client), "boardIndex":int(result.rescue.boardindex)})
     save_case_later(
         bot, result.rescue,
         "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick), forceFull=True
@@ -904,7 +906,8 @@ def cmd_grab(bot, trigger, client):
 
     if result.created:
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'IRCNick': result.rescue.client, 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
+            result.rescue.data.update(defaultdata)
+            result.rescue.data.update({'IRCNick': result.rescue.client, "boardIndex":int(result.rescue.boardindex)})
 
 
     bot.say(
@@ -935,7 +938,8 @@ def cmd_inject(bot, trigger, find_result, line):
     result = append_quotes(bot, find_result, line, create=True)
     if result.created:
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'IRCNick': result.rescue.client, 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
+            result.rescue.data.update(defaultdata)
+            result.rescue.data.update({'IRCNick': result.rescue.client, "boardIndex":int(result.rescue.boardindex)})
         save_case_later(bot, result.rescue, forceFull=True)
 
     bot.say(
@@ -1248,7 +1252,8 @@ def ratmama_parse(bot, trigger):
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'langID': langID, 'IRCNick':ircnick, 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
+            result.rescue.data.update(defaultdata)
+            result.rescue.data.update({'langID': langID, 'IRCNick':ircnick, "boardIndex":int(result.rescue.boardindex)})
         save_case_later(bot, result.rescue, forceFull=True)
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')

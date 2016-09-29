@@ -191,10 +191,17 @@ def handleWSMessage(payload, senderinstance):
     def filterClient(bot, data):
         resId = data.get('RescueID') or data.get('rescueID') or data.get('RescueId') or data.get('rescueId') or data.get('rescueid')
         return getClientName(bot=bot, resId=resId)
+
     def filterRat(bot, data):
         ratId = data.get('RatID') or data.get('ratID') or data.get('RatId') or data.get('ratId') or data.get('ratid')
 
         return getRatName(bot=bot, ratid=ratId)[0]
+
+    def getRescue(bot, data):
+        id = "@" + str(data.get("RescueID"))
+        board = bot.memory['ratbot']['board']
+        result = board.find(id, create=False)
+        return result.rescue
 
     def onduty(data):
         # print('in function onduty!!!!!!!!')
@@ -210,50 +217,80 @@ def handleWSMessage(payload, senderinstance):
     def fr(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
         if data['FriendRequest'] == 'true':
             say(rat + ': fr+ [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"FriendRequest":True}})
         else:
             say(rat + ': fr- [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"FriendRequest":False}})
 
     def wr(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
         if data['WingRequest'] == 'true':
             say(rat + ': wr+ [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"WingRequest":True}})
         else:
             say(rat + ': wr- [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"WingRequest":False}})
 
     def system(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
         if data['ArrivedSystem'] == 'true':
             say(rat + ': sys+ [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"ArrivedSystem":True}})
         else:
             say(rat + ': sys- [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"ArrivedSystem":False}})
 
     def bc(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
         if data['BeaconSpotted'] == 'true':
             say(rat + ': bc+ [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"BeaconSpotted":True}})
         else:
             say(rat + ': bc- [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"BeaconSpotted":False}})
 
     def inst(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
         if data['InstanceSuccessful'] == 'true':
             say(rat + ': inst+ [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"InstanceSuccessful":True}})
         else:
             say(rat + ': inst- [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"InstanceSuccessful":False}})
 
     def fueled(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
         if data['Fueled'] == 'true':
             say(rat + ': Client Fueled! [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"Fueled":True}})
         else:
             say(rat + ': Client not Fueled! [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                rescue.data.update({"status":{"Fueled":False}})
 
     def calljumps(data):
         client = filterClient(bot, data)
