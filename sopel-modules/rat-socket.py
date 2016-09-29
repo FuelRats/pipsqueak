@@ -205,9 +205,7 @@ def handleWSMessage(payload, senderinstance):
         id = "@" + str(data.get("RescueID"))
         board = bot.memory['ratbot']['board']
         result = board.find(id, create=False)
-        print('result is: '+str(result))
         rescue = result.rescue[0]
-        print('Returning this as rescue: '+str(rescue))
         return rescue
 
     def getRatId(bot, data):
