@@ -47,7 +47,7 @@ urljoin = ratlib.api.http.urljoin
 target_case_max = 9  # Target highest boardindex to assign
 HISTORY_MAX = 10000  # Max number of nicks we'll remember history for at once.
 
-defaultdata = {'IRCNick':'unknown client name', 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}, "status":{"FriendRequest":False, "WingRequest":False, "SysArrived":False, "BeaconSpotted":False, "InstanceSuccessful":False, "Fueled":False}, "boardIndex":None}
+defaultdata = {'IRCNick':'unknown client name', 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}, "status":{}, "boardIndex":None}
 
 ## Start setup section ###
 class RatboardSection(StaticSection):
