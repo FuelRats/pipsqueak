@@ -72,6 +72,7 @@ def shutdown(bot=None):
     print('[Websocket] shutdown for socket')
     reactor.stop()
 
+debug_channel = ''
 
 def setup(bot):
     ratlib.sopel.setup(bot)
@@ -84,6 +85,7 @@ def setup(bot):
     else:
         websocketurl = bot.config.socket.websocketurl
         websocketport = bot.config.socket.websocketport
+    debug_channel = bot.config.core.debug_channel or '#mechadeploy'
 
         # ---> Does not work as te board is not nessesarily set up yet! func_connect(bot)
 
@@ -156,7 +158,7 @@ class MyClientProtocol(WebSocketClientProtocol):
 
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
-        MyClientProtocol.bot.say('[Websocket] Successfully openend connection to Websocket!')
+        MyClientProtocol.bot.say('[Websocket] Successfully openend connection to Websocket!', debug_channel)
         print(
             '[Websocket] Authenticating with message: ' + '{ "action": "authorization", "bearer": "' + MyClientProtocol.bot.config.ratbot.apitoken + '"}')
         self.sendMessage(
@@ -174,7 +176,8 @@ class MyClientProtocol(WebSocketClientProtocol):
 
     def onClose(self, wasClean, code, reason):
         # print('onclose')
-        MyClientProtocol.bot.say('[Websocket] Closed connection with Websocket. Reason: ' + str(reason))
+        MyClientProtocol.bot.say('[RatTracker] Lost connection to RatTracker! Trying to reconnect...')
+        MyClientProtocol.bot.say('[Websocket] Closed connection with Websocket. Reason: ' + str(reason), debug_channel)
         WebSocketClientProtocol.onClose(self, wasClean, code, reason)
 
 
@@ -185,7 +188,7 @@ def handleWSMessage(payload, senderinstance):
         data = response['data']
     except KeyError as ex:
         MyClientProtocol.bot.say(
-            '[Websocket] Couldn\'t grab Data field. Here\'s the Error field: ' + str(response['errors']))
+            '[Websocket] Couldn\'t grab Data field. Here\'s the Error field: ' + str(response['errors']), debug_channel)
         return
     say = MyClientProtocol.bot.say
     bot = MyClientProtocol.bot
@@ -222,7 +225,7 @@ def handleWSMessage(payload, senderinstance):
             say(str(filterRat(bot, data)) + ' is now off Duty! [Reported by RatTracker]')
 
     def welcome(data):
-        say('[Websocket] Successfully welcomed to Websocket!')
+        say('[Websocket] Successfully welcomed to Websocket!', debug_channel)
 
     def fr(data):
         client = filterClient(bot, data)
@@ -417,7 +420,8 @@ def handleWSMessage(payload, senderinstance):
 
     def authorize(data):
         MyClientProtocol.authed = True
-        bot.say('[Websocket] Authenticated with the API!')
+        bot.say('[RatTracker] Connected with RatTracker!')
+        bot.say('[Websocket] Authenticated with the API!', debug_channel)
         print(
             '[Websocket] Authed! Subscribing to RT with message: ' + '{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
         senderinstance.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
@@ -435,7 +439,8 @@ def handleWSMessage(payload, senderinstance):
             wsevents[action](data=data)
         except:
             bot.say(
-                '[Websocket] Got an error while handling WebSocket Event. Report this to Marenthyu including the time this happened. Thank you!')
+                '[RatTracker] Got an error while handling WebSocket Event. Please report this to Marenthyu including the time this happened. Thank you!')
+            bot.say('Unhandled Websocket event. Check console output.', debug_channel)
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)
 

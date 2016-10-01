@@ -16,6 +16,9 @@ port = 6697
 timeout = 300
 modes = iwrxztB
 
+# Channel for debug output. Should be the same as the channel used for everything else in dev, but something else in drill and prod
+debug_channel = #rattest
+
 prefix = \!
 help_prefix = !
 
