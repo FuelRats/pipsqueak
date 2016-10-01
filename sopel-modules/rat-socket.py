@@ -225,7 +225,8 @@ def handleWSMessage(payload, senderinstance):
             say(str(filterRat(bot, data)) + ' is now off Duty! [Reported by RatTracker]')
 
     def welcome(data):
-        say('[Websocket] Successfully welcomed to Websocket!', debug_channel)
+        print('debug channel is '+debug_channel)
+        say('[Websocket] Successfully welcomed to Websocket!', str(debug_channel))
 
     def fr(data):
         client = filterClient(bot, data)
