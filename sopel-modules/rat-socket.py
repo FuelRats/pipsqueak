@@ -160,7 +160,7 @@ class MyClientProtocol(WebSocketClientProtocol):
 
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
-        MyClientProtocol.bot.say('[Websocket] Successfully openend connection to Websocket!', debug_channel)
+        MyClientProtocol.bot.say('[Websocket] Successfully openend connection to Websocket!', MyClientProtocol.debug_channel)
         print(
             '[Websocket] Authenticating with message: ' + '{ "action": "authorization", "bearer": "' + MyClientProtocol.bot.config.ratbot.apitoken + '"}')
         self.sendMessage(
@@ -179,7 +179,7 @@ class MyClientProtocol(WebSocketClientProtocol):
     def onClose(self, wasClean, code, reason):
         # print('onclose')
         MyClientProtocol.bot.say('[RatTracker] Lost connection to RatTracker! Trying to reconnect...')
-        MyClientProtocol.bot.say('[Websocket] Closed connection with Websocket. Reason: ' + str(reason), debug_channel)
+        MyClientProtocol.bot.say('[Websocket] Closed connection with Websocket. Reason: ' + str(reason), MyClientProtocol.debug_channel)
         WebSocketClientProtocol.onClose(self, wasClean, code, reason)
 
 
@@ -229,7 +229,7 @@ def handleWSMessage(payload, senderinstance):
 
     def welcome(data):
         print('debug channel is '+debug_channel)
-        say('[Websocket] Successfully welcomed to Websocket!', str(debug_channel))
+        say('[Websocket] Successfully welcomed to Websocket!', str(MyClientProtocol.debug_channel))
 
     def fr(data):
         client = filterClient(bot, data)
