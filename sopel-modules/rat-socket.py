@@ -72,7 +72,7 @@ def shutdown(bot=None):
     print('[Websocket] shutdown for socket')
     reactor.stop()
 
-debug_channel = ''
+
 
 def setup(bot):
     ratlib.sopel.setup(bot)
@@ -155,6 +155,7 @@ class MyClientProtocol(WebSocketClientProtocol):
     bot = None
     board = None
     authed = False
+    debug_channel = bot.config.ratbot.debug_channel
 
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
