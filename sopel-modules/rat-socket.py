@@ -85,16 +85,16 @@ def setup(bot):
     else:
         websocketurl = bot.config.socket.websocketurl
         websocketport = bot.config.socket.websocketport
-    debug_channel = bot.config.core.debug_channel or '#mechadeploy'
+    debug_channel = bot.config.ratbot.debug_channel or '#mechadeploy'
 
         # ---> Does not work as te board is not nessesarily set up yet! func_connect(bot)
 
 
 def func_connect(bot):
     if reactor._started:
-        bot.say('[Websocket] Reactor already running!')
+        bot.say('[RatTracker] Reactor already running!')
         return
-    bot.say('[Websocket] Gotcha, connecting to the API\'s Websocket!')
+    bot.say('[RatTracker] Gotcha, connecting to RatTracker!')
     MyClientProtocol.bot = bot
     MyClientProtocol.board = bot.memory['ratbot']['board']
     factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)

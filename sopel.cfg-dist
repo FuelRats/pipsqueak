@@ -16,8 +16,6 @@ port = 6697
 timeout = 300
 modes = iwrxztB
 
-# Channel for debug output. Should be the same as the channel used for everything else in dev, but something else in drill and prod
-debug_channel = #rattest
 
 prefix = \!
 help_prefix = !
@@ -46,6 +44,9 @@ auto_accept_invite = False
 ## Common configuration to all rat modules.
 # If running sopel in a read-only location, make sure it has write access to workdir
 workdir = run
+
+# Channel for debug output. Should be the same as the channel used for everything else in dev, but something else in drill and prod
+debug_channel = #rattest
 
 # Database connection string.  See SQLAlchemy documentation.
 database = postgresql://username:password@localhost/databasename
