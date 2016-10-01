@@ -96,6 +96,7 @@ def func_connect(bot):
         return
     bot.say('[RatTracker] Gotcha, connecting to RatTracker!')
     MyClientProtocol.bot = bot
+    MyClientProtocol.debug_channel = bot.config.ratbot.debug_channel
     MyClientProtocol.board = bot.memory['ratbot']['board']
     factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
 
@@ -155,7 +156,7 @@ class MyClientProtocol(WebSocketClientProtocol):
     bot = None
     board = None
     authed = False
-    debug_channel = bot.config.ratbot.debug_channel
+    debug_channel = ''
 
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
@@ -194,6 +195,7 @@ def handleWSMessage(payload, senderinstance):
     say = MyClientProtocol.bot.say
     bot = MyClientProtocol.bot
     board = MyClientProtocol.board
+    debug_channel = MyClientProtocol.debug_channel
 
     def filterClient(bot, data):
         resId = data.get('RescueID') or data.get('rescueID') or data.get('RescueId') or data.get(
