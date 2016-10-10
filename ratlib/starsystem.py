@@ -384,6 +384,8 @@ def getSystemFromDB(bot, db=None, sysname="fuelum"):
 @with_session
 def getSystemInBox(bot, x1, y1, z1, x2, y2, z2, db=None):
     metadata = MetaData(db)
-    systems = db.query(Starsystem).filter(Starsystem.x in range(x1,x2))
+    print('in box method')
+    systems = db.query(Starsystem).filter(Starsystem.x > x1)
+    print('after query')
     for system in systems:
-        print(str(Starsystem.name) + " is between the given coords at "+ str(Starsystem.x) + " " + str(Starsystem.y) + " " + str(Starsystem.z))
+        print(str(system.name) + " is between the given coords at "+ str(system.x) + " " + str(system.y) + " " + str(system.z))
