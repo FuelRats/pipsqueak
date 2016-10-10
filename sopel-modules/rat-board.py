@@ -1530,3 +1530,11 @@ def cmd_nick(bot, trigger, case, newnick):
         case.data.update({'IRCNick':newnick})
     save_case_later(bot, case, forceFull=True)
     bot.reply('Set Nick to '+str(newnick))
+
+from ratlib import starsystem
+
+@commands('debug')
+@parameterize('w')
+def cmd_debug(bot, trigger, stuff):
+    bot.say('debugging with stuff "' + stuff + '"')
+    starsystem.getSystemFromDB(bot, sysname=str(stuff))
