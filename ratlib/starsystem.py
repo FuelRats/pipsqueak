@@ -377,7 +377,7 @@ def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
 @with_session
 def getSystemFromDB(bot, db=None, sysname="fuelum"):
     db.echo = True
-    metadata = BoundMetaData(db)
+    metadata = MetaData(db)
     systems = Table('starsystem', metadata, autoload=True)
     stmnt = systems.select(systems.c.name_lower == str(sysname).lower())
     rs = stmnt.execute()
