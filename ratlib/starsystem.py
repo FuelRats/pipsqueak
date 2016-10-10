@@ -383,6 +383,7 @@ def getSystemFromDB(bot, db=None, sysname="fuelum"):
     for res in result:
         # return first element from dict (should never be longer than 1)
         return res
+    return None
 
 @with_session
 def getSystemsInBox(bot, x1, y1, z1, x2, y2, z2, db=None):
