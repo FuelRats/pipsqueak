@@ -1534,7 +1534,8 @@ def cmd_nick(bot, trigger, case, newnick):
 from ratlib import starsystem
 
 @commands('debug')
-@parameterize('w')
-def cmd_debug(bot, trigger, stuff):
-    bot.say('stuff irrelevant.')
-    starsystem.getSystemInBox(bot, -5, -5, -5, 5, 5, 5)
+@parameterize('wwwwww')
+def cmd_debug(bot, trigger, x1, y1, z1, x2, y2, z2):
+    bot.say('getting systems in given box...')
+    systems = starsystem.getSystemsInBox(bot, x1, y1, z1, x2, y2, z2)
+    bot.say('there are ' + str(len(systems)) + ' systems in the given box.')
