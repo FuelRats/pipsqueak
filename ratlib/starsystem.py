@@ -378,8 +378,6 @@ def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
 def getSystemFromDB(bot, db=None, sysname="fuelum"):
     db.echo = True
     metadata = MetaData(db)
-    systems = Table('starsystem', metadata, autoload=True)
-    stmnt = systems.select(systems.c.name_lower == str(sysname).lower())
-    rs = stmnt.execute()
-    for row in rs:
-        print(row)
+    systems = db.query(Starsystem).filter(Starsystem.name_lower == str(sysname))
+    for system in systems:
+        print(str(system))
