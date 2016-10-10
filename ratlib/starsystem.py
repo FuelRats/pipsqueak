@@ -376,8 +376,14 @@ def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
 
 @with_session
 def getSystemFromDB(bot, db=None, sysname="fuelum"):
-    db.echo = True
     metadata = MetaData(db)
     systems = db.query(Starsystem).filter(Starsystem.name_lower == str(sysname))
     for system in systems:
         print(str(system.x) + ' should be the x coord of '+str(sysname))
+
+@with_session
+def getSystemInBox(bot, x1, y1, z1, x2, y2, z2, db=None):
+    metadata = MetaData(db)
+    systems = db.query(Starsystem).filter(Starsystem.x in range(x1,x2)).filter(Starsystem.y in range(y1, y2)).filter(Starsystem.z in range(z1, z2))
+    for system in systems:
+        print(str(Starsystem.name) + " is between the given coords at "+ str(Starsystem.x) + " " + str(Starsystem.y) + " " + str(Starsystem.z))

@@ -1536,5 +1536,5 @@ from ratlib import starsystem
 @commands('debug')
 @parameterize('w')
 def cmd_debug(bot, trigger, stuff):
-    bot.say('debugging with stuff "' + stuff + '"')
-    starsystem.getSystemFromDB(bot, sysname=str(stuff))
+    bot.say('stuff irrelevant.')
+    starsystem.getSystemInBox(bot, -5, -5, -5, 5, 5, 5)
