@@ -377,7 +377,7 @@ def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
 @with_session
 def getSystemFromDB(bot, db=None, sysname="fuelum"):
     # Create query for system
-    systems = db.query(Starsystem).filter(Starsystem.name_lower == str(sysname))
+    systems = db.query(Starsystem).filter(Starsystem.name_lower == str(sysname).lower())
     # convert found systems to dict
     result = [u.__dict__ for u in systems.all()]
     for res in result:
