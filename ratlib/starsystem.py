@@ -380,4 +380,4 @@ def getSystemFromDB(bot, db=None, sysname="fuelum"):
     metadata = MetaData(db)
     systems = db.query(Starsystem).filter(Starsystem.name_lower == str(sysname))
     for system in systems:
-        print(str(system))
+        print(str(system.x) + ' should be the x coord of '+str(sysname))
