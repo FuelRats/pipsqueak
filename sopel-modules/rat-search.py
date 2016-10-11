@@ -208,8 +208,8 @@ def _cmd_sysrefresh(bot, trigger, db=None):
         msg += "The starsystem database appears to have never been initialized."
     else:
         when = when.astimezone(datetime.timezone.utc)
-        msg += "The starsystem database was refreshed at {} ({})".format(
-            ratlib.format_timestamp(when), ratlib.format_timedelta(when)
+        msg += "The starsystem database was refreshed at {} ({}) or an update is still in progress. It is only allowed every {} seconds.".format(
+            ratlib.format_timestamp(when), ratlib.format_timedelta(when), bot.config.ratbot.edsm_maxage or '<unknown>'
         )
     bot.say(msg)
 
