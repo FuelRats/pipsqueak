@@ -1681,9 +1681,19 @@ def _plotRouteTo(bot, trigger, destSystem, startSys, batched=False):
 
 @commands('plot')
 @require_rat('You need to be a registered and drilled Rat to use this Command!')
-# @require_privmsg('This command is spammy, please use it in a private message.')
+@require_privmsg('This command is spammy, please use it in a private message.')
 @rate(60 * 30)
 def cmd_plot(bot, trigger):
+    """
+    Usage: !plot [-b ]<sys1> to <sys2>
+            This function has a limit of once per 30 minutes per person as it is a taxing calculation.
+            Plots a route from sys1 to sys2 with waypoints every 1000 Lightyears. It only calculates
+            these waypoints, so some waypoints MAY be unreachable, but it should be suitable for most of the
+            Milky way, except when crossing outer limbs.
+            If the optional -b parameter is given the bot will output all waypoints batched when the calculation
+            finished instead of when it gets each individual waypoint. If the total distance is > 10000 it will still
+            point out the 50% mark and if the total distance is > 25000 it will tell about every 25% completed.
+    """
     bot.memory['ratbot']['runningplots'] += 1
     if bot.memory['ratbot']['runningplots'] > bot.memory['ratbot']['maxplots']:
         bot.memory['ratbot']['runningplots'] -= 1
