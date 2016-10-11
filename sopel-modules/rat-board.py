@@ -77,10 +77,13 @@ def setup(bot):
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['board'] = RescueBoard()
     bot.memory['ratbot']['board'].bot = bot
+    bot.memory['ratbot']['runningplots'] = 0
+
     if not hasattr(bot.config, 'ratboard') or not bot.config.ratboard.signal:
         signal = 'ratsignal'
     else:
         signal = bot.config.ratboard.signal
+        bot.memory['ratbot']['maxplots'] = bot.config.ratboard.maxplots or 4
 
     # Build regular expression pattern.
     pattern = '(?!{prefix}).*{signal}.*'.format(prefix=bot.config.core.prefix, signal=signal)
@@ -1599,7 +1602,12 @@ def _plotRouteTo(bot, trigger, destSystem, startSys):
 @require_rat('You need to be a registered and drilled Rat to use this Command!')
 # @require_privmsg('This command is spammy, please use it in a private message.')
 @rate(60 * 30)
-def cmd_debug(bot, trigger):
+def cmd_plot(bot, trigger):
+    bot.memory['ratbot']['runningplots'] += 1
+    if bot.memory['ratbot']['runningplots'] > bot.memory['ratbot']['maxplots']:
+        bot.memory['ratbot']['runningplots'] -= 1
+        bot.say('Sorry, but there are already '+str(bot.memory['ratbot']['runningplots'])+' plots running. Please wait a bit.')
+        return NOLIMIT
     stuff = trigger[6:].lower()
     things = str(stuff).split(' to ')
     if len(things) < 2:
@@ -1633,3 +1641,4 @@ def cmd_debug(bot, trigger):
         bot.say(
             'Waypoint ' + str(i) + ': ' + element['system']['name'] + ' - Leg distance: ' + str(lyintstr) + 'LY')
         i += 1
+    bot.memory['ratbot']['runningplots'] -= 1

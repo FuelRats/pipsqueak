@@ -88,6 +88,9 @@ edsm_maxage = 604800
 # allow retries in the event one attempt fails.  Set to 0 to disable
 edsm_autorefresh = 14400
 
+# Maximum allowed simultaneous !plots to allow
+maxplots = 4
+
 ## Ratbot will try to determine its version number on startup for some informational commands.
 ## It will do so by trying the following, in order:
 ## - Read the version_string setting
