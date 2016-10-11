@@ -17,6 +17,7 @@ import warnings
 import functools
 import json
 import numpy
+import math
 
 import sys
 import contextlib
@@ -83,7 +84,7 @@ def setup(bot):
         signal = 'ratsignal'
     else:
         signal = bot.config.ratboard.signal
-        bot.memory['ratbot']['maxplots'] = bot.config.ratboard.maxplots or 4
+        bot.memory['ratbot']['maxplots'] = int(bot.config.ratbot.maxplots) or 4
 
     # Build regular expression pattern.
     pattern = '(?!{prefix}).*{signal}.*'.format(prefix=bot.config.core.prefix, signal=signal)
@@ -1554,17 +1555,41 @@ def cmd_nick(bot, trigger, case, newnick):
     bot.reply('Set Nick to ' + str(newnick))
 
 
-def _plotRouteTo(bot, trigger, destSystem, startSys):
+def _plotRouteTo(bot, trigger, destSystem, startSys, batched=False):
     destPos = numpy.array([destSystem['x'], destSystem['y'], destSystem['z']])
     # print('destination Position: ' + str(destPos))
     latestPos = numpy.array([startSys['x'], startSys['y'], startSys['z']])
     # print('latest position (beginning): ' + str(latestPos))
     line = destPos - latestPos
     waypoints = 0
-    currentRoute = {0: {"system": startSys, "distance": numpy.linalg.norm(line)}}
+    totaldistance = numpy.linalg.norm(line)
+    currentRoute = {0: {"system": startSys, "distance": totaldistance}}
+    if not batched:
+        element = currentRoute.get(0)
+        lyintstr = str(element['distance'])
+        try:
+            ind = lyintstr.index('.')
+        except:
+            ind = len(lyintstr)
+        lyintstr = str(lyintstr[0:ind + 3])
+        bot.say('Starting system: ' + element['system']['name'] + ' - Total Distance: ' + str(
+            lyintstr) + 'LY')
     # print('Distance to destination is: ' + str(numpy.linalg.norm(line)))
     # while remaining distance is > 1000LY
+    onequarter = False
+    halfway = False
+    threequarters = False
     while numpy.linalg.norm(line) > 1000:
+        remainingdistance = numpy.linalg.norm(line)
+        if (batched) and (totaldistance > 25000) and (not onequarter) and (remainingdistance / totaldistance < 0.75):
+            bot.say("[Plotting to " + destSystem["name"] + "] 25% done...")
+            onequarter = True
+        if (batched) and (totaldistance > 10000) and (not halfway) and (remainingdistance / totaldistance < 0.5):
+            bot.say("[Plotting to " + destSystem["name"] + "] 50% done...")
+            halfway = True
+        if (batched) and (totaldistance > 25000) and (not threequarters) and (remainingdistance / totaldistance < 0.25):
+            bot.say("[Plotting to " + destSystem["name"] + "] 75% done...")
+            threequarters = True
         # print('Remaining distance: ' + str(numpy.linalg.norm(line)))
         waypoints += 1
         # Get nromalized vector (length of 1)
@@ -1572,29 +1597,85 @@ def _plotRouteTo(bot, trigger, destSystem, startSys):
         # Set center of box to search for systems in
         centerOfBox = latestPos + (normLine * 1000)
         gotGoodSys = False
-        radius = 0
+        radius = 5
+        badsystems = []
         # Try to find a "good" system that is within 1kLY of the previous system - if it fails, increase box radius by
         # 10LY
         while not gotGoodSys:
-            radius += 10
+            radius *= 2
+            # Here we are calculating which of the coordinates is the largest to NOT extend our box in that direction
+            # as most of the systems in that direction are guaranteed to exceed our 1kLY distance limit.
+            # So why bother with them? This proved to improve performance by about 9%
+            neg0 = centerOfBox[0] - radius
+            pos0 = centerOfBox[0] + radius
+            neg1 = centerOfBox[1] - radius
+            pos1 = centerOfBox[1] + radius
+            neg2 = centerOfBox[2] - radius
+            pos2 = centerOfBox[2] + radius
+            # Get absolute values of the axis's
+            abs0 = math.fabs(centerOfBox[0])
+            abs1 = math.fabs(centerOfBox[1])
+            abs2 = math.fabs(centerOfBox[2])
+            # check which of the 6 axis's is the largest and reset the appropriate corner coordinate of our box
+            # to the center of the box.
+            if abs0 > abs1 and abs0 > abs2:
+                if centerOfBox[0] > 0:
+                    pos0 -= radius
+                else:
+                    neg0 += radius
+            elif abs1 > abs0 and abs1 > abs2:
+                if centerOfBox[1] > 0:
+                    pos1 -= radius
+                else:
+                    neg1 += radius
+            else:
+                if centerOfBox[2] > 0:
+                    pos2 -= radius
+                else:
+                    neg2 += radius
+
             # Find systems in box
-            systems = starsystem.getSystemsInBox(bot, centerOfBox[0] - radius, centerOfBox[1] - radius,
-                                                 centerOfBox[2] - radius, centerOfBox[0] + radius,
-                                                 centerOfBox[1] + radius, centerOfBox[2] + radius)
+            systems = starsystem.getSystemsInBox(bot, neg0, neg1, neg2, pos0, pos1, pos2)
             # Check if any of the systems is "good"
             for system in systems:
+                if system['name'] in badsystems:
+                    continue
                 currSysPos = numpy.array([system['x'], system['y'], system['z']])
                 if (numpy.linalg.norm(currSysPos - latestPos) < 1000):
+                    element = {"system": system, "distance": numpy.linalg.norm(currSysPos - latestPos)}
                     currentRoute.update(
-                        {waypoints: {"system": system, "distance": numpy.linalg.norm(currSysPos - latestPos)}})
+                        {waypoints: element})
                     # print('got a good system!')
                     gotGoodSys = True
                     latestPos = currSysPos.copy()
+                    if not batched:
+                        lyintstr = str(element['distance'])
+                        try:
+                            ind = lyintstr.index('.')
+                        except:
+                            ind = len(lyintstr)
+                        lyintstr = str(lyintstr[0:ind + 3])
+                        bot.say(
+                            'Waypoint ' + str(waypoints) + ': ' + element['system']['name'] + ' - Leg distance: ' + str(
+                                lyintstr) + 'LY')
                     break
+                badsystems.append(system['name'])
         # switch vector to next waypoint, then search from there again.
         line = destPos - latestPos
     # add destination as last waypoint
-    currentRoute.update({waypoints + 1: {"system": destSystem, "distance": numpy.linalg.norm(destPos - latestPos)}})
+    element = {"system": destSystem, "distance": numpy.linalg.norm(destPos - latestPos)}
+    currentRoute.update({waypoints + 1: element})
+    if not batched:
+        # Report final system if not reported batched in calling function.
+        lyintstr = str(element['distance'])
+        try:
+            ind = lyintstr.index('.')
+        except:
+            ind = len(lyintstr)
+        lyintstr = str(lyintstr[0:ind + 3])
+        bot.say(
+            'Waypoint ' + str(waypoints + 1) + ': ' + element['system']['name'] + ' - Leg distance: ' + str(
+                lyintstr) + 'LY')
     return currentRoute
 
 
@@ -1606,20 +1687,27 @@ def cmd_plot(bot, trigger):
     bot.memory['ratbot']['runningplots'] += 1
     if bot.memory['ratbot']['runningplots'] > bot.memory['ratbot']['maxplots']:
         bot.memory['ratbot']['runningplots'] -= 1
-        bot.say('Sorry, but there are already '+str(bot.memory['ratbot']['runningplots'])+' plots running. Please wait a bit.')
+        bot.say('Sorry, but there are already ' + str(
+            bot.memory['ratbot']['runningplots']) + ' plots running. Please wait a bit.')
         return NOLIMIT
     stuff = trigger[6:].lower()
+    batched = False
+    if str(stuff).startswith('-b'):
+        batched = True
+        stuff = stuff[3:]
     things = str(stuff).split(' to ')
     if len(things) < 2:
         bot.say('Usage: <starting system> to <destination system>')
         return NOLIMIT
+    things[0] = things[0].strip()
+    things[1] = things[1].strip()
     bot.say('Plotting route from ' + things[0] + ' to ' + things[1] + ' - Please be patient...')
-    try:
-        elements = _plotRouteTo(bot, trigger, starsystem.getSystemFromDB(bot, sysname=things[1]),
-                                starsystem.getSystemFromDB(bot, sysname=things[0]))
-    except:
-        bot.say('Error during plotting. Most likely a system does not exist!')
-        return NOLIMIT
+    # try:
+    elements = _plotRouteTo(bot, trigger, starsystem.getSystemFromDB(bot, sysname=things[1]),
+                            starsystem.getSystemFromDB(bot, sysname=things[0]), batched)
+    # except:
+    #    bot.say('Error during plotting. Most likely a system does not exist!')
+    #    return NOLIMIT
     i = 1
     element = elements.get(0)
     lyintstr = str(element['distance'])
@@ -1628,17 +1716,18 @@ def cmd_plot(bot, trigger):
     except:
         ind = len(lyintstr)
     lyintstr = str(lyintstr[0:ind + 3])
-    bot.say('Starting system: ' + elements.get(0)['system']['name'] + ' - Total Distance: ' + str(
-        lyintstr) + 'LY - Waypoints: ' + str(len(elements) - 1))
-    while i < len(elements):
-        element = elements.get(i)
-        lyintstr = str(element['distance'])
-        try:
-            ind = lyintstr.index('.')
-        except:
-            ind = len(lyintstr)
-        lyintstr = str(lyintstr[0:ind + 3])
-        bot.say(
-            'Waypoint ' + str(i) + ': ' + element['system']['name'] + ' - Leg distance: ' + str(lyintstr) + 'LY')
-        i += 1
+    if batched:
+        bot.say('Starting system: ' + elements.get(0)['system']['name'] + ' - Total Distance: ' + str(
+            lyintstr) + 'LY - Waypoints: ' + str(len(elements) - 1))
+        while i < len(elements):
+            element = elements.get(i)
+            lyintstr = str(element['distance'])
+            try:
+                ind = lyintstr.index('.')
+            except:
+                ind = len(lyintstr)
+            lyintstr = str(lyintstr[0:ind + 3])
+            bot.say(
+                'Waypoint ' + str(i) + ': ' + element['system']['name'] + ' - Leg distance: ' + str(lyintstr) + 'LY')
+            i += 1
     bot.memory['ratbot']['runningplots'] -= 1

@@ -377,18 +377,29 @@ def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
 @with_session
 def getSystemFromDB(bot, db=None, sysname="fuelum"):
     # Create query for system
+    print('searching for '+str(sysname))
     systems = db.query(Starsystem).filter(Starsystem.name_lower == str(sysname).lower())
+    # CAUTION! Debug ONLY!
+    # statement = systems.statement
+    # from ratlib.literalstatement import literalquery
+    # print("Statement: "+str(literalquery(statement)))
     # convert found systems to dict
     result = [u.__dict__ for u in systems.all()]
     for res in result:
         # return first element from dict (should never be longer than 1)
+        print('Returning '+str(res)+' for system '+sysname)
         return res
+    print('No system found for '+str(sysname))
     return None
 
 @with_session
 def getSystemsInBox(bot, x1, y1, z1, x2, y2, z2, db=None):
     # Create query to get systems in the given box
-    systems = db.query(Starsystem).filter(Starsystem.x > x1, Starsystem.x < x2, Starsystem.y > y1, Starsystem.y < y2, Starsystem.z > z1, Starsystem.z < z2)
+    systems = db.query(Starsystem).filter(Starsystem.x.between(x1, x2), Starsystem.y.between(y1, y2), Starsystem.z.between(z1, z2))
+    # CAUTION! Debug ONLY!
+    # statement = systems.statement
+    # from ratlib.literalstatement import literalquery
+    # print("Statement: "+str(literalquery(statement)))
     # convert query result to dict
     result = [u.__dict__ for u in systems.all()]
 
