@@ -330,6 +330,8 @@ def getPrivLevel(trigger):
         return 9
     if trigger.admin:
         return 8
+    elif str(trigger.host).endswith('techrat.fuelrats.com'):
+        return privlevels.get('techrat.fuelrats.com')
     else:
         for key in privlevels.keys():
             if str(trigger.host).endswith(key):

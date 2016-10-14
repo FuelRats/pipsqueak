@@ -817,6 +817,7 @@ def cmd_list(bot, trigger, params=''):
     show_inactive = 'i' in params
     showassigned = 'r' in params
     unassigned = 'u' in params
+    maxcount = 2 if showassigned else (3 if showids else 6)
     attr = 'client_name'
 
     board = bot.memory['ratbot']['board']
@@ -837,7 +838,8 @@ def cmd_list(bot, trigger, params=''):
             continue
         num = len(cases)
         s = 's' if num != 1 else ''
-        t = "{num} {name} case{s}".format(num=num, name=name, s=s)
+        t = []
+        t.append("{num} {name} case{s}".format(num=num, name=name, s=s))
         if expand:
             # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the rescues have more than 0 assigned rats
             # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was implemented.
@@ -849,10 +851,28 @@ def cmd_list(bot, trigger, params=''):
             for formatted in templist:
                 if formatted != 'IGNOREME':
                     formatlist.append(formatted)
-            if len(formatlist) > 0:
-                t += ": " + ", ".join(formatlist)
+                    t.append(formatted)
         output.append(t)
-    bot.say("; ".join(output))
+    for part in output:
+        totalCount = 0
+        length = len(part)
+        currCount = 0
+        currString = ""
+        if part.__class__ is str:
+            b = part
+            part = []
+            part.append(b)
+            length = 1
+        for case in part:
+            if currCount == 0:
+                currString = case
+            else:
+                currString = currString + ", "+case
+            currCount += 1
+            totalCount += 1
+            if currCount == maxcount or totalCount == length:
+                bot.say(currString)
+                currCount = 0
 
 
 def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=True, hideboardindexes=True,
@@ -1741,3 +1761,4 @@ def cmd_plot(bot, trigger):
                 'Waypoint ' + str(i) + ': ' + element['system']['name'] + ' - Leg distance: ' + str(lyintstr) + 'LY')
             i += 1
     bot.memory['ratbot']['runningplots'] -= 1
+    bot.say('As plotting is a taxing task, it is limited to once every 30 Minutes per user. Thanks for understanding.')
