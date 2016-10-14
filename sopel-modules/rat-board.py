@@ -1712,12 +1712,12 @@ def cmd_plot(bot, trigger):
     things[0] = things[0].strip()
     things[1] = things[1].strip()
     bot.say('Plotting route from ' + things[0] + ' to ' + things[1] + ' - Please be patient...')
-    # try:
-    elements = _plotRouteTo(bot, trigger, starsystem.getSystemFromDB(bot, sysname=things[1]),
+    try:
+        elements = _plotRouteTo(bot, trigger, starsystem.getSystemFromDB(bot, sysname=things[1]),
                             starsystem.getSystemFromDB(bot, sysname=things[0]), batched)
-    # except:
-    #    bot.say('Error during plotting. Most likely a system does not exist!')
-    #    return NOLIMIT
+    except:
+        bot.say('Error during plotting. Most likely a system does not exist!')
+        return NOLIMIT
     i = 1
     element = elements.get(0)
     lyintstr = str(element['distance'])
