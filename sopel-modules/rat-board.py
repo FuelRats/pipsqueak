@@ -1701,7 +1701,6 @@ def _plotRouteTo(bot, trigger, destSystem, startSys, batched=False):
 
 @commands('plot')
 @require_rat('You need to be a registered and drilled Rat to use this Command!')
-@require_privmsg('This command is spammy, please use it in a private message.')
 @rate(60 * 30)
 def cmd_plot(bot, trigger):
     """
@@ -1714,6 +1713,9 @@ def cmd_plot(bot, trigger):
             finished instead of when it gets each individual waypoint. If the total distance is > 10000 it will still
             point out the 50% mark and if the total distance is > 25000 it will tell about every 25% completed.
     """
+    if not trigger._is_privmsg:
+        bot.say("This command is spammy, please use it in a private message.")
+        return NOLIMIT
     bot.memory['ratbot']['runningplots'] += 1
     if bot.memory['ratbot']['runningplots'] > bot.memory['ratbot']['maxplots']:
         bot.memory['ratbot']['runningplots'] -= 1
