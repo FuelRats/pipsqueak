@@ -1741,3 +1741,4 @@ def cmd_plot(bot, trigger):
                 'Waypoint ' + str(i) + ': ' + element['system']['name'] + ' - Leg distance: ' + str(lyintstr) + 'LY')
             i += 1
     bot.memory['ratbot']['runningplots'] -= 1
+    bot.say('As plotting is a taxing task, it is limited to once every 30 Minutes per user. Thanks for understanding.')
