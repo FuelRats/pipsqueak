@@ -39,7 +39,7 @@ def getRatId(bot, ratname, platform=None):
             tempnam = 'unknown name'
             tempplat = 'unknown platform'
 
-            for ratobject in firstmatch['CMDRs']:
+            for ratobject in firstmatch['rats']:
                 id = ratobject['id']
                 tempnam = ratobject['CMDRname']
                 tempplat = ratobject['platform']
