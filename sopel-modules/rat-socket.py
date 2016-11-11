@@ -34,7 +34,6 @@ from twisted.internet import defer
 log.startLogging(sys.stdout)
 defer.setDebugging(True)
 
-
 # ratlib imports
 import ratlib.api.http
 from ratlib.api.names import *
@@ -74,6 +73,7 @@ def shutdown(bot=None):
     reactor.stop()
 
 
+
 def setup(bot):
     ratlib.sopel.setup(bot)
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
@@ -85,27 +85,30 @@ def setup(bot):
     else:
         websocketurl = bot.config.socket.websocketurl
         websocketport = bot.config.socket.websocketport
+    debug_channel = bot.config.ratbot.debug_channel or '#mechadeploy'
 
-    # ---> Does not work as te board is not nessesarily set up yet! func_connect(bot)
+        # ---> Does not work as te board is not nessesarily set up yet! func_connect(bot)
+
 
 def func_connect(bot):
     if reactor._started:
-        bot.say('[Websocket] Reactor already running!')
+        bot.say('[RatTracker] Reactor already running!')
         return
-    bot.say('[Websocket] Gotcha, connecting to the API\'s Websocket!')
+    bot.say('[RatTracker] Gotcha, connecting to RatTracker!')
     MyClientProtocol.bot = bot
+    MyClientProtocol.debug_channel = bot.config.ratbot.debug_channel
     MyClientProtocol.board = bot.memory['ratbot']['board']
     factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
 
     factory.protocol = MyClientProtocol
     # print('in connect')
     hostname = str(bot.config.socket.websocketurl).replace("ws://", '').replace("wss://", '')
-    print('[Websocket] Hostname: '+hostname)
+    print('[Websocket] Hostname: ' + hostname)
     if (bot.config.socket.websocketurl.startswith('wss://')):
 
         reactor.connectSSL(hostname,
                            int(bot.config.socket.websocketport),
-                           factory, contextFactory=optionsForClientTLS(hostname = hostname))
+                           factory, contextFactory=optionsForClientTLS(hostname=hostname))
     else:
 
         reactor.connectTCP(hostname,
@@ -116,6 +119,7 @@ def func_connect(bot):
     thread = Thread(target=reactor.run, kwargs={'installSignalHandlers': 0})
 
     thread.start()
+
 
 class Socket:
     def __enter__(self):
@@ -152,14 +156,16 @@ class MyClientProtocol(WebSocketClientProtocol):
     bot = None
     board = None
     authed = False
-
+    debug_channel = ''
 
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
-        MyClientProtocol.bot.say('[Websocket] Successfully openend connection to Websocket!')
-        print('[Websocket] Authenticating with message: '+'{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}')
-        self.sendMessage(str('{ "action": "authorization", "bearer": "'+MyClientProtocol.bot.config.ratbot.apitoken+'"}').encode('utf-8'))
-
+        MyClientProtocol.bot.say('[Websocket] Successfully openend connection to Websocket!', MyClientProtocol.debug_channel)
+        print(
+            '[Websocket] Authenticating with message: ' + '{ "action": "authorization", "bearer": "' + MyClientProtocol.bot.config.ratbot.apitoken + '"}')
+        self.sendMessage(
+            str('{ "action": "authorization", "bearer": "' + MyClientProtocol.bot.config.ratbot.apitoken + '"}').encode(
+                'utf-8'))
 
     def onMessage(self, payload, isBinary):
         if isBinary:
@@ -172,7 +178,8 @@ class MyClientProtocol(WebSocketClientProtocol):
 
     def onClose(self, wasClean, code, reason):
         # print('onclose')
-        MyClientProtocol.bot.say('[Websocket] Closed connection with Websocket. Reason: ' + str(reason))
+        MyClientProtocol.bot.say('[RatTracker] Lost connection to RatTracker! Trying to reconnect...')
+        MyClientProtocol.bot.say('[Websocket] Closed connection with Websocket. Reason: ' + str(reason), MyClientProtocol.debug_channel)
         WebSocketClientProtocol.onClose(self, wasClean, code, reason)
 
 
@@ -182,19 +189,35 @@ def handleWSMessage(payload, senderinstance):
     try:
         data = response['data']
     except KeyError as ex:
-        MyClientProtocol.bot.say('[Websocket] Couldn\'t grab Data field. Here\'s the Error field: '+str(response['errors']))
+        MyClientProtocol.bot.say(
+            '[Websocket] Couldn\'t grab Data field. Here\'s the Error field: ' + str(response['errors']), debug_channel)
         return
     say = MyClientProtocol.bot.say
     bot = MyClientProtocol.bot
     board = MyClientProtocol.board
+    debug_channel = MyClientProtocol.debug_channel
 
     def filterClient(bot, data):
-        resId = data.get('RescueID') or data.get('rescueID') or data.get('RescueId') or data.get('rescueId') or data.get('rescueid')
+        resId = data.get('RescueID') or data.get('rescueID') or data.get('RescueId') or data.get(
+            'rescueId') or data.get('rescueid')
         return getClientName(bot=bot, resId=resId)
+
     def filterRat(bot, data):
         ratId = data.get('RatID') or data.get('ratID') or data.get('RatId') or data.get('ratId') or data.get('ratid')
 
         return getRatName(bot=bot, ratid=ratId)[0]
+
+    def getRescue(bot, data):
+        id = "@" + str(data.get("RescueID"))
+        board = bot.memory['ratbot']['board']
+        result = board.find(id, create=False)
+        rescue = result.rescue[0]
+        return rescue
+
+    def getRatId(bot, data):
+        ratId = data.get('RatID') or data.get('ratID') or data.get('RatId') or data.get('ratId') or data.get('ratid')
+
+        return ratId
 
     def onduty(data):
         # print('in function onduty!!!!!!!!')
@@ -205,55 +228,159 @@ def handleWSMessage(payload, senderinstance):
             say(str(filterRat(bot, data)) + ' is now off Duty! [Reported by RatTracker]')
 
     def welcome(data):
-        say('[Websocket] Successfully welcomed to Websocket!')
+        print('debug channel is '+debug_channel)
+        say('[Websocket] Successfully welcomed to Websocket!', str(MyClientProtocol.debug_channel))
 
     def fr(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
+        ratid = getRatId(bot, data)
         if data['FriendRequest'] == 'true':
             say(rat + ': fr+ [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": False, "WingRequest": False,
+                                       "BeaconSpotted": False, "FriendRequest": True, "InstanceSuccessful": False}})
+                else:
+                    status.get(ratid).update({"FriendRequest": True})
         else:
             say(rat + ': fr- [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": False, "WingRequest": False,
+                                       "BeaconSpotted": False, "FriendRequest": False, "InstanceSuccessful": False}})
+                else:
+                    status.get(ratid).update({"FriendRequest": False})
+        save_case(bot, rescue, forceFull=True)
 
     def wr(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
+        ratid = getRatId(bot, data)
         if data['WingRequest'] == 'true':
             say(rat + ': wr+ [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": False, "WingRequest": True,
+                                       "BeaconSpotted": False, "FriendRequest": False, "InstanceSuccessful": False}})
+                else:
+                    status.get(ratid).update({"WingRequest": True})
         else:
             say(rat + ': wr- [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": False, "WingRequest": False,
+                                       "BeaconSpotted": False, "FriendRequest": False, "InstanceSuccessful": False}})
+                else:
+                    status.get(ratid).update({"WingRequest": False})
+        save_case(bot, rescue, forceFull=True)
 
     def system(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
+        ratid = getRatId(bot, data)
         if data['ArrivedSystem'] == 'true':
             say(rat + ': sys+ [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": True, "WingRequest": False,
+                                       "BeaconSpotted": False, "FriendRequest": False, "InstanceSuccessful": False}})
+                else:
+                    status.get(ratid).update({"ArrivedSystem": True})
         else:
             say(rat + ': sys- [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": False, "WingRequest": False,
+                                       "BeaconSpotted": False, "FriendRequest": False, "InstanceSuccessful": False}})
+                else:
+                    status.get(ratid).update({"ArrivedSystem": False})
+        save_case(bot, rescue, forceFull=True)
 
     def bc(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
+        ratid = getRatId(bot, data)
         if data['BeaconSpotted'] == 'true':
             say(rat + ': bc+ [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": False, "WingRequest": False,
+                                       "BeaconSpotted": True, "FriendRequest": False, "InstanceSuccessful": False}})
+                else:
+                    status.get(ratid).update({"BeaconSpotted": True})
         else:
             say(rat + ': bc- [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": False, "WingRequest": False,
+                                       "BeaconSpotted": False, "FriendRequest": False, "InstanceSuccessful": False}})
+                else:
+                    status.get(ratid).update({"BeaconSpotted": False})
+        save_case(bot, rescue, forceFull=True)
 
     def inst(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
+        ratid = getRatId(bot, data)
         if data['InstanceSuccessful'] == 'true':
             say(rat + ': inst+ [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": False, "WingRequest": False,
+                                       "BeaconSpotted": False, "FriendRequest": False, "InstanceSuccessful": True}})
+                else:
+                    status.get(ratid).update({"InstanceSuccessful": True})
         else:
             say(rat + ': inst- [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": False, "WingRequest": False,
+                                       "BeaconSpotted": False, "FriendRequest": False, "InstanceSuccessful": False}})
+                else:
+                    status.get(ratid).update({"InstanceSuccessful": False})
+        save_case(bot, rescue, forceFull=True)
 
     def fueled(data):
         client = filterClient(bot, data)
         rat = filterRat(bot, data)
+        rescue = getRescue(bot, data)
+        ratid = getRatId(bot, data)
         if data['Fueled'] == 'true':
             say(rat + ': Client Fueled! [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": True, "ArrivedSystem": False, "WingRequest": False,
+                                           "BeaconSpotted": False, "FriendRequest": False,
+                                           "InstanceSuccessful": False}})
+                else:
+                    status.get(ratid).update({"Fueled": True})
         else:
             say(rat + ': Client not Fueled! [Case ' + client + ', RatTracker]')
+            with bot.memory['ratbot']['board'].change(rescue):
+                status = rescue.data.get("status")
+                if not ratid in status.keys():
+                    status.update({ratid: {"Fueled": False, "ArrivedSystem": False, "WingRequest": False,
+                                       "BeaconSpotted": False, "FriendRequest": False, "InstanceSuccessful": False}})
+                else:
+                 status.get(ratid).update({"Fueled": False})
+        save_case(bot, rescue, forceFull=True)
 
     def calljumps(data):
         client = filterClient(bot, data)
@@ -274,13 +401,16 @@ def handleWSMessage(payload, senderinstance):
                 ind = len(lyintstr)
         lyintstr = str(int(lyintstr[0:ind]))
         if data['SourceCertainty'] == 'Fuelum':
-            bot.say(str(rat) + ': '+str(data['CallJumps'])+'j from Fuelum. [Case '+ str(client)+', Unknown Rat Location, RatTracker]')
+            bot.say(str(rat) + ': ' + str(data['CallJumps']) + 'j from Fuelum. [Case ' + str(
+                client) + ', Unknown Rat Location, RatTracker]')
             return
         if data['SourceCertainty'] != 'Exact' or data['DestinationCertainty'] != 'Exact':
             bot.say(str(rat) + ': ' + str(data[
-                                         'CallJumps']) + 'j - Estimate, no exact System. ' + str(lyintstr) + 'LY [Case ' + str(client) + ', RatTracker]')
+                                              'CallJumps']) + 'j - Estimate, no exact System. ' + str(
+                lyintstr) + 'LY [Case ' + str(client) + ', RatTracker]')
         else:
-            bot.say(str(rat) + ': ' + str(data['CallJumps']) + 'j, ' + str(lyintstr) + 'LY [Case ' + str(client) + ', RatTracker]')
+            bot.say(str(rat) + ': ' + str(data['CallJumps']) + 'j, ' + str(lyintstr) + 'LY [Case ' + str(
+                client) + ', RatTracker]')
 
     def clientupdate(data):
         client = filterClient(bot, data)
@@ -290,18 +420,20 @@ def handleWSMessage(payload, senderinstance):
                 res.system = data['SystemName']
                 bot.say(rat + ': ' + client + '\'s System is ' + res.system + '! Case updated. [RatTracker]')
                 save_case(bot, res)
-        # bot.say('Client name: ' + client + ', Ratname: ' + rat)
+                # bot.say('Client name: ' + client + ', Ratname: ' + rat)
+
     def authorize(data):
         MyClientProtocol.authed = True
-        bot.say('[Websocket] Authenticated with the API!')
+        bot.say('[RatTracker] Connected with RatTracker!')
+        bot.say('[Websocket] Authenticated with the API!', debug_channel)
         print(
             '[Websocket] Authed! Subscribing to RT with message: ' + '{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
         senderinstance.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
-
     wsevents = {"OnDuty:update": onduty, 'welcome': welcome, 'FriendRequest:update': fr, 'WingRequest:update': wr,
                 'SysArrived:update': system, 'BeaconSpotted:update': bc, 'InstanceSuccessful:update': inst,
-                'Fueled:update': fueled, 'CallJumps:update': calljumps, 'ClientSystem:update':clientupdate, 'authorization':authorize}
+                'Fueled:update': fueled, 'CallJumps:update': calljumps, 'ClientSystem:update': clientupdate,
+                'authorization': authorize}
     # print('keys of wsevents: '+str(wsevents.keys()))
     # print(action)
 
@@ -310,11 +442,14 @@ def handleWSMessage(payload, senderinstance):
         try:
             wsevents[action](data=data)
         except:
-            bot.say('[Websocket] Got an error while handling WebSocket Event. Report this to Marenthyu including the time this happened. Thank you!')
+            bot.say(
+                '[RatTracker] Got an error while handling WebSocket Event. Please report this to Marenthyu including the time this happened. Thank you!')
+            bot.say('Unhandled Websocket event. Check console output.', debug_channel)
             exc_type, exc_value, exc_traceback = sys.exc_info()
             traceback.print_exception(exc_type, exc_value, exc_traceback)
 
-def save_case(bot, rescue):
+
+def save_case(bot, rescue, forceFull=False):
     """
     Begins saving changes to a case.  Returns the future.
 
@@ -323,7 +458,7 @@ def save_case(bot, rescue):
     """
 
     with rescue.change():
-        data = rescue.save(full=(rescue.id is None))
+        data = rescue.save(full=((rescue.id is None) or forceFull))
         rescue.commit()
 
     if not bot.config.ratbot.apiurl:
@@ -346,6 +481,7 @@ def save_case(bot, rescue):
         return rescue
 
     return bot.memory['ratbot']['executor'].submit(task)
+
 
 class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
     protocol = MyClientProtocol

@@ -61,6 +61,7 @@ class RatbotConfigurationSection(StaticSection):
     websocketport = types.ValidatedAttribute('websocketport', str, default='9000')
     shortenerurl = types.ValidatedAttribute('shortenerurl', str, default='')
     shortenertoken = types.ValidatedAttribute('shortenertoken', str, default='asdf')
+    debug_channel = types.ValidatedAttribute('debug_channel', str, default='#mechadeploy')
 
 def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
     """
@@ -198,6 +199,7 @@ def configure(config):
     config.ratbot.configure_setting('websocketport', "The port for the Websocket to listen on")
     config.ratbot.configure_setting('shortenerurl', "The url for the shortener to listen on")
     config.ratbot.configure_setting('shortenertoken', "The Auth token the shortener should use")
+    config.ratbot.configure_setting('debug_channel', "Channel for debug output")
 
 def setup(bot):
     """

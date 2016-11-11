@@ -2,6 +2,7 @@ import ratlib
 import ratlib.api
 import ratlib.api.http
 import functools
+from sopel.module import NOLIMIT
 
 urljoin = ratlib.api.http.urljoin
 savedratids = {}
@@ -213,6 +214,7 @@ def require_netadmin(message=None):
             if getPrivLevel(trigger)<6:
                 if message and not callable(message):
                     bot.say(message)
+                    return NOLIMIT
             else:
                 return function(bot, trigger, *args, **kwargs)
         return guarded
@@ -230,6 +232,7 @@ def require_techrat(message=None):
             if getPrivLevel(trigger)<5:
                 if message and not callable(message):
                     bot.say(message)
+                    return NOLIMIT
             else:
                 return function(bot, trigger, *args, **kwargs)
         return guarded
@@ -247,6 +250,7 @@ def require_op(message=None):
             if getPrivLevel(trigger)<4:
                 if message and not callable(message):
                     bot.say(message)
+                    return NOLIMIT
             else:
                 return function(bot, trigger, *args, **kwargs)
         return guarded
@@ -264,6 +268,7 @@ def require_overseer(message=None):
             if getPrivLevel(trigger)<3:
                 if message and not callable(message):
                     bot.say(message)
+                    return NOLIMIT
             else:
                 return function(bot, trigger, *args, **kwargs)
         return guarded
@@ -281,6 +286,7 @@ def require_dispatch(message=None):
             if getPrivLevel(trigger)<2:
                 if message and not callable(message):
                     bot.say(message)
+                    return NOLIMIT
             else:
                 return function(bot, trigger, *args, **kwargs)
         return guarded
@@ -298,6 +304,7 @@ def require_rat(message=None):
             if getPrivLevel(trigger)<1:
                 if message and not callable(message):
                     bot.say(message)
+                    return NOLIMIT
             else:
                 return function(bot, trigger, *args, **kwargs)
         return guarded
@@ -315,6 +322,7 @@ def require_recruit(message=None):
             if getPrivLevel(trigger)<0:
                 if message and not callable(message):
                     bot.say(message)
+                    return NOLIMIT
             else:
                 return function(bot, trigger, *args, **kwargs)
         return guarded
@@ -330,6 +338,8 @@ def getPrivLevel(trigger):
         return 9
     if trigger.admin:
         return 8
+    elif str(trigger.host).endswith('techrat.fuelrats.com'):
+        return privlevels.get('techrat.fuelrats.com')
     else:
         for key in privlevels.keys():
             if str(trigger.host).endswith(key):

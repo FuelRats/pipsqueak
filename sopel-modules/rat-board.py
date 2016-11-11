@@ -16,6 +16,8 @@ import itertools
 import warnings
 import functools
 import json
+import numpy
+import math
 
 import sys
 import contextlib
@@ -39,13 +41,19 @@ from ratlib.api.props import *
 from ratlib.api.names import *
 from ratlib.sopel import UsageError
 from sopel.config.types import StaticSection, ValidatedAttribute
+from sopel.module import require_privmsg, rate
 import ratlib.api.http
 import ratlib.db
+from ratlib import starsystem
 
 urljoin = ratlib.api.http.urljoin
 
 target_case_max = 9  # Target highest boardindex to assign
 HISTORY_MAX = 10000  # Max number of nicks we'll remember history for at once.
+
+defaultdata = {'IRCNick': 'unknown client name', 'langID': 'en',
+               'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}, "status": {},
+               "boardIndex": None}
 
 
 ## Start setup section ###
@@ -70,10 +78,13 @@ def setup(bot):
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['board'] = RescueBoard()
     bot.memory['ratbot']['board'].bot = bot
+    bot.memory['ratbot']['runningplots'] = 0
+
     if not hasattr(bot.config, 'ratboard') or not bot.config.ratboard.signal:
         signal = 'ratsignal'
     else:
         signal = bot.config.ratboard.signal
+        bot.memory['ratbot']['maxplots'] = int(bot.config.ratbot.maxplots) or 4
 
     # Build regular expression pattern.
     pattern = '(?!{prefix}).*{signal}.*'.format(prefix=bot.config.core.prefix, signal=signal)
@@ -307,7 +318,8 @@ class Rescue(TrackedBase):
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
     data = TrackedProperty(
-        default={'langID': 'unknown', 'IRCNick':'<unknown IRC Nickname>', 'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}})
+        default={'langID': 'unknown', 'IRCNick': '<unknown IRC Nickname>',
+                 'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}})
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
@@ -664,10 +676,12 @@ def rule_ratsignal(bot, trigger):
     )
     bot.reply('Are you on emergency oxygen? (Blue timer on the right of the front view)')
     with bot.memory['ratbot']['board'].change(result.rescue):
-        result.rescue.data.update({'IRCNick':str(client), 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
+        result.rescue.data.update(defaultdata)
+        result.rescue.data.update({'IRCNick': str(client), "boardIndex": int(result.rescue.boardindex)})
     save_case_later(
         bot, result.rescue,
-        "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick), forceFull=True
+        "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick),
+        forceFull=True
     )
 
 
@@ -682,6 +696,7 @@ def cmd_quote(bot, trigger, rescue):
     """
     func_quote(bot, trigger, rescue)
 
+
 def func_quote(bot, trigger, rescue, showboardindex=True):
     tags = ['unknown platform' if not rescue.platform or rescue.platform == 'unknown' else rescue.platform.upper()]
 
@@ -692,8 +707,9 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
 
     fmt = (
               ("Rescue Operation {title}: " if rescue.title else "") +
-              "{client}'s case "+("#{index}" if showboardindex else "")+" at {system} ({tags}) opened {opened} ({opened_ago}),"
-              " updated {updated} ({updated_ago})"
+              "{client}'s case " + (
+                  "#{index}" if showboardindex else "") + " at {system} ({tags}) opened {opened} ({opened_ago}),"
+                                                          " updated {updated} ({updated_ago})"
           ) + ("  @{id}" if bot.config.ratbot.apiurl else "")
 
     bot.say(fmt.format(
@@ -765,11 +781,12 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     rescue.open = False
     rescue.active = False
 
-    bot.say(
-        ("Case {rescue.client_name} cleared!" + ((" " + str(getRatName(bot, rescue.firstLimpet)[
-                                                                0]) + ", d") if rescue.firstLimpet else " D") + "o the Paperwork: {url}").format(
-            rescue=rescue, url=url), '#ratchat')
-    bot.reply('Case {rescue.client_name} got cleared!'.format(rescue=rescue))
+    if (not markingForDeletion):
+        bot.say(
+            ("Case {rescue.client_name} cleared!" + ((" " + str(getRatName(bot, rescue.firstLimpet)[
+                                                                    0]) + ", d") if rescue.firstLimpet else " D") + "o the Paperwork: {url}").format(
+                rescue=rescue, url=url), '#ratchat')
+    bot.say('Case {rescue.client_name} got cleared!'.format(rescue=rescue))
     rescue.board.remove(rescue)
     if not markingForDeletion:
         save_case_later(
@@ -800,6 +817,7 @@ def cmd_list(bot, trigger, params=''):
     show_inactive = 'i' in params
     showassigned = 'r' in params
     unassigned = 'u' in params
+    maxcount = 2 if showassigned else (3 if showids else 6)
     attr = 'client_name'
 
     board = bot.memory['ratbot']['board']
@@ -813,8 +831,6 @@ def cmd_list(bot, trigger, params=''):
         inactives = list(filter(lambda x: not x.active, board.rescues))
         inactives.sort(key=_keyfn)
 
-
-
     output = []
     for name, cases, expand in (('active', actives, True), ('inactive', inactives, show_inactive)):
         if not cases:
@@ -822,24 +838,45 @@ def cmd_list(bot, trigger, params=''):
             continue
         num = len(cases)
         s = 's' if num != 1 else ''
-        t = "{num} {name} case{s}".format(num=num, name=name, s=s)
+        t = []
+        t.append("{num} {name} case{s}".format(num=num, name=name, s=s))
         if expand:
             # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the rescues have more than 0 assigned rats
             # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was implemented.
-            templist = (format_rescue(bot, rescue, attr, showassigned, showids, hideboardindexes=False, showmarkedfordeletionreason=False) if (
+            templist = (format_rescue(bot, rescue, attr, showassigned, showids, hideboardindexes=False,
+                                      showmarkedfordeletionreason=False) if (
                 (not unassigned) or (len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)) else 'IGNOREME' for
                         rescue in cases)
             formatlist = []
             for formatted in templist:
                 if formatted != 'IGNOREME':
                     formatlist.append(formatted)
-            if len(formatlist) > 0:
-                t += ": " + ", ".join(formatlist)
+                    t.append(formatted)
         output.append(t)
-    bot.say("; ".join(output))
+    for part in output:
+        totalCount = 0
+        length = len(part)
+        currCount = 0
+        currString = ""
+        if part.__class__ is str:
+            b = part
+            part = []
+            part.append(b)
+            length = 1
+        for case in part:
+            if currCount == 0:
+                currString = case
+            else:
+                currString = currString + ", "+case
+            currCount += 1
+            totalCount += 1
+            if currCount == maxcount or totalCount == length:
+                bot.say(currString)
+                currCount = 0
 
 
-def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=True, hideboardindexes=True, showmarkedfordeletionreason=True):
+def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=True, hideboardindexes=True,
+                  showmarkedfordeletionreason=True):
     cr = color("(CR)", colors.RED) if rescue.codeRed else ''
     id = ""
     cl = (('Operation ' + rescue.title) if rescue.title else (getattr(rescue, attr)))
@@ -866,8 +903,8 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
     reason = ''
     reporter = ''
     if showmarkedfordeletionreason and rescue.data is not None:
-        reason = ', Reason: '+str(rescue.data['markedForDeletion']['reason'])
-        reporter = ', reporter: '+str(rescue.data['markedForDeletion']['reporter'])
+        reason = ', Reason: ' + str(rescue.data['markedForDeletion']['reason'])
+        reporter = ', reporter: ' + str(rescue.data['markedForDeletion']['reporter'])
     return "[{boardindex}{id}]{client}{cr}{platform}{assignedrats}{reason}{reporter}".format(
         boardindex=bi,
         id=id,
@@ -878,6 +915,7 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
         reason=reason,
         reporter=reporter
     )
+
 
 @commands('grab')
 @ratlib.sopel.filter_output
@@ -904,8 +942,8 @@ def cmd_grab(bot, trigger, client):
 
     if result.created:
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'IRCNick': result.rescue.client, 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
-
+            result.rescue.data.update(defaultdata)
+            result.rescue.data.update({'IRCNick': result.rescue.client, "boardIndex": int(result.rescue.boardindex)})
 
     bot.say(
         "{rescue.client_name}'s case {verb} with: \"{line}\"  ({tags})"
@@ -935,7 +973,8 @@ def cmd_inject(bot, trigger, find_result, line):
     result = append_quotes(bot, find_result, line, create=True)
     if result.created:
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'IRCNick': result.rescue.client, 'langID':'en', 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
+            result.rescue.data.update(defaultdata)
+            result.rescue.data.update({'IRCNick': result.rescue.client, "boardIndex": int(result.rescue.boardindex)})
         save_case_later(bot, result.rescue, forceFull=True)
 
     bot.say(
@@ -1121,7 +1160,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     Sets a case platform to PC or xbox.
     """
     rescue.platform = platform
-    bot.reply(
+    bot.say(
         "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
     )
     save_case_later(
@@ -1171,7 +1210,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     else:
         fmt += "  (not in EDSM)"
     rescue.system = system
-    bot.reply(fmt.format(rescue=rescue))
+    bot.say(fmt.format(rescue=rescue))
     save_case_later(
         bot, rescue,
         (
@@ -1248,7 +1287,9 @@ def ratmama_parse(bot, trigger):
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
         with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update({'langID': langID, 'IRCNick':ircnick, 'markedForDeletion':{'marked':False, 'reason': 'None.', 'reporter': 'Noone.'}})
+            result.rescue.data.update(defaultdata)
+            result.rescue.data.update(
+                {'langID': langID, 'IRCNick': ircnick, "boardIndex": int(result.rescue.boardindex)})
         save_case_later(bot, result.rescue, forceFull=True)
         if result.created:
             bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
@@ -1268,7 +1309,8 @@ def cmd_closed(bot, trigger):
     aliases: closed, recent
     '''
     try:
-        result = callapi(bot=bot, uri='/rescues?open=False&limit=5&order=updatedAt&direction=DESC', method='GET', triggernick=str(trigger.nick))
+        result = callapi(bot=bot, uri='/rescues?open=False&limit=5&order=updatedAt&direction=DESC', method='GET',
+                         triggernick=str(trigger.nick))
         data = result['data']
         rescue0 = getDummyRescue()
         rescue1 = getDummyRescue()
@@ -1283,15 +1325,15 @@ def cmd_closed(bot, trigger):
             rescue3 = data[3]
             rescue4 = data[4]
         except:
-            bot.reply('Couldn\'t grab 5 cases. The output might look weird.')
-        bot.reply(
+            bot.say('Couldn\'t grab 5 cases. The output might look weird.')
+        bot.say(
             "These are the newest closed rescues: 1: Client " + str(rescue0['client']) + " at " + str(
                 rescue0['system']) + " - id: " + str(rescue0['id']) + " 2: Client " + str(
                 rescue1['client']) + " at " + str(rescue1['system']) + " - id: " + str(rescue1['id']))
-        bot.reply("3: Client " + str(rescue2['client']) + " at " + str(rescue2['system']) + " - id: " + str(
+        bot.say("3: Client " + str(rescue2['client']) + " at " + str(rescue2['system']) + " - id: " + str(
             rescue2['id']) + " 4: Client " + str(rescue3['client']) + " at " + str(rescue3['system']) + " - id: " + str(
             rescue3['id']))
-        bot.reply(
+        bot.say(
             "5: Client " + str(rescue4['client']) + " at " + str(rescue4['system']) + " - id: " + str(rescue4['id']))
 
     except ratlib.api.http.APIError:
@@ -1306,17 +1348,16 @@ def getDummyRescue():
 @parameterize('+', usage="<id>")
 @require_overseer('Sorry pal, you\'re not an overseer or higher!')
 def cmd_reopen(bot, trigger, id):
-        """
-        Reopens a case by its full database ID
-        """
-        try:
-            result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
-            refresh_cases(bot, force=True)
-            bot.reply('Reopened case. Cases refreshed, care for your case numbers!')
-        except ratlib.api.http.APIError:
-            # print('[RatBoard] apierror.')
-            bot.reply('id ' + str(id) + ' does not exist or other API Error.')
-
+    """
+    Reopens a case by its full database ID
+    """
+    try:
+        result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
+        refresh_cases(bot, force=True)
+        bot.say('Reopened case. Cases refreshed, care for your case numbers!')
+    except ratlib.api.http.APIError:
+        # print('[RatBoard] apierror.')
+        bot.reply('id ' + str(id) + ' does not exist or other API Error.')
 
 
 @commands('delete')
@@ -1330,28 +1371,31 @@ def cmd_delete(bot, trigger, id):
     """
     func_delete(bot, trigger, id)
 
+
 def func_delete(bot, trigger, id):
-    if 'list'!=id:
+    if 'list' != id:
         try:
-           result = callapi(bot, 'DELETE', uri='/rescues/' + str(id), triggernick=str(trigger.nick))
+            result = callapi(bot, 'DELETE', uri='/rescues/' + str(id), triggernick=str(trigger.nick))
             # print('[RatBoard] ' + str(result))
         except ratlib.api.http.APIError as ex:
-            bot.reply('case with id ' + str(id) + ' does not exist or other APIError.')
-            print('[RatBoard] '+str(ex))
+            bot.reply('Case with id ' + str(id) + ' does not exist or other APIError.')
+            print('[RatBoard] ' + str(ex))
             return
-        bot.reply('deleted case with id ' + str(id) + ' - THIS IS NOT REVERTABLE!')
+        bot.say('Deleted case with id ' + str(id) + ' - THIS IS NOT REVERTABLE!')
     else:
-        result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}', triggernick=str(trigger.nick))
+        result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}',
+                         triggernick=str(trigger.nick))
         caselist = []
         for case in result['data']:
             rescue = Rescue.load(case)
             caselist.append(format_rescue(bot, rescue))
-        if (len(caselist)==0):
-            bot.reply('No Cases marked for deletion!')
+        if (len(caselist) == 0):
+            bot.say('No Cases marked for deletion!')
         else:
-            bot.reply('Cases marked for deletion:')
+            bot.say('Cases marked for deletion:')
         for case in caselist:
-            bot.reply(str(case))
+            bot.say(str(case))
+
 
 @commands('mdlist')
 @require_overseer('Sorry pal, you\'re not an overseer or higher!')
@@ -1361,6 +1405,7 @@ def cmd_mdlist(bot, trigger):
     """
     func_delete(bot, trigger, 'list')
 
+
 @commands('quoteid')
 @require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
 @parameterize('+', usage='<id>')
@@ -1369,11 +1414,11 @@ def cmd_quoteid(bot, trigger, id):
     Quotes a case by its database id
     """
     try:
-        result = callapi(bot, method='GET', uri='/rescues/'+str(id), triggernick=str(trigger.nick))
+        result = callapi(bot, method='GET', uri='/rescues/' + str(id), triggernick=str(trigger.nick))
         rescue = Rescue.load(result['data'])
         func_quote(bot, trigger, rescue, showboardindex=False)
     except:
-        bot.reply('Couldn\'t find a case with id '+str(id)+' or other APIError')
+        bot.reply('Couldn\'t find a case with id ' + str(id) + ' or other APIError')
 
 
 @commands('title')
@@ -1388,7 +1433,7 @@ def cmd_title(bot, trigger, rescue, *title):
     for s in title:
         comptitle = comptitle + s
     rescue.title = comptitle
-    bot.reply('Set ' + rescue.client + '\'s case Title to "' + comptitle + '"')
+    bot.say('Set ' + rescue.client + '\'s case Title to "' + comptitle + '"')
     save_case_later(bot, rescue)
 
 
@@ -1436,7 +1481,7 @@ def cmd_flush(bot, trigger):
     aliases: flush, resetnames, rn, flushnames, fn
     """
     flushNames()
-    bot.reply('Cached names flushed!')
+    bot.say('Cached names flushed!')
 
 
 @commands('host')
@@ -1454,10 +1499,10 @@ def cmd_forceRefreshBoard(bot, trigger):
     Forcefully resets the Board. This removes all "Ghost" Cases as they are grabbed from the API. Boardindexes will get lost and changed by this
     aliases: refreshboard, resetboard, forceresetboard, forcerefreshboard, br, fbr, boardrefresh (kinda went overBOARD with that. hah. puns.)
     """
-    bot.reply(
+    bot.say(
         'Force refreshing the Board. This removes all cases and grabs them from the API. DISPATCH, be advised: Case numbers may be changed!')
     refresh_cases(bot, force=True)
-    bot.reply('Force refresh done.')
+    bot.say('Force refresh done.')
 
 
 def getFact(bot, factname, lang='en'):
@@ -1484,7 +1529,7 @@ def setRescueMarkedForDeletion(bot, rescue, marked, reason='None.', reporter='No
     save_case_later(bot, rescue, forceFull=True)
 
 
-@commands('md','mdadd','markfordeletion','markfordelete')
+@commands('md', 'mdadd', 'markfordeletion', 'markfordelete')
 @parameterize('rt', '<client/board #> <reason>')
 @require_rat('Sorry, but you need to be a registered and drilled Rat to use this command.')
 def cmd_md(bot, trigger, case, reason):
@@ -1493,11 +1538,13 @@ def cmd_md(bot, trigger, case, reason):
     required parameters: client name or board index and the reason it should be deleted
     aliases: md, mdadd, markfordeletion, markfordelete
     """
-    bot.reply('Closing case of ' + str(case.client) + ' (Case #' + str(case.id) + ') and adding it to the Marked for Deletion List™.')
+    bot.say('Closing case of ' + str(case.client) + ' (Case #' + str(
+        case.id) + ') and adding it to the Marked for Deletion List™.')
     func_clear(bot, trigger, case, markingForDeletion=True)
     setRescueMarkedForDeletion(bot=bot, rescue=case, marked=True, reason=reason, reporter=trigger.nick)
 
-@commands('mdremove','mdr','mdd','mddeny')
+
+@commands('mdremove', 'mdr', 'mdd', 'mddeny')
 @parameterize('w', '<id>')
 @require_overseer('Sorry, but you need to be an overseer or higher to use this command!')
 def cmd_mdremove(bot, trigger, caseid):
@@ -1507,12 +1554,13 @@ def cmd_mdremove(bot, trigger, caseid):
     aliases: mdremove, mdr, mdd, mddeny
     """
     try:
-        result = callapi(bot, method='GET', uri='/rescues/'+str(caseid), triggernick=str(trigger.nick))
+        result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick))
         rescue = Rescue.load(result['data'])
         setRescueMarkedForDeletion(bot, rescue, marked=False)
-        bot.reply('Successfully removed '+str(rescue.client)+'\'s case from the Marked for Deletion List™.')
+        bot.say('Successfully removed ' + str(rescue.client) + '\'s case from the Marked for Deletion List™.')
     except:
-        bot.reply('Couldn\'t find a case with id '+str(caseid)+' or other APIError')
+        bot.reply('Couldn\'t find a case with id ' + str(caseid) + ' or other APIError')
+
 
 @commands('ircnick', 'nick', 'nickname')
 @parameterize('rt')
@@ -1522,6 +1570,208 @@ def cmd_nick(bot, trigger, case, newnick):
     Sets a new nickname for this case.
     """
     with bot.memory['ratbot']['board'].change(case):
-        case.data.update({'IRCNick':newnick})
+        case.data.update({'IRCNick': newnick})
     save_case_later(bot, case, forceFull=True)
-    bot.reply('Set Nick to '+str(newnick))
+    bot.say('Set Nick to ' + str(newnick))
+
+
+def _plotRouteTo(bot, trigger, destSystem, startSys, batched=False):
+    destPos = numpy.array([destSystem['x'], destSystem['y'], destSystem['z']])
+    # print('destination Position: ' + str(destPos))
+    latestPos = numpy.array([startSys['x'], startSys['y'], startSys['z']])
+    # print('latest position (beginning): ' + str(latestPos))
+    line = destPos - latestPos
+    waypoints = 0
+    totaldistance = numpy.linalg.norm(line)
+    currentRoute = {0: {"system": startSys, "distance": totaldistance}}
+    if not batched:
+        element = currentRoute.get(0)
+        lyintstr = str(element['distance'])
+        try:
+            ind = lyintstr.index('.')
+        except:
+            ind = len(lyintstr)
+        lyintstr = str(lyintstr[0:ind + 3])
+        bot.say('Starting system: ' + element['system']['name'] + ' - Total Distance: ' + str(
+            lyintstr) + 'LY')
+    # print('Distance to destination is: ' + str(numpy.linalg.norm(line)))
+    # while remaining distance is > 1000LY
+    onequarter = False
+    halfway = False
+    threequarters = False
+    while numpy.linalg.norm(line) > 1000:
+        remainingdistance = numpy.linalg.norm(line)
+        if (batched) and (totaldistance > 25000) and (not onequarter) and (remainingdistance / totaldistance < 0.75):
+            bot.say("[Plotting to " + destSystem["name"] + "] 25% done...")
+            onequarter = True
+        if (batched) and (totaldistance > 10000) and (not halfway) and (remainingdistance / totaldistance < 0.5):
+            bot.say("[Plotting to " + destSystem["name"] + "] 50% done...")
+            halfway = True
+        if (batched) and (totaldistance > 25000) and (not threequarters) and (remainingdistance / totaldistance < 0.25):
+            bot.say("[Plotting to " + destSystem["name"] + "] 75% done...")
+            threequarters = True
+        # print('Remaining distance: ' + str(numpy.linalg.norm(line)))
+        waypoints += 1
+        # Get nromalized vector (length of 1)
+        normLine = line / numpy.linalg.norm(line)
+        # Set center of box to search for systems in
+        centerOfBox = latestPos + (normLine * 1000)
+        gotGoodSys = False
+        radius = 5
+        badsystems = []
+        # Try to find a "good" system that is within 1kLY of the previous system - if it fails, increase box radius by
+        # 10LY
+        while not gotGoodSys:
+            radius *= 2
+            if (radius>1790):
+                bot.say("[Plotting to " + destSystem["name"] + "] FAILED! Could not find a way to continue. (Cooldown of 30 minutes applied)")
+                return currentRoute
+            if (radius>1000):
+                radius = 900
+            # Here we are calculating which of the coordinates is the largest to NOT extend our box in that direction
+            # as most of the systems in that direction are guaranteed to exceed our 1kLY distance limit.
+            # So why bother with them? This proved to improve performance by about 9%
+            neg0 = centerOfBox[0] - radius
+            pos0 = centerOfBox[0] + radius
+            neg1 = centerOfBox[1] - radius
+            pos1 = centerOfBox[1] + radius
+            neg2 = centerOfBox[2] - radius
+            pos2 = centerOfBox[2] + radius
+            # Get absolute values of the axis's
+            abs0 = math.fabs(centerOfBox[0])
+            abs1 = math.fabs(centerOfBox[1])
+            abs2 = math.fabs(centerOfBox[2])
+            # check which of the 6 axis's is the largest and reset the appropriate corner coordinate of our box
+            # to the center of the box.
+            if abs0 > abs1 and abs0 > abs2:
+                if centerOfBox[0] > 0:
+                    pos0 -= radius
+                else:
+                    neg0 += radius
+            elif abs1 > abs0 and abs1 > abs2:
+                if centerOfBox[1] > 0:
+                    pos1 -= radius
+                else:
+                    neg1 += radius
+            else:
+                if centerOfBox[2] > 0:
+                    pos2 -= radius
+                else:
+                    neg2 += radius
+
+            # Find systems in box
+            systems = starsystem.getSystemsInBox(bot, neg0, neg1, neg2, pos0, pos1, pos2)
+            # Check if any of the systems is "good"
+            for system in systems:
+                if system['name'] in badsystems:
+                    continue
+                currSysPos = numpy.array([system['x'], system['y'], system['z']])
+                if (numpy.linalg.norm(currSysPos - latestPos) < 1000):
+                    element = {"system": system, "distance": numpy.linalg.norm(currSysPos - latestPos)}
+                    currentRoute.update(
+                        {waypoints: element})
+                    if len(currentRoute)>((totaldistance/1000)*2):
+                        bot.say("[Plotting to " + destSystem[
+                            "name"] + "] FAILED! Got Way too many Waypoints, destination most likely unreachable. (Cooldown of 30 minutes applied)")
+                        return currentRoute
+                    # print('got a good system!')
+                    gotGoodSys = True
+                    latestPos = currSysPos.copy()
+                    if not batched:
+                        lyintstr = str(element['distance'])
+                        try:
+                            ind = lyintstr.index('.')
+                        except:
+                            ind = len(lyintstr)
+                        lyintstr = str(lyintstr[0:ind + 3])
+                        bot.say(
+                            'Waypoint ' + str(waypoints) + ': ' + element['system']['name'] + ' - Leg distance: ' + str(
+                                lyintstr) + 'LY')
+                    break
+                badsystems.append(system['name'])
+        # switch vector to next waypoint, then search from there again.
+        line = destPos - latestPos
+    # add destination as last waypoint
+    element = {"system": destSystem, "distance": numpy.linalg.norm(destPos - latestPos)}
+    currentRoute.update({waypoints + 1: element})
+    if not batched:
+        # Report final system if not reported batched in calling function.
+        lyintstr = str(element['distance'])
+        try:
+            ind = lyintstr.index('.')
+        except:
+            ind = len(lyintstr)
+        lyintstr = str(lyintstr[0:ind + 3])
+        bot.say(
+            'Waypoint ' + str(waypoints + 1) + ': ' + element['system']['name'] + ' - Leg distance: ' + str(
+                lyintstr) + 'LY')
+    return currentRoute
+
+
+@commands('plot')
+@require_rat('You need to be a registered and drilled Rat to use this Command!')
+@rate(60 * 30)
+def cmd_plot(bot, trigger):
+    """
+    Usage: !plot [-b ]<sys1> to <sys2>
+            This function has a limit of once per 30 minutes per person as it is a taxing calculation.
+            Plots a route from sys1 to sys2 with waypoints every 1000 Lightyears. It only calculates
+            these waypoints, so some waypoints MAY be unreachable, but it should be suitable for most of the
+            Milky way, except when crossing outer limbs.
+            If the optional -b parameter is given the bot will output all waypoints batched when the calculation
+            finished instead of when it gets each individual waypoint. If the total distance is > 10000 it will still
+            point out the 50% mark and if the total distance is > 25000 it will tell about every 25% completed.
+    """
+    #if not trigger._is_privmsg:
+    #    bot.say("This command is spammy, please use it in a private message.")
+    #    return NOLIMIT
+    bot.memory['ratbot']['runningplots'] += 1
+    if bot.memory['ratbot']['runningplots'] > bot.memory['ratbot']['maxplots']:
+        bot.memory['ratbot']['runningplots'] -= 1
+        bot.say('Sorry, but there are already ' + str(
+            bot.memory['ratbot']['runningplots']) + ' plots running. Please wait a bit.')
+        return NOLIMIT
+    stuff = trigger[6:].lower()
+    batched = False
+    if str(stuff).startswith('-b'):
+        batched = True
+        stuff = stuff[3:]
+    things = str(stuff).split(' to ')
+    if len(things) < 2:
+        bot.say('Usage: <starting system> to <destination system>')
+        bot.memory['ratbot']['runningplots'] -= 1
+        return NOLIMIT
+    things[0] = things[0].strip()
+    things[1] = things[1].strip()
+    bot.say('Plotting route from ' + things[0] + ' to ' + things[1] + ' - Please be patient...')
+    try:
+        elements = _plotRouteTo(bot, trigger, starsystem.getSystemFromDB(bot, sysname=things[1]),
+                            starsystem.getSystemFromDB(bot, sysname=things[0]), batched)
+    except:
+        bot.say('Error during plotting. Most likely a system does not exist!')
+        bot.memory['ratbot']['runningplots'] -= 1
+        return NOLIMIT
+    i = 1
+    element = elements.get(0)
+    lyintstr = str(element['distance'])
+    try:
+        ind = lyintstr.index('.')
+    except:
+        ind = len(lyintstr)
+    lyintstr = str(lyintstr[0:ind + 3])
+    if batched:
+        bot.say('Starting system: ' + elements.get(0)['system']['name'] + ' - Total Distance: ' + str(
+            lyintstr) + 'LY - Waypoints: ' + str(len(elements) - 1))
+        while i < len(elements):
+            element = elements.get(i)
+            lyintstr = str(element['distance'])
+            try:
+                ind = lyintstr.index('.')
+            except:
+                ind = len(lyintstr)
+            lyintstr = str(lyintstr[0:ind + 3])
+            bot.say(
+                'Waypoint ' + str(i) + ': ' + element['system']['name'] + ' - Leg distance: ' + str(lyintstr) + 'LY')
+            i += 1
+    bot.memory['ratbot']['runningplots'] -= 1
+    bot.say('As plotting is a taxing task, it is limited to once every 30 Minutes per user. Thanks for understanding.')
