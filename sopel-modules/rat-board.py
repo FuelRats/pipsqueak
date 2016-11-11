@@ -786,7 +786,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
             ("Case {rescue.client_name} cleared!" + ((" " + str(getRatName(bot, rescue.firstLimpet)[
                                                                     0]) + ", d") if rescue.firstLimpet else " D") + "o the Paperwork: {url}").format(
                 rescue=rescue, url=url), '#ratchat')
-    bot.reply('Case {rescue.client_name} got cleared!'.format(rescue=rescue))
+    bot.say('Case {rescue.client_name} got cleared!'.format(rescue=rescue))
     rescue.board.remove(rescue)
     if not markingForDeletion:
         save_case_later(
@@ -1160,7 +1160,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     Sets a case platform to PC or xbox.
     """
     rescue.platform = platform
-    bot.reply(
+    bot.say(
         "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
     )
     save_case_later(
@@ -1210,7 +1210,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     else:
         fmt += "  (not in EDSM)"
     rescue.system = system
-    bot.reply(fmt.format(rescue=rescue))
+    bot.say(fmt.format(rescue=rescue))
     save_case_later(
         bot, rescue,
         (
@@ -1325,15 +1325,15 @@ def cmd_closed(bot, trigger):
             rescue3 = data[3]
             rescue4 = data[4]
         except:
-            bot.reply('Couldn\'t grab 5 cases. The output might look weird.')
-        bot.reply(
+            bot.say('Couldn\'t grab 5 cases. The output might look weird.')
+        bot.say(
             "These are the newest closed rescues: 1: Client " + str(rescue0['client']) + " at " + str(
                 rescue0['system']) + " - id: " + str(rescue0['id']) + " 2: Client " + str(
                 rescue1['client']) + " at " + str(rescue1['system']) + " - id: " + str(rescue1['id']))
-        bot.reply("3: Client " + str(rescue2['client']) + " at " + str(rescue2['system']) + " - id: " + str(
+        bot.say("3: Client " + str(rescue2['client']) + " at " + str(rescue2['system']) + " - id: " + str(
             rescue2['id']) + " 4: Client " + str(rescue3['client']) + " at " + str(rescue3['system']) + " - id: " + str(
             rescue3['id']))
-        bot.reply(
+        bot.say(
             "5: Client " + str(rescue4['client']) + " at " + str(rescue4['system']) + " - id: " + str(rescue4['id']))
 
     except ratlib.api.http.APIError:
@@ -1354,7 +1354,7 @@ def cmd_reopen(bot, trigger, id):
     try:
         result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
         refresh_cases(bot, force=True)
-        bot.reply('Reopened case. Cases refreshed, care for your case numbers!')
+        bot.say('Reopened case. Cases refreshed, care for your case numbers!')
     except ratlib.api.http.APIError:
         # print('[RatBoard] apierror.')
         bot.reply('id ' + str(id) + ' does not exist or other API Error.')
@@ -1378,10 +1378,10 @@ def func_delete(bot, trigger, id):
             result = callapi(bot, 'DELETE', uri='/rescues/' + str(id), triggernick=str(trigger.nick))
             # print('[RatBoard] ' + str(result))
         except ratlib.api.http.APIError as ex:
-            bot.reply('case with id ' + str(id) + ' does not exist or other APIError.')
+            bot.reply('Case with id ' + str(id) + ' does not exist or other APIError.')
             print('[RatBoard] ' + str(ex))
             return
-        bot.reply('deleted case with id ' + str(id) + ' - THIS IS NOT REVERTABLE!')
+        bot.say('Deleted case with id ' + str(id) + ' - THIS IS NOT REVERTABLE!')
     else:
         result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}',
                          triggernick=str(trigger.nick))
@@ -1390,11 +1390,11 @@ def func_delete(bot, trigger, id):
             rescue = Rescue.load(case)
             caselist.append(format_rescue(bot, rescue))
         if (len(caselist) == 0):
-            bot.reply('No Cases marked for deletion!')
+            bot.say('No Cases marked for deletion!')
         else:
-            bot.reply('Cases marked for deletion:')
+            bot.say('Cases marked for deletion:')
         for case in caselist:
-            bot.reply(str(case))
+            bot.say(str(case))
 
 
 @commands('mdlist')
@@ -1433,7 +1433,7 @@ def cmd_title(bot, trigger, rescue, *title):
     for s in title:
         comptitle = comptitle + s
     rescue.title = comptitle
-    bot.reply('Set ' + rescue.client + '\'s case Title to "' + comptitle + '"')
+    bot.say('Set ' + rescue.client + '\'s case Title to "' + comptitle + '"')
     save_case_later(bot, rescue)
 
 
@@ -1481,7 +1481,7 @@ def cmd_flush(bot, trigger):
     aliases: flush, resetnames, rn, flushnames, fn
     """
     flushNames()
-    bot.reply('Cached names flushed!')
+    bot.say('Cached names flushed!')
 
 
 @commands('host')
@@ -1499,10 +1499,10 @@ def cmd_forceRefreshBoard(bot, trigger):
     Forcefully resets the Board. This removes all "Ghost" Cases as they are grabbed from the API. Boardindexes will get lost and changed by this
     aliases: refreshboard, resetboard, forceresetboard, forcerefreshboard, br, fbr, boardrefresh (kinda went overBOARD with that. hah. puns.)
     """
-    bot.reply(
+    bot.say(
         'Force refreshing the Board. This removes all cases and grabs them from the API. DISPATCH, be advised: Case numbers may be changed!')
     refresh_cases(bot, force=True)
-    bot.reply('Force refresh done.')
+    bot.say('Force refresh done.')
 
 
 def getFact(bot, factname, lang='en'):
@@ -1538,7 +1538,7 @@ def cmd_md(bot, trigger, case, reason):
     required parameters: client name or board index and the reason it should be deleted
     aliases: md, mdadd, markfordeletion, markfordelete
     """
-    bot.reply('Closing case of ' + str(case.client) + ' (Case #' + str(
+    bot.say('Closing case of ' + str(case.client) + ' (Case #' + str(
         case.id) + ') and adding it to the Marked for Deletion List™.')
     func_clear(bot, trigger, case, markingForDeletion=True)
     setRescueMarkedForDeletion(bot=bot, rescue=case, marked=True, reason=reason, reporter=trigger.nick)
@@ -1557,7 +1557,7 @@ def cmd_mdremove(bot, trigger, caseid):
         result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick))
         rescue = Rescue.load(result['data'])
         setRescueMarkedForDeletion(bot, rescue, marked=False)
-        bot.reply('Successfully removed ' + str(rescue.client) + '\'s case from the Marked for Deletion List™.')
+        bot.say('Successfully removed ' + str(rescue.client) + '\'s case from the Marked for Deletion List™.')
     except:
         bot.reply('Couldn\'t find a case with id ' + str(caseid) + ' or other APIError')
 
@@ -1572,7 +1572,7 @@ def cmd_nick(bot, trigger, case, newnick):
     with bot.memory['ratbot']['board'].change(case):
         case.data.update({'IRCNick': newnick})
     save_case_later(bot, case, forceFull=True)
-    bot.reply('Set Nick to ' + str(newnick))
+    bot.say('Set Nick to ' + str(newnick))
 
 
 def _plotRouteTo(bot, trigger, destSystem, startSys, batched=False):
@@ -1623,6 +1623,11 @@ def _plotRouteTo(bot, trigger, destSystem, startSys, batched=False):
         # 10LY
         while not gotGoodSys:
             radius *= 2
+            if (radius>1790):
+                bot.say("[Plotting to " + destSystem["name"] + "] FAILED! Could not find a way to continue. (Cooldown of 30 minutes applied)")
+                return currentRoute
+            if (radius>1000):
+                radius = 900
             # Here we are calculating which of the coordinates is the largest to NOT extend our box in that direction
             # as most of the systems in that direction are guaranteed to exceed our 1kLY distance limit.
             # So why bother with them? This proved to improve performance by about 9%
@@ -1665,6 +1670,10 @@ def _plotRouteTo(bot, trigger, destSystem, startSys, batched=False):
                     element = {"system": system, "distance": numpy.linalg.norm(currSysPos - latestPos)}
                     currentRoute.update(
                         {waypoints: element})
+                    if len(currentRoute)>((totaldistance/1000)*2):
+                        bot.say("[Plotting to " + destSystem[
+                            "name"] + "] FAILED! Got Way too many Waypoints, destination most likely unreachable. (Cooldown of 30 minutes applied)")
+                        return currentRoute
                     # print('got a good system!')
                     gotGoodSys = True
                     latestPos = currSysPos.copy()
@@ -1713,9 +1722,9 @@ def cmd_plot(bot, trigger):
             finished instead of when it gets each individual waypoint. If the total distance is > 10000 it will still
             point out the 50% mark and if the total distance is > 25000 it will tell about every 25% completed.
     """
-    if not trigger._is_privmsg:
-        bot.say("This command is spammy, please use it in a private message.")
-        return NOLIMIT
+    #if not trigger._is_privmsg:
+    #    bot.say("This command is spammy, please use it in a private message.")
+    #    return NOLIMIT
     bot.memory['ratbot']['runningplots'] += 1
     if bot.memory['ratbot']['runningplots'] > bot.memory['ratbot']['maxplots']:
         bot.memory['ratbot']['runningplots'] -= 1
