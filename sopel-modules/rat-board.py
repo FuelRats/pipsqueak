@@ -1730,6 +1730,7 @@ def cmd_plot(bot, trigger):
     things = str(stuff).split(' to ')
     if len(things) < 2:
         bot.say('Usage: <starting system> to <destination system>')
+        bot.memory['ratbot']['runningplots'] -= 1
         return NOLIMIT
     things[0] = things[0].strip()
     things[1] = things[1].strip()
@@ -1739,6 +1740,7 @@ def cmd_plot(bot, trigger):
                             starsystem.getSystemFromDB(bot, sysname=things[0]), batched)
     except:
         bot.say('Error during plotting. Most likely a system does not exist!')
+        bot.memory['ratbot']['runningplots'] -= 1
         return NOLIMIT
     i = 1
     element = elements.get(0)
