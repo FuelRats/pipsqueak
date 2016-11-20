@@ -6,4 +6,4 @@ if len(sys.argv) <= 1:
     # This is a terrible, terrible idea ... but despite sopel.run_script() accepting an argv parameter, it does
     # precisely nothing with it.
     sys.argv = [sys.argv[0], '-c', 'sopel.cfg']
-sopel.run_script.main(sys.argv)
+sopel.run_script.main()

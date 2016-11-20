@@ -3,44 +3,29 @@ Utilities for handling starsystem names and the like.
 
 This is specifically named 'starsystem' rather than 'system' for reasons that should be obvious.
 """
-
-from time import time
+import io
 import datetime
-import itertools
 import re
 import operator
 import threading
-
-
+from urllib.parse import urljoin
+import csv
 try:
     import collections.abc as collections_abc
 except ImportError:
     import collections as collections_abc
 
+
 import requests
 import sqlalchemy as sa
 from sqlalchemy import sql, orm, schema
-from sqlalchemy import *
-from ratlib.db import get_status, get_session, with_session, Starsystem, StarsystemPrefix
+
+from ratlib.db import get_status, get_session, with_session, Starsystem, StarsystemPrefix, SQLPoint, Point
 from ratlib.bloom import BloomFilter
+from ratlib import format_timestamp
+from ratlib.util import timed, TimedResult
 
-
-def chunkify(it, size):
-    if not isinstance(it, collections_abc.Iterator):
-        it = iter(it)
-    go = True
-    def _gen():
-        nonlocal go
-        try:
-            remaining = size
-            while remaining:
-                remaining -= 1
-                yield next(it)
-        except StopIteration:
-            go = False
-            raise
-    while go:
-        yield _gen()
+FLUSH_THRESHOLD = 25000  # Chunk size when refreshing starsystems
 
 
 class ConcurrentOperationError(RuntimeError):
@@ -92,188 +77,259 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     :param background: If True and a refresh is needed, it is submitted as a background task rather than running
         immediately.
     :param db: Database handle
+
+    Note that this function executes some raw SQL queries (among other voodoo).  This is for performance reasons
+    concerning the insanely large dataset being handled, and should NOT serve as an example for implementation
+    elsewhere.
     """
-    start = time()
-    print('Starting refresh at '+str(start))
     edsm_url = bot.config.ratbot.edsm_url or "http://edsm.net/api-v1/systems?coords=1"
-    chunked = bot.config.ratbot.chunked_systems == 'True'
+    chunked = bot.config.ratbot.chunked_systems
     status = get_status(db)
-    edsm_maxage = float(bot.config.ratbot.edsm_maxage) or 604800 # Once per week = 604800 seconds
+    edsm_maxage = float(bot.config.ratbot.edsm_maxage) or 604800  # Once per week = 604800 seconds
     if not (
         force or
         not status.starsystem_refreshed or
         (datetime.datetime.now(tz=datetime.timezone.utc) - status.starsystem_refreshed).total_seconds() > edsm_maxage
     ):
         # No refresh needed.
-        print('not force and no refresh needed')
+        # print('not force and no refresh needed')
         return False
 
     if callback:
         callback()
 
     if background:
-        print('Sending edsm refresh to background!')
+        print('Scheduling background refresh of starsystem data')
         return bot.memory['ratbot']['executor'].submit(
             _refresh_database, bot, force=True, callback=None, background=False
         )
 
-    fetch_start = time()
-    print('Started Database refresh......')
-    req = requests.get(edsm_url)
-    if req.status_code != 200:
-        print('ERROR When calling EDSM - Status code was '+str(req.status_code))
-        return
+    conn = db.connection()
+    # Now in actual implementation beyond background scheduling
+    # Counters for stats
+    stats = {'stats': 0, 'load': 0, 'fetch': 0, 'bloom': 0, 'index': 0}
+
+    def log(fmt, *args, **kwargs):
+        print("[{}] ".format(datetime.datetime.now()) + fmt.format(*args, **kwargs))
+
+    overall_timer = TimedResult()
+    log("Starsystem refresh started")
     if chunked:
-        data = []
-        response = req.json()
-        for part in response:
-            part = part.get('SectorName')
-            print('requesting from: '+edsm_url[0:edsm_url.rfind('/')+1] + str(part))
-            partreq = requests.get(edsm_url[0:edsm_url.rfind('/')+1] + str(part))
-            partdata = partreq.json()
-            data.extend(partdata)
+        log("Retrieving starsystem index at {}", edsm_url)
+        with timed() as t:
+            response = requests.get(edsm_url)
+            response.raise_for_status()
+            urls = list(urljoin(edsm_url, chunk["SectorName"]) for chunk in response.json())
+        stats['index'] += t.seconds
+        log("{} file(s) queued for starsystem refresh.  (Took {}}", len(urls), format_timestamp(t.delta))
     else:
-        data = req.json()
-    print('Fetch done, Code was 200, data loaded into var!')
-    fetch_end = time()
-    # with open('run/systems.json') as f:
-    #     import json
-    #     data = json.load(f)
+        urls = [edsm_url]
 
-    print('Wiping old data')
-    db.query(Starsystem).delete()  # Wipe all old data
-    db.query(StarsystemPrefix).delete()  # Wipe all old data
-    print('done wiping, moving along...')
-    # Pass 1: Load JSON data into stats table.
-    systems = []
-    ct = 0
-
-    def _format_system(s):
-        nonlocal ct
-        ct += 1
-        name, word_ct = re.subn(r'\s+', ' ', s['name'].strip())
-        word_ct += 1
-        return {
-            'name_lower': name.lower(),
-            'name': name,
-            'x': s.get('x'), 'y': s.get('y'), 'z': s.get('z'),
-            'word_ct': word_ct
-        }
-
-    print('loading data into db....')
-    load_start = time()
-    datatotal = len(data)
-    dataremaining = datatotal
-    halfway = False
-    print('data length: '+str(dataremaining))
-    for chunk in chunkify(data, 5000):
-        db.bulk_insert_mappings(Starsystem, [_format_system(s) for s in chunk])
-        dataremaining -= 5000
-        if (not halfway and dataremaining < datatotal/2):
-            halfway = True
-            print('Half way done with inserts...')
-    print('Done with chunkified stuff, deleting data var to free up mem. Analyzing stuff.')
-    del data
-    db.connection().execute("ANALYZE " + Starsystem.__tablename__)
-    print('Done loading!')
-    load_end = time()
-
-    stats_start = time()
-    # Pass 2: Calculate statistics.
-    # 2A: Quick insert of prefixes for single-name systems
-    print('Executing against Database...')
-    db.connection().execute(
-        sql.insert(StarsystemPrefix).from_select(
-            (StarsystemPrefix.first_word, StarsystemPrefix.word_ct),
-            db.query(Starsystem.name_lower, Starsystem.word_ct).filter(Starsystem.word_ct == 1).distinct()
-        )
+    temptable = sa.Table(
+        '_temp_new_starsystem', sa.MetaData(),
+        sa.Column('id', sa.Integer, primary_key=True, autoincrement=True),
+        sa.Column('eddb_id', sa.Integer),
+        sa.Column('name_lower', sa.Text(collation="C")),
+        sa.Column('name', sa.Text(collation="C")),
+        sa.Column('first_word', sa.Text(collation="C")),
+        sa.Column('word_ct', sa.Integer),
+        sa.Column('xz', SQLPoint),
+        sa.Column('y', sa.Numeric),
+        sa.Index('_temp_id_ix', 'eddb_id'),
+        prefixes=['TEMPORARY'], postgresql_on_commit='DROP'
     )
-    def _gen():
-        for s in (
-            db.query(Starsystem)
-            .order_by(Starsystem.word_ct, Starsystem.name_lower)
-            .filter(Starsystem.word_ct > 1)
-        ):
-            first_word, *words = s.name_lower.split(" ")
-            yield (first_word, s.word_ct), words, s
+    temptable.create(conn)
 
-    ct = 0
-    print('Adding Prefixes to db...')
-    for chunk in chunkify(itertools.groupby(_gen(), operator.itemgetter(0)), 100):
-        for (first_word, word_ct), group in chunk:
-            ct += 1
-            const_words = None
-            for _, words, system in group:
-                if const_words is None:
-                    const_words = words.copy()
-                else:
-                    for ix, (common, word) in enumerate(zip(const_words, words)):
-                        if const_words[ix] != words[ix]:
-                            const_words = const_words[:ix]
-                            break
-            prefix = StarsystemPrefix(
-                first_word=first_word, word_ct=word_ct, const_words=" ".join(const_words)
-            )
-            # print('prefix: '+str(prefix))
-            db.add(prefix)
-        # print(ct)
-        # print('db.flush for ct '+str(ct))
-        db.flush()
-    print('Prefixes added and database flushed. Executing more stuff against database...')
-    db.connection().execute(
-        sql.update(
-            Starsystem, values={
-                Starsystem.prefix_id: db.query(StarsystemPrefix.id).filter(
-                    StarsystemPrefix.first_word == sql.func.split_part(Starsystem.name_lower, ' ', 1),
-                    StarsystemPrefix.word_ct == Starsystem.word_ct
-                ).as_scalar()
-            }
-        )
-    )
-    exestring = """
-        UPDATE {sp} SET ratio=t.ratio, cume_ratio=t.cume_ratio
-        FROM (
-            SELECT t.id, ct/SUM(ct) OVER w AS ratio, SUM(ct) OVER p/SUM(ct) OVER w AS cume_ratio
+    tablenames = {
+        'sp': StarsystemPrefix.__tablename__,
+        's': Starsystem.__tablename__,
+        'ts': temptable.name,
+        'tsp': '_temp_new_prefixes'
+    }
+
+    buffer = io.StringIO()  # Temporary IO buffer for COPY FROM
+    columns = ['eddb_id', 'name_lower', 'name', 'first_word', 'word_ct', 'xz', 'y']  # Columns to copy to temptable
+    getter = operator.itemgetter(*columns)
+    total_flushed = 0  # Total number of flushed items so far
+    pending_flush = 0  # Number of items waiting to flush
+
+    def exec(sql, *args, **kwargs):
+        try:
+            conn.execute(sql.format(*args, **kwargs, **tablenames))
+        except Exception as ex:
+            log("Query failed.")
+            import traceback
+            traceback.print_exc()
+            raise
+
+    def flush():
+        nonlocal buffer, total_flushed, pending_flush
+        if not pending_flush:
+            return
+        with timed() as t:
+            log("Flushing system(s) {}-{}", total_flushed + 1, total_flushed + pending_flush)
+            buffer.seek(0)
+            cursor = conn.connection.cursor()
+            cursor.copy_from(buffer, temptable.name, sep='\t', null='', columns=columns)
+            buffer = io.StringIO()
+            # systems = []
+            total_flushed += pending_flush
+            pending_flush = 0
+
+        stats['load'] += t.seconds
+
+    for url in urls:
+        log("Retrieving starsystem data at {}", url)
+        try:
+            with timed() as t:
+                response = requests.get(url, stream=True)
+                reader = csv.DictReader(io.TextIOWrapper(response.raw))
+
+                for row in reader:
+                    # Parse and reformat system info from CSV
+                    name, word_ct = re.subn(r'\s+', ' ', row['name'].strip())
+                    name_lower = name.lower()
+                    first_word, *unused = name_lower.split(" ", 1)
+                    word_ct += 1
+                    if all((row['x'], row['y'], row['z'])):
+                        xz = "({x},{z})".format(**row)
+                        y = row['y']
+                    else:
+                        xz = y = ''
+                    system_raw = {
+                        'eddb_id': str(row['id']),
+                        'name_lower': name_lower,
+                        'name': name,
+                        'first_word': first_word,
+                        'xz': xz,
+                        'y': y,
+                        'word_ct': str(word_ct)
+                    }
+                    pending_flush += 1
+                    buffer.write("\t".join(getter(system_raw)))
+                    buffer.write("\n")
+
+                    if pending_flush >= FLUSH_THRESHOLD:
+                        flush()
+            stats['fetch'] += t.seconds
+        except ValueError:
+            pass
+        except Exception as ex:
+            log("Failed to retrieve data")
+            import traceback
+            traceback.print_exc()
+        flush()
+
+    log("Resolving possible duplicates")
+    # Not the most elegant, but it'll do
+    exec("""
+        WITH latest AS (
+            SELECT MAX(id) AS id, eddb_id
+            FROM {ts}
+            GROUP BY eddb_id
+        ) DELETE FROM {ts} AS t USING latest WHERE latest.eddb_id=t.eddb_id AND latest.id<>t.id
+    """)
+
+    log("Importing new data.")
+    # Create list of unique prefixes in this batch
+    exec("""
+        CREATE TEMPORARY TABLE {tsp} ON COMMIT DROP
+        AS SELECT DISTINCT first_word, word_ct FROM {ts}
+    """)
+
+    # Outdate stats on listed prefixes
+    exec("""
+        UPDATE {sp} AS sp
+        SET ratio=NULL, cume_ratio=NULL
+        FROM {tsp} AS t
+        WHERE sp.first_word=t.first_word AND sp.word_ct=t.word_ct
+    """)
+
+    # Insert new prefixes
+    exec("""
+        INSERT INTO {sp} (first_word, word_ct)
+        SELECT t.first_word, t.word_ct
+        FROM
+            {tsp} AS t
+            LEFT JOIN starsystem_prefix AS sp ON sp.first_word=t.first_word AND sp.word_ct=t.word_ct
+        WHERE sp.first_word IS NULL
+    """)
+
+    # Update existing systems
+    exec("""
+        UPDATE {s} AS s
+        SET name_lower=t.name_lower, name=t.name, first_word=t.first_word, word_ct=t.word_ct, xz=t.xz, y=t.y
+        FROM {ts} AS t
+        WHERE s.eddb_id=t.eddb_id AND
+            (
+                ROW(s.name_lower, s.name, s.first_word, s.word_ct, s.y)
+                IS DISTINCT FROM
+                ROW(t.name_lower, t.name, t.first_word, t.word_ct, t.y)
+            ) OR (s.xz ~= t.xz)
+    """)
+
+    # Insert new systems
+    exec("""
+        INSERT INTO {s} (eddb_id, name_lower, name, first_word, word_ct, xz, y)
+        SELECT t.eddb_id, t.name_lower, t.name, t.first_word, t.word_ct, t.xz, t.y
+        FROM {ts} AS t
+        LEFT JOIN {s} AS s ON s.eddb_id=t.eddb_id
+        WHERE s.eddb_id IS NULL
+    """)
+
+    log('Computing statistics')
+    # Because of the merge mechanic, any new prefixes will have a NULL ratio.  We use this to determine which prefixes
+    # we need to update stats on.
+    with timed() as t:
+        exec("""
+            UPDATE {sp} SET ratio=t.ratio, cume_ratio=t.cume_ratio
             FROM (
-                SELECT sp.*, COUNT(*) AS ct
-                FROM
-                    {sp} AS sp
-                    INNER JOIN {s} AS s ON s.prefix_id=sp.id
-                GROUP BY sp.id
-                HAVING COUNT(*) > 0
+                SELECT
+                    t.first_word, t.word_ct, ct/(SUM(ct) OVER w) AS ratio, (SUM(ct) OVER p)/(SUM(ct) OVER w) AS cume_ratio
+                FROM (
+                    SELECT sp.*, COUNT(*) AS ct
+                    FROM
+                        {sp} AS sp
+                        INNER JOIN {s} AS s USING (first_word, word_ct)
+                    WHERE sp.first_word IN(SELECT first_word FROM {sp} WHERE ratio IS NULL)
+                    GROUP BY sp.first_word, sp.word_ct
+                    HAVING COUNT(*) > 0
+                ) AS t
+                WINDOW
+                w AS (PARTITION BY t.first_word ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING),
+                p AS (PARTITION BY t.first_word ORDER BY t.word_ct ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
             ) AS t
-            WINDOW
-            w AS (PARTITION BY t.first_word ROWS BETWEEN UNBOUNDED PRECEDING AND UNBOUNDED FOLLOWING),
-            p AS (PARTITION BY t.first_word ORDER BY t.word_ct ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW)
-        ) AS t
-        WHERE t.id=starsystem_prefix.id
-        """.format(sp=StarsystemPrefix.__tablename__, s=Starsystem.__tablename__)
-    print('Executing yet more stuff...')
+            WHERE {sp}.first_word=t.first_word AND {sp}.word_ct=t.word_ct
+        """)
+        exec("ANALYZE {sp}")
+        exec("ANALYZE {s}")
+    stats['stats'] += t.seconds
 
-    db.connection().execute(
-        exestring
-    )
-    stats_end = time()
+    log("Starsystem database update complete")
 
     # Update refresh time
-    status = get_status(db)
-    status.starsystem_refreshed = sql.func.clock_timestamp()
-    db.add(status)
-    db.commit()
-    print('calc bloom...')
-    bloom_start = time()
-    refresh_bloom(bot)
-    bloom_end = time()
-    end = time()
-    print('Done with all!, collecting stats.')
-    stats = {
-        'stats': stats_end - stats_start, 'load': load_end - load_start, 'fetch': fetch_end - fetch_start,
-        'bloom': bloom_end - bloom_start
-    }
-    stats['misc'] = (end - start) - sum(stats.values())
-    stats['all'] = end - start
+    try:
+        status = get_status(db)
+        status.starsystem_refreshed = sql.func.clock_timestamp()
+        db.add(status)
+        db.commit()
+    except Exception as ex:
+        import traceback
+        traceback.print_exc()
+        raise
+    log("Starsystem database update committed")
+
+    log("Rebuilding bloom filter")
+    with timed() as t:
+        refresh_bloom(bot)
+    stats['bloom'] += t.seconds
+
+    stats['all'] = overall_timer.stop()
+    stats['misc'] = stats['all'] - sum([
+        stats['bloom'], max([stats['fetch'], stats['load']]), stats['index'], stats['stats']
+    ])
     bot.memory['ratbot']['stats']['starsystem_refresh'] = stats
-    print('Database Refresh Done.')
+    log("Starsystem refresh finished")
     return True
 
 
@@ -290,15 +346,14 @@ def refresh_bloom(bot, db):
     count = db.query(sql.func.count(sql.distinct(StarsystemPrefix.first_word))).scalar() or 0
     bits, hashes = BloomFilter.suggest_size_and_hashes(rate=0.01, count=max(32, count), max_hashes=10)
     bloom = BloomFilter(bits, BloomFilter.extend_hashes(hashes))
-    start = time()
-    bloom.update(x[0] for x in db.query(StarsystemPrefix.first_word).distinct())
-    end = time()
+    with timed() as t:
+        bloom.update(x[0] for x in db.query(StarsystemPrefix.first_word).distinct())
     # print(
     #     "Recomputing bloom filter took {} seconds.  {}/{} bits, {} hashes, {} false positive chance"
     #     .format(end-start, bloom.setbits, bloom.bits, hashes, bloom.false_positive_chance())
     # )
     bot.memory['ratbot']['starsystem_bloom'] = bloom
-    bot.memory['ratbot']['stats']['starsystem_bloom'] = {'entries': count, 'time': end - start}
+    bot.memory['ratbot']['stats']['starsystem_bloom'] = {'entries': count, 'time': t.seconds}
     return bloom
 
 
