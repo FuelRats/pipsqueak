@@ -31,7 +31,7 @@ def upgrade():
     # Starsystem updates:
     # - Alter/Add new columns first.
     with op.batch_alter_table('starsystem') as batch:
-        batch.add_column(sa.Column('first_word', sa.Text(collation="C"), nullable=False))
+        batch.add_column(sa.Column('first_word', sa.Text(collation="C"), nullable=True))  # Will be False post-update
         batch.add_column(sa.Column('xz', SQLPoint))
 
     # - Bulk update table
@@ -48,6 +48,7 @@ def upgrade():
         batch.drop_column('x')
         batch.drop_column('z')
         batch.drop_column('prefix_id')
+        batch.alter_column('first_word', nullable=False)
         batch.add_column(sa.Column('eddb_id', sa.Integer, autoincrement=False))
 
     with op.batch_alter_table('starsystem') as batch:
