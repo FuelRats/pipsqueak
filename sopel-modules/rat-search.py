@@ -337,8 +337,24 @@ def cmd_plot(bot, trigger, db=None):
                     "Plot from {source.name} to {target.name} failed, partial results at: {url}"
                     .format(source=source, target=target, url=url)
                 )
-        result = task()
-        bot.reply(result)
+        def task_done(future):
+            try:
+                try:
+                    result = future.result()
+                except Exception as ex:
+                    result = str(ex)
+                bot.reply(result)
+            finally:
+                bot.memory['ratbot']['plots_available'].release()
+
+        try:
+            locked = False
+            future = bot.memory['ratbot']['executor'].submit(task)
+            future.add_done_callback(task_done)
+        except:
+            locked = True
+            raise
+
     finally:
         if locked:
             bot.memory['ratbot']['plots_available'].release()
