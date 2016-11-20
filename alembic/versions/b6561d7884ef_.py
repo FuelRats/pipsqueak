@@ -28,38 +28,33 @@ def upgrade():
     # These columns are used for starsystem prefix matching.  Used in various operations throughout this migration
     fk_cols = ['first_word', 'word_ct']
 
+    # Starsystem stats - force a refresh.
+    op.execute("UPDATE status SET starsystem_refreshed=NULL")
+
     # Starsystem updates:
-    # - Alter/Add new columns first.
-    with op.batch_alter_table('starsystem') as batch:
-        batch.add_column(sa.Column('first_word', sa.Text(collation="C"), nullable=True))  # Will be False post-update
-        batch.add_column(sa.Column('xz', SQLPoint))
+    # It's not possible to migrate existing data due to structural changes... so wipe it prior to running the script.
+    op.execute("TRUNCATE TABLE starsystem, starsystem_prefix")
+    # op.execute("TRUNCATE TABLE starsystem_prefix CASCADE")
 
-    # - Bulk update table
-    op.execute("""
-        UPDATE starsystem SET
-        first_word=(SELECT first_word FROM starsystem_prefix AS sp WHERE sp.id=starsystem.prefix_id),
-        xz=CASE WHEN x IS NULL OR z IS NULL THEN NULL ELSE POINT(x,z) END
-    """)
-
-    # - Get rid of artificial primary keys -- use (first_word, word_ct) or (name_lower) as new PKs
-    # - Add new indexes/etc.
+    # - Starsystem changes
     with op.batch_alter_table('starsystem') as batch:
-        batch.drop_column('id')
+        batch.add_column(sa.Column('first_word', sa.Text(collation="C"), nullable=False))  # New method of prefixes.
         batch.drop_column('x')
         batch.drop_column('z')
-        batch.drop_column('prefix_id')
+        batch.add_column(sa.Column('xz', SQLPoint))
+        batch.drop_column('id')  # id
+        batch.drop_column('prefix_id')  # Remove old method
         batch.alter_column('first_word', nullable=False)
         batch.add_column(sa.Column('eddb_id', sa.Integer, autoincrement=False))
-
-    with op.batch_alter_table('starsystem') as batch:
         batch.create_index('starsystem__xz', ['xz'], postgresql_using='spgist')
         batch.create_index('starsystem__y', ['y'])
-        batch.create_primary_key('starsystem__pkey', ['eddb_id'])
         batch.create_index('starsystem__prefix', fk_cols)
+    op.create_primary_key('starsystem__pkey', 'starsystem', ['eddb_id'])
 
-    op.execute("""
-        ALTER TABLE starsystem ALTER COLUMN xz SET STATISTICS 10000, ALTER COLUMN y SET STATISTICS 10000
-    """)
+    # Alembic can't do this AFAIK
+    op.execute(
+        "ALTER TABLE starsystem ALTER COLUMN xz SET STATISTICS 10000, ALTER COLUMN y SET STATISTICS 10000"
+    )
 
     # Starsystem_prefix updates:
     # - Get rid of artificial primary key - use (first word, word_ct) as new PK.
@@ -67,12 +62,10 @@ def upgrade():
     with op.batch_alter_table('starsystem_prefix') as batch:
         batch.drop_column('id')
         batch.drop_column('const_words')  # Was never used for anything
+        batch.drop_index('starsystem_prefix__unique_words')  # soon-to-be-created PK obsoletes this
+    op.create_primary_key('starsystem__prefix__pkey', 'starsystem_prefix', fk_cols)
 
-    with op.batch_alter_table('starsystem_prefix') as batch:
-        batch.create_primary_key('starsystem_prefix__pk', fk_cols)  # Replacement PK
-        batch.drop_index('starsystem_prefix__unique_words')  # PK obsoletes this
-
-    # Add fkey
+    # Recreate foreign key, now that we can.
     op.create_foreign_key('starsystem__prefix_fkey', 'starsystem', 'starsystem_prefix', fk_cols, fk_cols)
 
     # PostgreSQL stored procedures for plotting.
@@ -151,7 +144,8 @@ def upgrade():
                     search_xz := unit_box*POINT(search_radius,0) + aim_xz;
                     search_ymin := aim_y - search_radius;
                     search_ymax := aim_y + search_radius;
-                    RAISE NOTICE 'cur_xz=%, cur_y=%, target_xz=%, target_y=%, aim_xz=%, aim_y=%, radius=%, remaining=%', cur_xz, cur_y, target_xz, target_y, aim_xz, aim_y, search_radius, remaining;
+                    -- Uncomment for debugging
+                    -- RAISE NOTICE 'cur_xz=%, cur_y=%, target_xz=%, target_y=%, aim_xz=%, aim_y=%, radius=%, remaining=%', cur_xz, cur_y, target_xz, target_y, aim_xz, aim_y, search_radius, remaining;
                     search_radius := search_radius*2;
                     BEGIN
                         SELECT
@@ -187,7 +181,7 @@ def downgrade():
     # That simplifies the downgrade SQL, at least -- we just drop and recreate the tables and mark starsystem db
     # outdated.
 
-    # Starsystem stats.
+    # Starsystem stats - force a refresh.
     op.execute("UPDATE status SET starsystem_refreshed=NULL")
 
     op.drop_table("starsystem")
