@@ -47,4 +47,5 @@ class SQLPoint(types.UserDefinedType):
         def process(value):
             if value is None:
                 return value
-            return Point(self.number_type(x) for x in _re_pattern.match(value).groups())
+            return Point(self.number_type(x) for x in self._re_pattern.match(value).groups())
+        return process

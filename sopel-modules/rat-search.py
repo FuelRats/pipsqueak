@@ -15,7 +15,7 @@ import datetime
 import threading
 
 #Sopel imports
-from sopel.module import commands, interval, example, NOLIMIT, HALFOP, OP
+from sopel.module import commands, interval, example, NOLIMIT, HALFOP, OP, rate
 from sopel.tools import SopelMemory
 
 from sqlalchemy import sql, orm
@@ -27,7 +27,9 @@ from ratlib.db import with_session, Starsystem, StarsystemPrefix, get_status
 from ratlib.starsystem import refresh_database, scan_for_systems, ConcurrentOperationError
 from ratlib.autocorrect import correct
 import re
-
+from ratlib.api.names import require_rat
+from ratlib.hastebin import post_to_hastebin
+from ratlib.util import timed
 
 def configure(config):
     ratlib.sopel.configure(config)
@@ -218,3 +220,125 @@ def cmd_scan(bot, trigger):
     line = trigger.group(2).strip()
     results = scan_for_systems(bot, line)
     bot.say("Scan results: {}".format(", ".join(results) if results else "no match found"))
+
+
+@commands('plot')
+@require_rat('You need to be a registered and drilled Rat to use this Command!')
+@rate(60 * 30)
+@with_session
+def cmd_plot(bot, trigger, db=None):
+    """
+    Usage: !plot <sys1> to <sys2>
+            This function has a limit of once per 30 minutes per person as it is a taxing calculation.
+            Plots a route from sys1 to sys2 with waypoints every 1000 Lightyears. It only calculates these waypoints,
+            so some waypoints MAY be unreachable, but it should be suitable for most of the Milky way, except when
+            crossing outer limbs.
+    """
+    maxdistance = 990
+
+    # if not trigger._is_privmsg:
+    #     bot.say("This command is spammy, please use it in a private message.")
+    #     return NOLIMIT
+    locked = False
+    try:
+        locked = bot.memory['ratbot']['plots_available'].acquire(blocking=False)
+        if not locked:
+            bot.reply(
+                "Sorry, but there are already {} plots running.  Please try again later."
+                .format(bot.memory['ratbot']['maxplots'])
+            )
+            return NOLIMIT
+
+
+        line = (trigger.group(2) or '').strip()
+        if line.startswith('-b'):
+            # Batched mode is no longer implemented, (all plots are batched) but discard it to not break parsing.
+            line = line[2:].strip()
+        names = list(x.strip() for x in line.split(' to '))
+        if len(names) != 2:
+            bot.reply('Usage: !plot <starting system> to <destination system>')
+            return NOLIMIT
+
+        systems = list(
+            db.query(Starsystem).filter(Starsystem.name_lower == name.lower()).first()
+            for name in names
+        )
+        for name, system in zip(names, systems):
+            if system is None:
+                bot.reply('Unable to plot; system "{}" is not in the database.'.format(name))
+                return NOLIMIT
+            if system.xz is None or system.y is None:
+                bot.reply('Unable to plot; system "{}" has unknown coordinates.'.format(system.name))
+                return NOLIMIT
+
+        source, target = systems
+        if source == target:
+            bot.reply('Unable to plot from a system to itself.')
+            return NOLIMIT
+
+        distance = source.distance(target)
+        if distance < maxdistance:
+            bot.reply("Systems are less than {} LY apart".format(maxdistance))
+            return NOLIMIT
+
+        banner = (
+            "Plotting waypoints from {source.name} ({source.x:.2f}, {source.y:.2f}, {source.z:.2f})"
+            " to {target.name} ({target.x:.2f}, {target.y:.2f}, {target.z:.2f}) (Total distance: {ly:.2f} LY)"
+            .format(source=source, target=target, ly=distance)
+        )
+
+        bot.reply(banner)
+
+        def task():
+            with timed() as t:
+                db = ratlib.db.get_session(bot)
+                stmt = sql.select([
+                    sql.column('eddb_id'),
+                    sql.column('distance'),
+                    sql.column('remaining'),
+                    sql.column('final'),
+                ]).select_from(sql.func.find_route(source.eddb_id, target.eddb_id, maxdistance)).alias()
+                query = (
+                    db.query(Starsystem, stmt.c.distance, stmt.c.remaining, stmt.c.final)
+                    .join(stmt, Starsystem.eddb_id == stmt.c.eddb_id)
+                    .order_by(stmt.c.remaining.desc())
+                )
+                result = query.all()
+                text = [banner, '']
+
+                sysline_fmt = "{jump:5}: {sys.name:30}  ({sys.x:.2f}, {sys.y:.2f}, {sys.z:.2f})"
+                travel_fmt = "       -> (jump {distance:.2f} LY; {remaining:.2f} LY remaining)"
+
+                for jump, row in enumerate(result):
+                    if not jump:
+                        jump = "START"
+                    else:
+                        text.append(travel_fmt.format(distance=row.distance, remaining=row.remaining))
+                        if row.final:
+                            jump = "  END"
+                    text.append(sysline_fmt.format(jump=jump, sys=row.Starsystem))
+            success = result[-1].final
+            elapsed = ratlib.format_timedelta(t.delta)
+            text.append('')
+            if success:
+                text.append("Plot completed in {}.".format(elapsed))
+            else:
+                text.append("Could not complete plot.  Went {} jumps in {}.".format(len(result) - 1, elapsed))
+            text = "\n".join(text) + "\n"
+            url = post_to_hastebin(text, bot.config.ratbot.hastebin_url or "http://hastebin.com/") + ".txt"
+
+            if success:
+                return (
+                    "Plot from {source.name} to {target.name} completed: {url}"
+                    .format(source=source, target=target, url=url)
+                )
+            else:
+                return (
+                    "Plot from {source.name} to {target.name} failed, partial results at: {url}"
+                    .format(source=source, target=target, url=url)
+                )
+        result = task()
+        bot.reply(result)
+    finally:
+        if locked:
+            bot.memory['ratbot']['plots_available'].release()

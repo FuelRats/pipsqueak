@@ -199,7 +199,7 @@ class Starsystem(Base):
     first_word = sa.Column(sa.Text, nullable=False)
     word_ct = sa.Column(sa.Integer, nullable=False)
     xz = sa.Column(SQLPoint)
-    y = sa.Column(sa.Numeric)
+    y = sa.Column(sa.Numeric(asdecimal=False))
 
     @property
     def x(self):

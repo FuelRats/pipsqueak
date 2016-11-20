@@ -63,6 +63,7 @@ class RatbotConfigurationSection(StaticSection):
     shortenertoken = types.ValidatedAttribute('shortenertoken', str, default='asdf')
     debug_channel = types.ValidatedAttribute('debug_channel', str, default='#mechadeploy')
     chunked_systems = BooleanAttribute('chunked_systems', default=True)  # Should be edsm_chunked_systems to fit others
+    hastebin_url = types.ValidatedAttribute('hastebin_url', 'str', default="http://hastebin.com/")
 
 
 def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
@@ -202,6 +203,8 @@ def configure(config):
     config.ratbot.configure_setting('shortenerurl', "The url for the shortener to listen on")
     config.ratbot.configure_setting('shortenertoken', "The Auth token the shortener should use")
     config.ratbot.configure_setting('debug_channel', "Channel for debug output")
+    config.ratbot.configure_setting('hastebin_url', "Hastebin base URL")
+
 
 def setup(bot):
     """
