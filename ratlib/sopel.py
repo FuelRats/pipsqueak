@@ -62,6 +62,8 @@ class RatbotConfigurationSection(StaticSection):
     shortenerurl = types.ValidatedAttribute('shortenerurl', str, default='')
     shortenertoken = types.ValidatedAttribute('shortenertoken', str, default='asdf')
     debug_channel = types.ValidatedAttribute('debug_channel', str, default='#mechadeploy')
+    chunked_systems = BooleanAttribute('chunked_systems', default=True)  # Should be edsm_chunked_systems to fit others
+
 
 def parameterize(params=None, usage=None, split=re.compile(r'\s+').split):
     """

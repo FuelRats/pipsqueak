@@ -45,7 +45,7 @@ def setup(bot):
 
 
 @commands('search')
-@example('!search lave','')
+@example('!search lave', '')
 @with_session
 def search(bot, trigger, db=None):
     """
@@ -124,8 +124,8 @@ def cmd_sysstats(bot, trigger, db=None):
     if 'count' in options:
         stats = {
             'excluded': (
-                db.query(sql.func.count(Starsystem.id))
-                .join(StarsystemPrefix, StarsystemPrefix.id == Starsystem.prefix_id)
+                db.query(sql.func.count(Starsystem.name_lower))
+                .join(StarsystemPrefix)
                 .filter(sql.or_(
                     StarsystemPrefix.cume_ratio < 0.05,
                     sql.and_(StarsystemPrefix.word_ct <= 1, sql.func.length(StarsystemPrefix.first_word) < 6)
@@ -161,10 +161,9 @@ def cmd_sysstats(bot, trigger, db=None):
                 .format(k=bloom.k, m=bloom.m, pct=bloom.false_positive_chance(), numset=bloom.setbits, **stats)
             )
 
+
 def task_sysrefresh(bot):
     try:
-        #thread = threading.Thread(target = refresh_database, args=(bot, False, True, lambda: print("Starting background EDSM refresh."), True))
-        #thread.start()
         refresh_database(bot, background=True, callback=lambda: print("Starting background EDSM refresh."))
     except ConcurrentOperationError:
         pass
@@ -178,12 +177,6 @@ def cmd_sysrefresh(bot, trigger, db=None):
 
     -f: Force refresh even if data is stale.  Requires op.
     """
-    return _cmd_sysrefresh(bot, trigger, db)
-    # thread = threading.Thread(target = _cmd_sysrefresh, args=(bot, trigger, db))
-    # thread.start()
-
-# Actual implentation of cmd_sysrefresh to allow for threading and NOT killing the bot...
-def _cmd_sysrefresh(bot, trigger, db=None):
     access = ratlib.sopel.best_channel_mode(bot, trigger.nick)
     privileged = access & (HALFOP | OP)
     msg = ""
@@ -213,6 +206,7 @@ def _cmd_sysrefresh(bot, trigger, db=None):
         )
     bot.say(msg)
 
+
 @commands('scan')
 def cmd_scan(bot, trigger):
     """
@@ -223,5 +217,4 @@ def cmd_scan(bot, trigger):
 
     line = trigger.group(2).strip()
     results = scan_for_systems(bot, line)
-    bot.say("Scan results: {"
-              "}".format(", ".join(results) if results else "no match found"))
+    bot.say("Scan results: {}".format(", ".join(results) if results else "no match found"))
