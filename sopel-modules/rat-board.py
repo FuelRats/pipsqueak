@@ -1203,14 +1203,14 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     if not system:
         raise UsageError()
 
-    # Try to find the system in EDSM.
+    # Try to find the system in EDDB.
     fmt = "Location of {rescue.client_name} set to {rescue.system}"
 
     result = db.query(Starsystem).filter(Starsystem.name_lower == system.lower()).first()
     if result:
         system = result.name
     else:
-        fmt += "  (not in EDSM)"
+        fmt += "  (not in EDDB)"
     rescue.system = system
     bot.say(fmt.format(rescue=rescue))
     save_case_later(
