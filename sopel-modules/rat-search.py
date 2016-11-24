@@ -103,7 +103,8 @@ def refresh_time_stats(bot):
     if not stats:
         return "No starsystem refresh stats are available."
     return (
-        "Refresh took {all:.2f} seconds.  (Fetch: {fetch:.2f}; Load: {load:.2f}; Stats: {stats:.2f}; Misc: {misc:.2f})"
+        "Refresh took {total:.2f} seconds.  (Load: {load:.2f}, Prune: {prune:.2f}, Systems: {systems:.2f},"
+        " Prefixes: {prefixes:.2f}, Stats: {stats:.2f}, Optimize: {optimize:.2f}, Bloom: {bloom:.2f}, Misc: {misc:.2f})"
         .format(**stats)
     )
 
@@ -204,7 +205,7 @@ def cmd_sysrefresh(bot, trigger, db=None):
     else:
         when = when.astimezone(datetime.timezone.utc)
         msg += "The starsystem database was refreshed at {} ({}) or an update is still in progress. It is only allowed every {} seconds.".format(
-            ratlib.format_timestamp(when), ratlib.format_timedelta(when), bot.config.ratbot.edsm_maxage or '<unknown>'
+            ratlib.format_timestamp(when), ratlib.format_timedelta(when), bot.config.ratbot.edsm.maxage or '<unknown>'
         )
     bot.say(msg)
 
@@ -224,7 +225,7 @@ def cmd_scan(bot, trigger):
 
 @commands('plot')
 @require_rat('You need to be a registered and drilled Rat to use this Command!')
-@rate(60 * 30)
+# @rate(60 * 30)
 @with_session
 def cmd_plot(bot, trigger, db=None):
     """
