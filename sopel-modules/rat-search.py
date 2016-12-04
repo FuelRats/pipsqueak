@@ -205,7 +205,7 @@ def cmd_sysrefresh(bot, trigger, db=None):
     else:
         when = when.astimezone(datetime.timezone.utc)
         msg += "The starsystem database was refreshed at {} ({}) or an update is still in progress. It is only allowed every {} seconds.".format(
-            ratlib.format_timestamp(when), ratlib.format_timedelta(when), bot.config.ratbot.edsm.maxage or '<unknown>'
+            ratlib.format_timestamp(when), ratlib.format_timedelta(when), bot.config.ratbot.edsm_maxage or '<unknown>'
         )
     bot.say(msg)
 
