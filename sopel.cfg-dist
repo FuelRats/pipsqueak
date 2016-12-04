@@ -73,7 +73,8 @@ apiurl = http://dev.api.fuelrats.com
 # apidebug = logs/api.log
 
 # URL to use to retrieve starsystem data.
-edsm_url = http://orthanc.localecho.net/json/sysinfo.json
+edsm_url=http://orthanc.localecho.net/json/systems.csv
+# edsm_url=http://orthanc.localecho.net/json/systems_recently.csv
 
 # Use chuncked data format for systems as seen on orthanc
 # If False, standard edsm format (systems themselves as json objects) will be used.
@@ -103,6 +104,9 @@ maxplots = 4
 #version_file = version.txt
 #version_cmd = get_version.sh
 #version_git = /usr/bin/git
+
+# Hastebin / RodentBin(tm) support for plot.
+hastebin_url=https://paste.fuelrats.com
 
 
 [ratfacts]
