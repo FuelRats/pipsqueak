@@ -1,3 +1,7 @@
+# Reporting Issues
+
+Please refrain from using GitHub to report Issues, as we have since moved our main Issue Tracking to JIRA. Feel free to report any Issues [there.](http://t.fuelr.at/help)
+
 # Contributing
 
 1. Fork the main repo on github

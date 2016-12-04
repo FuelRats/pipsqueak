@@ -3,14 +3,22 @@ Database support module.
 """
 import functools
 import re
-import os.path
-import urllib.parse
+import math
 
 import sqlalchemy as sa
 from sqlalchemy import sql, orm, schema
+from sqlalchemy.ext.hybrid import hybrid_method
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 import alembic.command
 import alembic.config
+from ratlib.exttypes import SQLPoint, Point
+
+
+__all__ = [
+    'setup', 'get_session', 'with_session',
+    'Base', 'Fact', 'Status', 'StarsystemPrefix', 'Starsystem', 'get_status',
+    'SQLPoint', 'Point'
+]
 
 
 def setup(bot):
@@ -178,32 +186,50 @@ class Status(Base):
 
 
 class StarsystemPrefix(Base):
-    id = sa.Column(sa.Integer, primary_key=True)
-    first_word = sa.Column(sa.Text, nullable=False)
-    word_ct = sa.Column(sa.Integer, nullable=False)
-    const_words = sa.Column(sa.Text, nullable=True)
-    ratio = sa.Column('ratio', sa.Float())
-    cume_ratio = sa.Column('cume_ratio', sa.Float())
-StarsystemPrefix.__table__.append_constraint(schema.Index(
-    'starsystem_prefix__unique_words', 'first_word', 'word_ct', unique=True
-))
+    first_word = sa.Column(sa.Text, primary_key=True)
+    word_ct = sa.Column(sa.Integer, nullable=False, primary_key=True)
+    ratio = sa.Column('ratio', sa.Float)
+    cume_ratio = sa.Column('cume_ratio', sa.Float)
 
 
 class Starsystem(Base):
-    id = sa.Column(sa.Integer, primary_key=True)
-    name_lower = sa.Column(sa.Text, nullable=False)
+    eddb_id = sa.Column(sa.Integer, primary_key=True, autoincrement=False)
+    name_lower = sa.Column(sa.Text)
     name = sa.Column(sa.Text, nullable=False)
+    first_word = sa.Column(sa.Text, nullable=False)
     word_ct = sa.Column(sa.Integer, nullable=False)
-    x = sa.Column(sa.Float, nullable=True)
-    y = sa.Column(sa.Float, nullable=True)
-    z = sa.Column(sa.Float, nullable=True)
-    prefix_id = sa.Column(
-        sa.Integer,
-        sa.ForeignKey(StarsystemPrefix.id, onupdate='cascade', ondelete='set null'), nullable=True
-    )
+    xz = sa.Column(SQLPoint)
+    y = sa.Column(sa.Numeric(asdecimal=False))
+
+    @property
+    def x(self):
+        return None if self.xz is None else self.xz.x
+
+    @property
+    def z(self):
+        return None if self.xz is None else self.xz.z
+
+    @hybrid_method
+    def distance(self, other):
+        if self.xz is None or self.y is None or other.xz is None or other.y is None:
+            return None
+        dx = self.xz.x - other.xz.x
+        dy = self.y - other.y
+        dz = self.xz.z - other.xz.z
+        return math.sqrt(dx**2 + dy**2 + dz**2)
+
+    @distance.expression
+    def distance(cls, other):
+        return sql.func.starsystem_distance(cls.xz, cls.y, other.xz, other.y)
+
     prefix = orm.relationship(StarsystemPrefix, backref=orm.backref('systems', lazy=True), lazy=True)
-Starsystem.__table__.append_constraint(schema.Index('starsystem__prefix_id', 'prefix_id'))
-Starsystem.__table__.append_constraint(schema.Index('starsystem__name_lower', 'name_lower'))
+    __table_args__ = (
+        sa.ForeignKeyConstraint([first_word, word_ct], [StarsystemPrefix.first_word, StarsystemPrefix.word_ct]),
+        sa.Index('starsystem__name', name_lower),
+        sa.Index('starsystem__xz', xz, postgresql_using='spgist'),
+        sa.Index('starsystem__y', y),
+        sa.Index('starsystem__prefix', first_word, word_ct)
+    )
 
 
 def get_status(db):
