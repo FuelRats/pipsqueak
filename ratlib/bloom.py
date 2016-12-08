@@ -189,7 +189,6 @@ class BloomFilter:
         Determines the number of bits required to have a false positive rate of 'rate' assuming 'count' items will be
         added and 'hashes' hash functions will be used.
 
-        :param self:
         :param rate: Acceptable false positive rate (0..1)
         :param count: Anticipated number of items
         :param hashes: # of hash functions

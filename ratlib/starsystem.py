@@ -15,14 +15,13 @@ try:
 except ImportError:
     import collections as collections_abc
 
-
 import requests
 import sqlalchemy as sa
 from sqlalchemy import sql, orm, schema
 
 from ratlib.db import get_status, get_session, with_session, Starsystem, StarsystemPrefix, SQLPoint, Point
 from ratlib.bloom import BloomFilter
-from ratlib import format_timestamp
+from ratlib.timeutil import format_timestamp
 from ratlib.util import timed, TimedResult
 
 FLUSH_THRESHOLD = 25000  # Chunk size when refreshing starsystems

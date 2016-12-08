@@ -33,7 +33,7 @@ import threading
 import operator
 import concurrent.futures
 
-from ratlib import friendly_timedelta, format_timestamp
+from ratlib import timeutil
 
 from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
@@ -250,6 +250,7 @@ class RescueBoard:
         """
         Attempts to find a rescue attached to this board.  If it fails, possibly creates one instead.
 
+        :param search: What to search for.
         :param create: Whether to create a case that's not found.  Even if True, this only applies for certain types of
         searches.
         :return: A FindRescueResult tuple of (rescue, created), both of which will be None if no case was found.
@@ -399,6 +400,7 @@ def refresh_cases(bot, rescue=None, force=False):
     Grab all open cases from the API so we can work with them.
     :param bot: Sopel bot
     :param rescue: Individual rescue to refresh.
+    :param force: True forcibly wipes the board and refreshes it clean.  False merges changes instead.
     """
     if not bot.config.ratbot.apiurl:
         warnings.warn("No API URL configured.  Operating in offline mode.")
@@ -716,10 +718,10 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
 
     bot.say(fmt.format(
         client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags),
-        opened=format_timestamp(rescue.createdAt) if rescue.createdAt else '<unknown>',
-        updated=format_timestamp(rescue.updatedAt) if rescue.updatedAt else '<unknown>',
-        opened_ago=friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
-        updated_ago=friendly_timedelta(rescue.updatedAt) if rescue.updatedAt else '???',
+        opened=timeutil.format_timestamp(rescue.createdAt) if rescue.createdAt else '<unknown>',
+        updated=timeutil.format_timestamp(rescue.updatedAt) if rescue.updatedAt else '<unknown>',
+        opened_ago=timeutil.friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
+        updated_ago=timeutil.friendly_timedelta(rescue.updatedAt) if rescue.updatedAt else '???',
         id=rescue.id or 'pending',
         system=rescue.system or 'an unknown system',
         title=rescue.title
@@ -843,8 +845,10 @@ def cmd_list(bot, trigger, params=''):
         t = []
         t.append("{num} {name} case{s}".format(num=num, name=name, s=s))
         if expand:
-            # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the rescues have more than 0 assigned rats
-            # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was implemented.
+            # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the
+            # rescues have more than 0 assigned rats
+            # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was
+            # implemented.
             templist = (format_rescue(bot, rescue, attr, showassigned, showids, hideboardindexes=False,
                                       showmarkedfordeletionreason=False) if (
                 (not unassigned) or (len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)) else 'IGNOREME' for
@@ -1463,14 +1467,13 @@ def cmd_version(bot, trigger):
     Shows the bot's current version and Uptime
     aliases: version, uptime
     """
-    from ratlib import format_timedelta, format_timestamp
     started = bot.memory['ratbot']['stats']['started']
     bot.say(
         "Version {version}, up {delta} since {time}"
             .format(
             version=bot.memory['ratbot']['version'],
-            delta=format_timedelta(datetime.datetime.now(tz=started.tzinfo) - started),
-            time=format_timestamp(started)
+            delta=timeutil.format_timedelta(datetime.datetime.now(tz=started.tzinfo) - started),
+            time=timeutil.format_timestamp(started)
         )
     )
 

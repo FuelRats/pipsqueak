@@ -20,9 +20,9 @@ from sopel.tools import SopelMemory
 
 from sqlalchemy import sql, orm
 
+from ratlib import timeutil
 import ratlib
 import ratlib.sopel
-from ratlib import friendly_timedelta
 from ratlib.db import with_session, Starsystem, StarsystemPrefix, get_status
 from ratlib.starsystem import refresh_database, scan_for_systems, ConcurrentOperationError
 from ratlib.autocorrect import correct
@@ -211,7 +211,7 @@ def cmd_sysrefresh(bot, trigger, db=None):
     else:
         when = when.astimezone(datetime.timezone.utc)
         msg += "The starsystem database was refreshed at {} ({}) or an update is still in progress. It is only allowed every {} seconds.".format(
-            ratlib.format_timestamp(when), ratlib.format_timedelta(when), bot.config.ratbot.edsm_maxage or '<unknown>'
+            timeutil.format_timestamp(when), timeutil.format_timedelta(when), bot.config.ratbot.edsm_maxage or '<unknown>'
         )
     bot.say(msg)
 
@@ -325,7 +325,7 @@ def cmd_plot(bot, trigger, db=None):
                             jump = "  END"
                     text.append(sysline_fmt.format(jump=jump, sys=row.Starsystem))
             success = result[-1].final
-            elapsed = ratlib.format_timedelta(t.delta)
+            elapsed = timeutil.format_timedelta(t.delta)
             text.append('')
             if success:
                 text.append("Plot completed in {}.".format(elapsed))
