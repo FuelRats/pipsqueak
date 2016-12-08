@@ -185,10 +185,16 @@ def cmd_sysrefresh(bot, trigger, db=None):
     msg = ""
 
     if privileged:
+        options = "" if not trigger.group(2) or trigger.group(2)[0] != '-' else trigger.group(2)[1:]
+        force = 'f' in options and (access & OP)
+        prune = not ('p' in options and (access & OP))
+
+
         try:
             refreshed = refresh_database(
                 bot,
-                force=access & OP and trigger.group(2) and trigger.group(2) == '-f',
+                force=force,
+                prune=prune,
                 callback=lambda: bot.say("Starting starsystem refresh...")
             )
             if refreshed:
