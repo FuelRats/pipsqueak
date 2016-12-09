@@ -180,89 +180,41 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
 
     return result
 
-def callshortener(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs):
-    """
-    Wrapper function to contact the shortener
 
-    :param method: Request method
-    :param uri: URI.  If this is anything other than a string, it is passed to urljoin() first.
-    :param data: Data for JSON request body.
-    :param log: File-like object to log request data to.
-    :param headers: Additional header to send; Used to Send authorization.
-    :param **kwargs: Passed to requests.
-    :param statuses: If present, a set of acceptable HTTP response codes (including 200).  If not present, the default
-        behavior of requests.raise_for_status() is used.
-    """
-    if not isinstance(uri, str):
-        uri = urljoin(uri)
+class ShortenerError(ValueError):
+    """Shortner API errors"""
+    def __init__(self, status, message, code):
+        self.status = status
+        self.message = message
+        self.code = code
+        super().__init__(status, message, code)
 
-    #dump data as a String if it is a dict element to allow for both json objects and Json-formatted strings
-    if type(data) == type({}):
-        data = json.dumps(data)
-
-    data = json.loads(data or '{}')
-    # print('statuses: '+str(statuses))
-    # print('will send '+str(data))
-    if log:
-        logprint = functools.partial(print, file=log, flush=True)
-    else:
-        logprint = lambda *a, **kw: None
-
-    timestamp = datetime.datetime.now()
-    when = timestamp.strftime("%Y-%m-%d %H:%M:%S.%f")
-
-    logprint(
-        "[{when}] {method} {uri}\n{header}\n{data}\n".format(
-            header=headers, when=when, method=method.upper(), uri=uri, data=json.dumps(data, sort_keys=True, indent=" "*4)
+    def __repr__(self):
+        return "{c.__name__}({o.status!r}, {o.message!r}, {o.code!r})".format(
+            c = type(self), o=self
         )
-    )
 
-    response = None
-    try:
-        if method in request_methods:
-            response = request_methods[method](uri, json=data, headers=headers)
-            # print('response full: '+str(response.text))
-        else:
-            response = requests.request(method.upper(), uri, json=data, headers=headers)
-            # print('response full: ' + str(response.text))
-        if not statuses:
-            if response.status_code != 400:
-                response.raise_for_status()
-        elif response.status_code not in statuses:
-            raise HTTPError(code=response.status_code, details="Unexpected Status Code {}".format(response.status_code))
-    except exc.HTTPError as ex:
-        print(str(ex))
-        print(
-            "[{when}] {method} {uri}\n{header}\n{data}\n".format(
-                header=headers, when=when, method=method.upper(), uri=uri,
-                data=json.dumps(data, sort_keys=True, indent=" " * 4)
-            )
-        )
-        raise HTTPError(code=ex.response.status_code, details=str(ex)) from ex
-    except exc.RequestException as ex:
-        try:
-            logprint(str(ex.args[0]))
-        except (AttributeError, IndexError):
-            logprint(str(ex))
-        raise BadResponseError() from ex
-    finally:
-        if response is not None:
-            delta = (datetime.datetime.now() - timestamp).total_seconds()
-            try:
-                body = response.text
-            except:
-                body = '(unable to decode body)'
-            logprint(
-                "[{when}] status={response.status_code} in {delta} sec.\n{body}\n{d}".format(
-                    when=when, response=response, body=body, delta=delta, d='-'*10
-                ),
-            )
-    if response.status_code == 204:
-        result = {'data':[]}
-    else:
-        try:
-            result = response.json()
-        except ValueError as ex:
-            raise BadJSONError() from ex
 
-    return result
+class Shortener:
+    def __init__(self, url, token):
+        self.url = url
+        self.token = token
+
+    def shorten(self, url, keyword=None):
+        params = {
+            'action': 'shorturl',
+            'format': 'json',
+            'url': url,
+        }
+        if self.token:
+            params['signature'] = self.token
+        if keyword:
+            params['keyword'] = keyword
+
+        response = requests.get(self.url, params=params)
+        response.raise_for_status()
+        data = response.json()
+
+        if data and data['status'] != 'success':
+            raise ShortenerError(data['status'], data['message'], data['statusCode'])
+        return data
