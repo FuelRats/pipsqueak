@@ -275,7 +275,7 @@ class RescueBoard:
             return FindRescueResult(rescue, False if rescue else None)
 
         if not search:
-            return None, None
+            return FindRescueResult(None, None)
 
         if search[0] == '@':
             rescue = self.indexes['id'].get(search[1:], None),
@@ -1266,7 +1266,9 @@ _ratmama_regex = re.compile(r"""
     Incoming\s+Client:\s*   # Match "Incoming Client" prefix
     # Wrap the entirety of rest of the pattern in a group to make it easier to echo the entire thing
     (?P<all>
-    (?P<cmdr>.+?)                        # Match CDMR name
+    (?P<cmdr>[^@#\d\s].*?)               # Match CDMR name.  Don't allow leading digits or @/#, as it breaks things
+                                         # (and probably isn't a legal name anyways).  Dispatch can manually handle
+                                         # those cases if it turns out to be a thing, or someone can fix Ratmama too.
     \s+-\s+                              #  -
     System:\s*(?P<system>.*?)            # Match system name
     \s+-\s+                              #  -
