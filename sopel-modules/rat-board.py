@@ -134,8 +134,8 @@ class RescueBoard:
     INDEX_TYPES = {
         'boardindex': operator.attrgetter('boardindex'),
         'id': operator.attrgetter('id'),
-        'client': lambda x: None if not x.data['IRCNick'] else str(x.data['IRCNick']).lower(),
-
+        'client': lambda x: x.client.lower(),
+        'nick': lambda x: None if not x.data.get('IRCNick') else str(x.data['IRCNick']).lower(),
     }
 
     MAX_POOLED_CASES = 10
@@ -282,10 +282,16 @@ class RescueBoard:
             return FindRescueResult(rescue, False if rescue else None)
 
         # print('Indexes: '+str(self.indexes))
-        rescue = self.indexes['client'].get(search.lower())
-        if not rescue:
-            spacesearch = search.replace('_', ' ')
-            rescue = self.indexes['client'].get(spacesearch.lower())
+        searchterms = [search.lower()]
+        searchterms.append(searchterms[0].replace('_', ' '))
+        for index in 'client', 'nick':
+            for term in searchterms:
+                rescue = self.indexes[index].get(term)
+                if rescue:
+                    break
+            else:
+                continue
+            break
 
         if rescue or not create:
             return FindRescueResult(rescue, False if rescue else None)
@@ -1252,59 +1258,106 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
         )
     )
 
+_ratmama_regex = re.compile(r"""
+    (?x)
+    # The above makes whitespace and comments in the pattern ignored.
+    # Saved at https://regex101.com/r/kt3gjH/3
+    \s*                                  # Handle any possible leading whitespace
+    Incoming\s+Client:\s*   # Match "Incoming Client" prefix
+    # Wrap the entirety of rest of the pattern in a group to make it easier to echo the entire thing
+    (?P<all>
+    (?P<cmdr>.+?)                        # Match CDMR name
+    \s+-\s+                              #  -
+    System:\s*(?P<system>.*?)            # Match system name
+    \s+-\s+                              #  -
+    Platform:\s*(?P<platform>\w+)        # Match platform (currently can't contain spaces)
+    \s+-\s+                              #  -
+    O2:\s*(?P<o2>.+?)                    # Match oxygen status
+    \s+-\s+                              #  -
+    Language:\s*
+    (?P<full_language>                   # Match full language text (for regenerating the line)
+    (?P<language>.+?)\s*                 # Match language name. (currently unused)
+    \(                                   # The "(" of "(en-US)"
+    (?P<language_code>.+?)               # "en"
+    (?:                                  # Optional group
+        -(?P<language_country>.+)        # "-", "US" (currently unused)
+    )?                                   # Actually make the group optional.
+    \)                                   # The ")" of "(en-US)"
+    )                                    # End of full language text
+    (?:                                  # Possibly match IRC nickname
+    \s+-\s+                              #  -
+    IRC\s+Nickname:\s*(?P<nick>[^\s]+)   # IRC nickname
+    )?                                   # ... emphasis on "Possibly"
+    )                                    # End of the main capture group
+    \s*                                  # Handle any possible trailing whitespace
+    $                                    # End of pattern
+""")
 
 @rule('Incoming Client:.* - O2:.*')
+@require_chanmsg
 def ratmama_parse(bot, trigger):
-    '''
-    Parse Incoming Kiwiirc clients (gets announced by ratmama)
+    """
+    Parse Incoming KiwiIRC clients that are announced by RatMama
+
     :param trigger: line that triggered this
-    '''
+    """
     # print('[RatBoard] triggered ratmama_parse')
-    line = trigger.group()
     # print('[RatBoard] line: ' + line)
-    if Identifier(trigger.nick) == 'Ratmama[BOT]':
-        import re
-        newline = line.replace("Incoming Client:", bot.config.ratboard.signal.upper() + " - CMDR")
-        cmdr = re.search('(?<=CMDR ).*?(?= - )', newline).group()
-        system = re.search('(?<=System: ).*?(?= - )', newline).group()
-        platform = re.search('(?<=Platform: ).*?(?= - )', newline).group()
-        crstring = re.search('(?<=O2: ).*?(?= -)', newline).group()
-        langID = re.search('Language: .* \((.*)\)', newline).group(1)
-        try:
-            ircnick = re.search('(?<= - IRC Nickname: ).*', newline).group()
-        except:
-            ircnick = cmdr
-        try:
-            langID = langID[0:langID.index('-')]
-        except ValueError:
-            pass
-        result = append_quotes(bot, cmdr, [newline], create=True)
-        cr = False
-        if crstring != "OK":
-            cr = True
-            newline = newline.replace(crstring, color('\u0002' + crstring + '\u000F', colors.RED))
-        if platform == 'XB':
-            newline = newline.replace(platform, color(platform, colors.GREEN))
-        if not result.rescue.system:
-            result.rescue.system = system
-        newline = newline.replace(cmdr, '\u0002' + cmdr + '\u000F').replace(system,
-                                                                            '\u0002' + result.rescue.system + '\u000F').replace(
-            platform, '\u0002' + platform + '\u000F')
-        result.rescue.codeRed = cr
-        result.rescue.platform = platform.lower()
-        with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update(defaultdata)
-            result.rescue.data.update(
-                {'langID': langID, 'IRCNick': ircnick, "boardIndex": int(result.rescue.boardindex)})
-        save_case_later(bot, result.rescue, forceFull=True)
+    if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin'):
+        match = _ratmama_regex.fullmatch(trigger.group())
+        if not match:
+            return
+        # Parse results
+        fields = match.groupdict()
+        fields["ratsignal"] = bot.config.ratboard.signal.upper()
+
+        # Create format string
+        fmt = (
+            "{ratsignal} - CMDR {cmdr} - System: {system} - Platform: {platform} - O2: {o2}"
+            " - Language: {full_language}"
+        )
+        if fields["nick"]:
+            fmt += " - IRC Nickname: {nick}"
+
+        # Create plaintext versions of newline
+        newline = fmt.format(**fields)
+        result = append_quotes(bot, fields["cmdr"], fmt.format(**fields), create=True)
+        case = result.rescue  # Reduce typing later.
+
+        # Update the case
+        if not case.system:
+            case.system = fields["system"]
+        case.codeRed = (fields["o2"] != "OK")
+        case.platform = fields["platform"].lower()
+        with bot.memory['ratbot']['board'].change(case):
+            case.data.update(defaultdata)
+            case.data.update({
+                'langID': fields["language_code"],
+                'IRCNick': fields["nick"],
+                "boardIndex": int(case.boardindex)
+            })
+
+        if not fields["nick"]:
+            fields["nick"] = fields["cmdr"]
+
+        save_case_later(bot, case, forceFull=True)
+
         if result.created:
-            bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
-            if cr:
-                prepcrstring = getFact(bot, factname='prepcr', lang=langID)
-                bot.say(
-                    result.rescue.client + " " + prepcrstring)
+            # Add IRC formatting to fields, then substitute them into to output to the channel
+            # (But only if this is a new case, because we aren't using it otherwise)
+            if case.codeRed:
+                fields["o2"] = bold(color(fields["o2"], colors.RED))
+
+            if case.platform == 'xb':
+                fields["platform"] = color(fields["platform"], colors.GREEN)
+            # elif case.platform == 'ps4':
+            #     fields["platform"] = color(fields["platform"], colors.BLUE)
+            fields["platform"] = bold(fields["platform"])
+            fields["system"] = bold(fields["system"])
+            fields["cmdr"] = bold(fields["cmdr"])
+            bot.say((fmt + " (Case #{boardindex})").format(boardindex=case.boardindex, **fields))
         else:
-            bot.say('Client ' + result.rescue.client + ' has reconnected to the IRC!')
+            bot.say("{0.client} has reconnected to the IRC! (Case #{0.boardindex})".format(case))
 
 
 @commands('closed', 'recent')
