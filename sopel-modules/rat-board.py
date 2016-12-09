@@ -22,30 +22,27 @@ import math
 import sys
 import contextlib
 import traceback
+import threading
+import operator
+import concurrent.futures
 
 # Sopel imports
 from sopel.formatting import bold, color, colors
 from sopel.module import commands, NOLIMIT, priority, require_chanmsg, rule
 from sopel.tools import Identifier, SopelMemory
+from sopel.config.types import StaticSection, ValidatedAttribute
+from sopel.module import require_privmsg, rate
+
 import ratlib.sopel
-
-import threading
-import operator
-import concurrent.futures
-
 from ratlib import timeutil
-
 from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
 from ratlib.api.names import *
 from ratlib.sopel import UsageError
-from sopel.config.types import StaticSection, ValidatedAttribute
-from sopel.module import require_privmsg, rate
 import ratlib.api.http
 import ratlib.db
-from ratlib.db import Starsystem
-from ratlib import starsystem
+from ratlib.db import with_session, Starsystem
 
 urljoin = ratlib.api.http.urljoin
 
@@ -1297,7 +1294,8 @@ _ratmama_regex = re.compile(r"""
 
 @rule('Incoming Client:.* - O2:.*')
 @require_chanmsg
-def ratmama_parse(bot, trigger):
+@with_session
+def ratmama_parse(bot, trigger, db):
     """
     Parse Incoming KiwiIRC clients that are announced by RatMama
 
@@ -1309,6 +1307,7 @@ def ratmama_parse(bot, trigger):
         match = _ratmama_regex.fullmatch(trigger.group())
         if not match:
             return
+
         # Parse results
         fields = match.groupdict()
         fields["ratsignal"] = bot.config.ratboard.signal.upper()
@@ -1347,6 +1346,8 @@ def ratmama_parse(bot, trigger):
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
+            system = db.query(Starsystem).filter(Starsystem.name_lower == fields["system"].lower()).first()
+
             if case.codeRed:
                 fields["o2"] = bold(color(fields["o2"], colors.RED))
 
@@ -1357,6 +1358,14 @@ def ratmama_parse(bot, trigger):
             fields["platform"] = bold(fields["platform"])
             fields["system"] = bold(fields["system"])
             fields["cmdr"] = bold(fields["cmdr"])
+
+            if system:
+                nearest, distance = system.nearest_landmark(db, with_distance=True)
+                if nearest and nearest.name_lower != system.name_lower:
+                    fields["system"] += " ({:.2f} LY from {})".format(distance, nearest.name)
+            else:
+                fields["system"] += " (not in EDDB)"
+
             bot.say((fmt + " (Case #{boardindex})").format(boardindex=case.boardindex, **fields))
         else:
             bot.say("{0.client} has reconnected to the IRC! (Case #{0.boardindex})".format(case))
