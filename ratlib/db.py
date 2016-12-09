@@ -262,7 +262,6 @@ class Starsystem(StarsystemUtilsMixin):
             .filter(Landmark.has_coordinates)
             .order_by(distance)
         )
-        print(str(query))
 
         result = query.first()
 
