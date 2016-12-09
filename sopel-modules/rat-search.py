@@ -462,8 +462,16 @@ def cmd_landmark(bot, trigger, db=None):
 
     @require_overseer
     def subcommand_refresh(*unused_args, **unused_kwargs):
-        bot.reply("NYI")
-        pass
+        ct = (
+            db.query(Landmark)
+            .filter(Landmark.name_lower == Starsystem.name_lower)
+            .update({
+                Landmark.name: Starsystem.name,
+                Landmark.xz: Starsystem.xz,
+                Landmark.y: Starsystem.y
+            }, synchronize_session=False)
+        )
+        bot.reply("Synchronized {} landmark system(s).".format(ct))
 
     subcommands = {
         'list': subcommand_list,
@@ -476,6 +484,9 @@ def cmd_landmark(bot, trigger, db=None):
     if not subcommand:
         bot.reply("Missing subcommand.  See !help landmark")
     elif subcommand not in subcommands:
-        bot.reply("Unknown subcommand.  See !help landmark")
+        bot.reply(
+            "Unknown subcommand.  See !help landmark (or perhaps you meant !landmark near {})"
+            .format(trigger.group(2))
+        )
     else:
         return subcommands[subcommand](bot, trigger)
