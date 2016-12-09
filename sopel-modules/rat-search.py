@@ -382,8 +382,7 @@ def cmd_landmark(bot, trigger, db=None):
     !landmark del <system> - Removes the listed starsystem from the landmark system lists.  (Overseer Only)
     !landmark refresh - Updates all landmarks to match their current listed EDDB coordinates.  (Overseer Only)
     """
-    pm = bot.say
-    # pm = functools.partial(bot.say, destination=trigger.nick)
+    pm = functools.partial(bot.say, destination=trigger.nick)
     parts = re.split(r'\s+', trigger.group(2), maxsplit=1) if trigger.group(2) else None
     subcommand = parts.pop(0).lower() if parts else None
     system_name = parts.pop(0) if parts else None
