@@ -547,6 +547,8 @@ class AppendQuotesResult:
             return []
         rv = ["Case " + str(self.rescue.boardindex)]
         if self.detected_platform:
+            if self.detected_platform.upper() == 'PS':
+                self.detected_platform = 'ps4'
             rv.append(self.detected_platform.upper())
         if self.detected_system:
             rv.append(self.detected_system)
@@ -624,6 +626,16 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
                     """, line, flags=re.IGNORECASE | re.VERBOSE
             ):
                 platforms.add('xb')
+            if re.search(
+                    r"""
+                    (?:[^\w-]|\A)  # Beginning of line, or non-hyphen word boundary
+                    [pP](?:lay)?(?:[- ])?[sS](?:tation)?      # ... followed by "ps" or "playstation" or "pstation" or "plays" or "Play Station" or ....
+                    (?:[- ]?(?:4|four))?  # ... maybe followed by 4/four, possibly w/ leading hyphen/space
+                    (?:[^\w-]|\Z)  # End of line, or non-hyphen word boundary
+                    """, line, flags=re.IGNORECASE | re.VERBOSE
+            ):
+                if bot.config.ratboard.enable_ps_support == 'True' or False:
+                    platforms.add('ps')
         if len(platforms) == 1:
             rv.rescue.platform = platforms.pop()
             rv.detected_platform = rv.rescue.platform
@@ -701,7 +713,8 @@ def cmd_quote(bot, trigger, rescue):
 
 def func_quote(bot, trigger, rescue, showboardindex=True):
     tags = ['unknown platform' if not rescue.platform or rescue.platform == 'unknown' else rescue.platform.upper()]
-
+    if tags[0] == 'PS':
+        tags[0] = 'PS4'
     if rescue.epic:
         tags.append("epic")
     if rescue.codeRed:
@@ -890,6 +903,8 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
         platform = color(' XB', colors.GREEN)
     if platform == 'pc':
         platform = ' PC'
+    if platform == 'ps':
+        platform = color(' PS4', colors.LIGHT_BLUE)
     if showassigned:
         assignedratsstring = ' Assigned Rats: '
         for rat in rescue.rats:
@@ -1163,7 +1178,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     """
     rescue.platform = platform
     bot.say(
-        "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
+        "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=('PS4' if rescue.platform.upper() == 'PS' else rescue.platform.upper()))
     )
     save_case_later(
         bot, rescue,
@@ -1188,6 +1203,14 @@ def cmd_platform_xb(bot, trigger):
     """Sets a case's platform to XB"""
     return cmd_platform(bot, trigger, platform='xb')
 
+@commands('ps(?:4)?')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+def cmd_plaform_ps(bot, trigger):
+    """Sets a case's platform to PlayStation"""
+    if bot.config.ratboard.enable_ps_support == 'True' or False:
+        return cmd_platform(bot, trigger, platform='ps')
+    else:
+        bot.say("PlayStation Support not yet enabled.")
 
 @commands('sys', 'system', 'loc', 'location')
 @ratlib.sopel.filter_output
@@ -1281,11 +1304,15 @@ def ratmama_parse(bot, trigger):
             newline = newline.replace(crstring, color('\u0002' + crstring + '\u000F', colors.RED))
         if platform == 'XB':
             newline = newline.replace(platform, color(platform, colors.GREEN))
+        if platform == 'PS4':
+            newline = newline.replace(platform, color('PS4', colors.LIGHT_BLUE))
         if not result.rescue.system:
             result.rescue.system = system
         newline = newline.replace(cmdr, '\u0002' + cmdr + '\u000F').replace(system,
                                                                             '\u0002' + result.rescue.system + '\u000F').replace(
             platform, '\u0002' + platform + '\u000F')
+        if platform == 'PS4':
+            platform = 'PS'
         result.rescue.codeRed = cr
         result.rescue.platform = platform.lower()
         with bot.memory['ratbot']['board'].change(result.rescue):
