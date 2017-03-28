@@ -13,7 +13,7 @@ import json
 import os.path
 import re
 import glob
-import functools
+import textwrap
 
 from sopel.module import commands, NOLIMIT, HALFOP, OP
 from sopel.config.types import StaticSection, ValidatedAttribute, ListAttribute
@@ -172,12 +172,29 @@ def cmd_recite_fact(bot, trigger):
     if not fact:
         return NOLIMIT
 
+    multiple = False
+    lines = None
+
+    if len(fact) > 400:
+        multiple = True
+        lines = textwrap.wrap(fact.message, 400, break_long_words=False)
+
     rats = trigger.group(2)
     if rats:
         # Reorganize the rat list for consistent & proper separation
         # Split whitespace, comma, colon and semicolon (all common IRC multinick separators) then rejoin with commas
         rats = ", ".join(filter(None, re.split(r"[,\s+]", rats))) or None
-        return bot.reply(fact.message, reply_to=rats)
+        if multiple:
+            for l in lines:
+                bot.reply(l, reply_to=rats)
+            return
+        else:
+            return bot.reply(fact.message, reply_to=rats)
+
+    if multiple:
+        for l in lines:
+            bot.say(l)
+        return
     return bot.say(fact.message)
 
 
@@ -210,7 +227,13 @@ def cmd_fact(bot, trigger, db=None):
         unique_facts = list(Fact.unique_names(db))
         if not unique_facts:
             return bot.reply("Like Jon Snow, I know nothing.  (Or there's a problem with the fact database.)")
-        return bot.say("{} known fact(s): {}".format(len(unique_facts), ", ".join(unique_facts)))
+        line = "{} known fact(s): {}".format(len(unique_facts), ", ".join(unique_facts))
+        if len(line) > 400:
+            lines = textwrap.wrap(line, 400, break_long_words=False)
+            for l in lines:
+                bot.say(l)
+            return
+        return bot.say(line)
 
     @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
     def cmd_fact_import(bot, trigger):
