@@ -13,21 +13,23 @@ import json
 import os
 import datetime
 import threading
+import functools
 
 #Sopel imports
 from sopel.module import commands, interval, example, NOLIMIT, HALFOP, OP, rate
 from sopel.tools import SopelMemory
 
 from sqlalchemy import sql, orm
+from sqlalchemy.orm.util import object_state
 
+from ratlib import timeutil
 import ratlib
 import ratlib.sopel
-from ratlib import friendly_timedelta
-from ratlib.db import with_session, Starsystem, StarsystemPrefix, get_status
+from ratlib.db import with_session, Starsystem, StarsystemPrefix, Landmark, get_status
 from ratlib.starsystem import refresh_database, scan_for_systems, ConcurrentOperationError
 from ratlib.autocorrect import correct
 import re
-from ratlib.api.names import require_rat
+from ratlib.api.names import require_rat, require_overseer
 from ratlib.hastebin import post_to_hastebin
 from ratlib.util import timed
 
@@ -185,10 +187,16 @@ def cmd_sysrefresh(bot, trigger, db=None):
     msg = ""
 
     if privileged:
+        options = "" if not trigger.group(2) or trigger.group(2)[0] != '-' else trigger.group(2)[1:]
+        force = 'f' in options and (access & OP)
+        prune = not ('p' in options and (access & OP))
+
+
         try:
             refreshed = refresh_database(
                 bot,
-                force=access & OP and trigger.group(2) and trigger.group(2) == '-f',
+                force=force,
+                prune=prune,
                 callback=lambda: bot.say("Starting starsystem refresh...")
             )
             if refreshed:
@@ -205,7 +213,7 @@ def cmd_sysrefresh(bot, trigger, db=None):
     else:
         when = when.astimezone(datetime.timezone.utc)
         msg += "The starsystem database was refreshed at {} ({}) or an update is still in progress. It is only allowed every {} seconds.".format(
-            ratlib.format_timestamp(when), ratlib.format_timedelta(when), bot.config.ratbot.edsm_maxage or '<unknown>'
+            timeutil.format_timestamp(when), timeutil.format_timedelta(when), bot.config.ratbot.edsm_maxage or '<unknown>'
         )
     bot.say(msg)
 
@@ -319,7 +327,7 @@ def cmd_plot(bot, trigger, db=None):
                             jump = "  END"
                     text.append(sysline_fmt.format(jump=jump, sys=row.Starsystem))
             success = result[-1].final
-            elapsed = ratlib.format_timedelta(t.delta)
+            elapsed = timeutil.format_timedelta(t.delta)
             text.append('')
             if success:
                 text.append("Plot completed in {}.".format(elapsed))
@@ -359,3 +367,125 @@ def cmd_plot(bot, trigger, db=None):
     finally:
         if locked:
             bot.memory['ratbot']['plots_available'].release()
+
+
+@commands('landmark')
+@require_rat('You need to be a registered and drilled Rat to use this Command!')
+@with_session
+def cmd_landmark(bot, trigger, db=None):
+    """
+    Lists or modifies landmark starsystems.
+
+    !landmark list - Lists all known landmarks in a PM.
+    !landmark near <system> - Find the landmark closest to <system>
+    !landmark add <system> - Adds the listed starsystem as a landmark system.  (Overseer Only)
+    !landmark del <system> - Removes the listed starsystem from the landmark system lists.  (Overseer Only)
+    !landmark refresh - Updates all landmarks to match their current listed EDDB coordinates.  (Overseer Only)
+    """
+    pm = functools.partial(bot.say, destination=trigger.nick)
+    parts = re.split(r'\s+', trigger.group(2), maxsplit=1) if trigger.group(2) else None
+    subcommand = parts.pop(0).lower() if parts else None
+    system_name = parts.pop(0) if parts else None
+
+    def lookup_system(name, model=Starsystem):
+        return db.query(model).filter(model.name_lower == name.lower()).first()
+
+    def get_system_or_none(name):
+        if not system_name:
+            bot.reply("A starsystem name must be specified")
+            return None
+        starsystem = lookup_system(system_name)
+        if not starsystem:
+            bot.reply("Starsystem '{}' is not in the database".format(system_name))
+            return None
+        if not starsystem.has_coordinates:
+            bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
+            return None
+        return starsystem
+
+    def subcommand_list(*unused_args, **unused_kwargs):
+        if not trigger.is_privmsg:
+            bot.reply("Messaging you the list of landmark systems.")
+
+        ix = 0
+        for ix, landmark in enumerate(db.query(Landmark).order_by(Landmark.name_lower), start=1):
+            if landmark.xz is None or landmark.y is None:
+                loc = "UNKNOWN LOCATION"
+            else:
+                loc = "({landmark.x:.2f}, {landmark.y:.2f}, {landmark.z:.2f})".format(landmark=landmark)
+
+            pm("Landmark #{ix} - {landmark.name} @ {loc}".format(ix=ix, landmark=landmark, loc=loc))
+        pm("{} landmark system(s) defined.".format(ix))
+
+    def subcommand_near(*unused_args, **unused_kwargs):
+        starsystem = get_system_or_none(system_name)
+        if not starsystem:
+            return
+        landmark, distance = starsystem.nearest_landmark(db, True)
+        if not landmark:
+            bot.reply("Could not find a nearby landmark.  (Perhaps none are defined?)")
+            return
+        if not distance and starsystem.name_lower == landmark.name_lower:
+            bot.reply("{} is a landmark!".format(starsystem.name))
+            return
+        bot.reply(
+            "{starsystem.name} is {distance:.2f} LY from {landmark.name}"
+            .format(starsystem=starsystem, landmark=landmark, distance=distance)
+        )
+
+    @require_overseer
+    def subcommand_add(*unused_args, **unused_kwargs):
+        starsystem = get_system_or_none(system_name)
+        if not starsystem:
+            return
+        landmark = Landmark(name=starsystem.name, name_lower=starsystem.name_lower, xz=starsystem.xz, y=starsystem.y)
+        landmark = db.merge(landmark)
+        persistent = object_state(landmark).persistent
+        db.commit()
+
+        if persistent:
+            bot.reply("System '{}' was already a landmark.  Updated to current coordinates.".format(starsystem.name))
+        else:
+            bot.reply("Added system '{}' as a landmark.".format(starsystem.name))
+
+    @require_overseer
+    def subcommand_del(*unused_args, **unused_kwargs):
+        landmark = lookup_system(system_name, Landmark)
+        if landmark is None:
+            bot.reply("No such landmark '{}'".format(system_name))
+            return
+        db.delete(landmark)
+        db.commit()
+        bot.reply("Removed system '{}' from the list of landmarks.".format(landmark.name))
+        pass
+
+    @require_overseer
+    def subcommand_refresh(*unused_args, **unused_kwargs):
+        ct = (
+            db.query(Landmark)
+            .filter(Landmark.name_lower == Starsystem.name_lower)
+            .update({
+                Landmark.name: Starsystem.name,
+                Landmark.xz: Starsystem.xz,
+                Landmark.y: Starsystem.y
+            }, synchronize_session=False)
+        )
+        bot.reply("Synchronized {} landmark system(s).".format(ct))
+
+    subcommands = {
+        'list': subcommand_list,
+        'near': subcommand_near,
+        'add': subcommand_add,
+        'del': subcommand_del,
+        'refresh': subcommand_refresh,
+    }
+
+    if not subcommand:
+        bot.reply("Missing subcommand.  See !help landmark")
+    elif subcommand not in subcommands:
+        bot.reply(
+            "Unknown subcommand.  See !help landmark (or perhaps you meant !landmark near {})"
+            .format(trigger.group(2))
+        )
+    else:
+        return subcommands[subcommand](bot, trigger)

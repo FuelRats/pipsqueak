@@ -119,7 +119,7 @@ class DateTimeProperty(TrackedProperty):
                 # Current timestamps are 10 digits long.  It will be at least 200 years before this changes...
                 # so I think this is reasonably future-proof given it's a patch against an API bug.
                 if len(str(value)) > 10:
-                    value = value / 1000
+                    value /= 1000
             return datetime.datetime.fromtimestamp(value, tz=self.UTC)
         raise ValueError("Invalid datetime format")
 

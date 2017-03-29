@@ -7,7 +7,7 @@ import math
 
 import sqlalchemy as sa
 from sqlalchemy import sql, orm, schema
-from sqlalchemy.ext.hybrid import hybrid_method
+from sqlalchemy.ext.hybrid import hybrid_method, hybrid_property
 from sqlalchemy.ext.declarative import as_declarative, declared_attr
 import alembic.command
 import alembic.config
@@ -185,21 +185,8 @@ class Status(Base):
     starsystem_refreshed = sa.Column(sa.DateTime(timezone=True), nullable=True)  # Time of last refresh
 
 
-class StarsystemPrefix(Base):
-    first_word = sa.Column(sa.Text, primary_key=True)
-    word_ct = sa.Column(sa.Integer, nullable=False, primary_key=True)
-    ratio = sa.Column('ratio', sa.Float)
-    cume_ratio = sa.Column('cume_ratio', sa.Float)
-
-
-class Starsystem(Base):
-    eddb_id = sa.Column(sa.Integer, primary_key=True, autoincrement=False)
-    name_lower = sa.Column(sa.Text)
-    name = sa.Column(sa.Text, nullable=False)
-    first_word = sa.Column(sa.Text, nullable=False)
-    word_ct = sa.Column(sa.Integer, nullable=False)
-    xz = sa.Column(SQLPoint)
-    y = sa.Column(sa.Numeric(asdecimal=False))
+class StarsystemUtilsMixin(Base):
+    __abstract__ = True
 
     @property
     def x(self):
@@ -209,9 +196,17 @@ class Starsystem(Base):
     def z(self):
         return None if self.xz is None else self.xz.z
 
+    @hybrid_property
+    def has_coordinates(self):
+        return self.xz is not None and self.y is not None
+
+    @has_coordinates.expression
+    def has_coordinates(cls):
+        return sql.and_(cls.xz.isnot(None), cls.y.isnot(None))
+
     @hybrid_method
     def distance(self, other):
-        if self.xz is None or self.y is None or other.xz is None or other.y is None:
+        if not self.has_coordinates or not other.has_coordinates:
             return None
         dx = self.xz.x - other.xz.x
         dy = self.y - other.y
@@ -222,6 +217,24 @@ class Starsystem(Base):
     def distance(cls, other):
         return sql.func.starsystem_distance(cls.xz, cls.y, other.xz, other.y)
 
+
+class StarsystemPrefix(Base):
+    first_word = sa.Column(sa.Text, primary_key=True)
+    word_ct = sa.Column(sa.Integer, nullable=False, primary_key=True)
+    ratio = sa.Column('ratio', sa.Float)
+    cume_ratio = sa.Column('cume_ratio', sa.Float)
+
+
+class Starsystem(StarsystemUtilsMixin):
+    eddb_id = sa.Column(sa.Integer, primary_key=True, autoincrement=False)
+    name_lower = sa.Column(sa.Text)
+    name = sa.Column(sa.Text, nullable=False)
+    first_word = sa.Column(sa.Text, nullable=False)
+    word_ct = sa.Column(sa.Integer, nullable=False)
+    xz = sa.Column(SQLPoint)
+    y = sa.Column(sa.Numeric(asdecimal=False))
+
+
     prefix = orm.relationship(StarsystemPrefix, backref=orm.backref('systems', lazy=True), lazy=True)
     __table_args__ = (
         sa.ForeignKeyConstraint([first_word, word_ct], [StarsystemPrefix.first_word, StarsystemPrefix.word_ct]),
@@ -230,6 +243,43 @@ class Starsystem(Base):
         sa.Index('starsystem__y', y),
         sa.Index('starsystem__prefix', first_word, word_ct)
     )
+
+    def nearest_landmark(self, db, with_distance=False):
+        """
+        Returns the nearest Landmark.
+
+        If this system has unknown coordinates, or no landmark systems exist, returns None.
+
+        :param db: Database session
+        :param with_distance: If True, returns a tuple of (landmark, distance) instead of just the landmark.
+        """
+        if not self.has_coordinates:
+            return None
+
+        distance = sql.func.starsystem_distance(Landmark.xz, Landmark.y, sql.cast(self.xz, SQLPoint), self.y)
+        query = (
+            db.query(Landmark, distance.label("distance"))
+            .filter(Landmark.has_coordinates)
+            .order_by(distance)
+        )
+
+        result = query.first()
+
+        if not result:
+            if with_distance:
+                return None, None
+            return None
+        if with_distance:
+            return result.Landmark, result.distance
+        return result.Landmark
+
+
+
+class Landmark(StarsystemUtilsMixin):
+    name_lower = sa.Column(sa.Text, primary_key=True)
+    name = sa.Column(sa.Text, nullable=False)
+    xz = sa.Column(SQLPoint)
+    y = sa.Column(sa.Numeric(asdecimal=False))
 
 
 def get_status(db):

@@ -55,6 +55,7 @@ def import_facts(bot, merge=False, db=None):
 
     :param bot: Sopel instance
     :param merge: If True, incoming facts overwrite existing ones rather than being ignored.
+    :param db: Database session.
     """
     filename = bot.config.ratfacts.filename
     if not filename:

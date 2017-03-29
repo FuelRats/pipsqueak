@@ -1,7 +1,7 @@
 """
 Support for certain extended SQL types.
 """
-from sqlalchemy import types
+from sqlalchemy import types, sql
 import re
 import operator
 
@@ -34,13 +34,14 @@ class SQLPoint(types.UserDefinedType):
     def get_col_spec(self):
         return "POINT"
 
+
     def bind_processor(self, dialect):
         def process(value):
             if value is None:
                 return value
             if None in value:
                 raise ValueError('Value cannot contain None values')
-            return "(" + ",".format(str(x) for x in value), ")"
+            return ",".join(str(x) for x in value)
         return process
 
     def result_processor(self, dialect, coltype):
@@ -49,3 +50,8 @@ class SQLPoint(types.UserDefinedType):
                 return value
             return Point(self.number_type(x) for x in self._re_pattern.match(value).groups())
         return process
+
+    def bind_expression(self, bindvalue):
+        if bindvalue.value is None:
+            return None
+        return sql.func.point(bindvalue, type_=self)
