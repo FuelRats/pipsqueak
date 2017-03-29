@@ -22,30 +22,27 @@ import math
 import sys
 import contextlib
 import traceback
+import threading
+import operator
+import concurrent.futures
 
 # Sopel imports
 from sopel.formatting import bold, color, colors
 from sopel.module import commands, NOLIMIT, priority, require_chanmsg, rule
 from sopel.tools import Identifier, SopelMemory
+from sopel.config.types import StaticSection, ValidatedAttribute
+from sopel.module import require_privmsg, rate
+
 import ratlib.sopel
-
-import threading
-import operator
-import concurrent.futures
-
-from ratlib import friendly_timedelta, format_timestamp
-
+from ratlib import timeutil
 from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
 from ratlib.api.names import *
 from ratlib.sopel import UsageError
-from sopel.config.types import StaticSection, ValidatedAttribute
-from sopel.module import require_privmsg, rate
 import ratlib.api.http
 import ratlib.db
-from ratlib.db import Starsystem
-from ratlib import starsystem
+from ratlib.db import with_session, Starsystem
 
 urljoin = ratlib.api.http.urljoin
 
@@ -134,8 +131,8 @@ class RescueBoard:
     INDEX_TYPES = {
         'boardindex': operator.attrgetter('boardindex'),
         'id': operator.attrgetter('id'),
-        'client': lambda x: None if not x.data['IRCNick'] else str(x.data['IRCNick']).lower(),
-
+        'client': lambda x: x.client.lower(),
+        'nick': lambda x: None if not x.data.get('IRCNick') else str(x.data['IRCNick']).lower(),
     }
 
     MAX_POOLED_CASES = 10
@@ -250,6 +247,7 @@ class RescueBoard:
         """
         Attempts to find a rescue attached to this board.  If it fails, possibly creates one instead.
 
+        :param search: What to search for.
         :param create: Whether to create a case that's not found.  Even if True, this only applies for certain types of
         searches.
         :return: A FindRescueResult tuple of (rescue, created), both of which will be None if no case was found.
@@ -274,17 +272,23 @@ class RescueBoard:
             return FindRescueResult(rescue, False if rescue else None)
 
         if not search:
-            return None, None
+            return FindRescueResult(None, None)
 
         if search[0] == '@':
             rescue = self.indexes['id'].get(search[1:], None),
             return FindRescueResult(rescue, False if rescue else None)
 
         # print('Indexes: '+str(self.indexes))
-        rescue = self.indexes['client'].get(search.lower())
-        if not rescue:
-            spacesearch = search.replace('_', ' ')
-            rescue = self.indexes['client'].get(spacesearch.lower())
+        searchterms = [search.lower()]
+        searchterms.append(searchterms[0].replace('_', ' '))
+        for index in 'client', 'nick':
+            for term in searchterms:
+                rescue = self.indexes[index].get(term)
+                if rescue:
+                    break
+            else:
+                continue
+            break
 
         if rescue or not create:
             return FindRescueResult(rescue, False if rescue else None)
@@ -399,6 +403,7 @@ def refresh_cases(bot, rescue=None, force=False):
     Grab all open cases from the API so we can work with them.
     :param bot: Sopel bot
     :param rescue: Individual rescue to refresh.
+    :param force: True forcibly wipes the board and refreshes it clean.  False merges changes instead.
     """
     if not bot.config.ratbot.apiurl:
         warnings.warn("No API URL configured.  Operating in offline mode.")
@@ -547,6 +552,8 @@ class AppendQuotesResult:
             return []
         rv = ["Case " + str(self.rescue.boardindex)]
         if self.detected_platform:
+            if self.detected_platform.upper() == 'PS':
+                self.detected_platform = 'ps4'
             rv.append(self.detected_platform.upper())
         if self.detected_system:
             rv.append(self.detected_system)
@@ -624,6 +631,16 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
                     """, line, flags=re.IGNORECASE | re.VERBOSE
             ):
                 platforms.add('xb')
+            if re.search(
+                    r"""
+                    (?:[^\w-]|\A)  # Beginning of line, or non-hyphen word boundary
+                    [pP](?:lay)?(?:[- ])?[sS](?:tation)?      # ... followed by "ps" or "playstation" or "pstation" or "plays" or "Play Station" or ....
+                    (?:[- ]?(?:4|four))?  # ... maybe followed by 4/four, possibly w/ leading hyphen/space
+                    (?:[^\w-]|\Z)  # End of line, or non-hyphen word boundary
+                    """, line, flags=re.IGNORECASE | re.VERBOSE
+            ):
+                if bot.config.ratboard.enable_ps_support == 'True' or False:
+                    platforms.add('ps')
         if len(platforms) == 1:
             rv.rescue.platform = platforms.pop()
             rv.detected_platform = rv.rescue.platform
@@ -701,7 +718,8 @@ def cmd_quote(bot, trigger, rescue):
 
 def func_quote(bot, trigger, rescue, showboardindex=True):
     tags = ['unknown platform' if not rescue.platform or rescue.platform == 'unknown' else rescue.platform.upper()]
-
+    if tags[0] == 'PS':
+        tags[0] = 'PS4'
     if rescue.epic:
         tags.append("epic")
     if rescue.codeRed:
@@ -716,10 +734,10 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
 
     bot.say(fmt.format(
         client=rescue.client_name, index=rescue.boardindex, tags=", ".join(tags),
-        opened=format_timestamp(rescue.createdAt) if rescue.createdAt else '<unknown>',
-        updated=format_timestamp(rescue.updatedAt) if rescue.updatedAt else '<unknown>',
-        opened_ago=friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
-        updated_ago=friendly_timedelta(rescue.updatedAt) if rescue.updatedAt else '???',
+        opened=timeutil.format_timestamp(rescue.createdAt) if rescue.createdAt else '<unknown>',
+        updated=timeutil.format_timestamp(rescue.updatedAt) if rescue.updatedAt else '<unknown>',
+        opened_ago=timeutil.friendly_timedelta(rescue.createdAt) if rescue.createdAt else '???',
+        updated_ago=timeutil.friendly_timedelta(rescue.updatedAt) if rescue.updatedAt else '???',
         id=rescue.id or 'pending',
         system=rescue.system or 'an unknown system',
         title=rescue.title
@@ -762,7 +780,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
         rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     try:
-        url = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)['shorturl']
+        url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
     except:
         print('[RatBoard] Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
 
@@ -843,8 +861,10 @@ def cmd_list(bot, trigger, params=''):
         t = []
         t.append("{num} {name} case{s}".format(num=num, name=name, s=s))
         if expand:
-            # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the rescues have more than 0 assigned rats
-            # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was implemented.
+            # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the
+            # rescues have more than 0 assigned rats
+            # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was
+            # implemented.
             templist = (format_rescue(bot, rescue, attr, showassigned, showids, hideboardindexes=False,
                                       showmarkedfordeletionreason=False) if (
                 (not unassigned) or (len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)) else 'IGNOREME' for
@@ -890,6 +910,8 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
         platform = color(' XB', colors.GREEN)
     if platform == 'pc':
         platform = ' PC'
+    if platform == 'ps':
+        platform = color(' PS4', colors.LIGHT_BLUE)
     if showassigned:
         assignedratsstring = ' Assigned Rats: '
         for rat in rescue.rats:
@@ -1163,7 +1185,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     """
     rescue.platform = platform
     bot.say(
-        "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
+        "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=('PS4' if rescue.platform.upper() == 'PS' else rescue.platform.upper()))
     )
     save_case_later(
         bot, rescue,
@@ -1188,6 +1210,14 @@ def cmd_platform_xb(bot, trigger):
     """Sets a case's platform to XB"""
     return cmd_platform(bot, trigger, platform='xb')
 
+@commands('ps(?:4)?')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+def cmd_plaform_ps(bot, trigger):
+    """Sets a case's platform to PlayStation"""
+    if bot.config.ratboard.enable_ps_support == 'True' or False:
+        return cmd_platform(bot, trigger, platform='ps')
+    else:
+        bot.say("PlayStation Support not yet enabled.")
 
 @commands('sys', 'system', 'loc', 'location')
 @ratlib.sopel.filter_output
@@ -1248,59 +1278,123 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
         )
     )
 
+_ratmama_regex = re.compile(r"""
+    (?x)
+    # The above makes whitespace and comments in the pattern ignored.
+    # Saved at https://regex101.com/r/kt3gjH/3
+    \s*                                  # Handle any possible leading whitespace
+    Incoming\s+Client:\s*   # Match "Incoming Client" prefix
+    # Wrap the entirety of rest of the pattern in a group to make it easier to echo the entire thing
+    (?P<all>
+    (?P<cmdr>[^@#\d\s].*?)               # Match CDMR name.  Don't allow leading digits or @/#, as it breaks things
+                                         # (and probably isn't a legal name anyways).  Dispatch can manually handle
+                                         # those cases if it turns out to be a thing, or someone can fix Ratmama too.
+    \s+-\s+                              #  -
+    System:\s*(?P<system>.*?)            # Match system name
+    \s+-\s+                              #  -
+    Platform:\s*(?P<platform>\w+)        # Match platform (currently can't contain spaces)
+    \s+-\s+                              #  -
+    O2:\s*(?P<o2>.+?)                    # Match oxygen status
+    \s+-\s+                              #  -
+    Language:\s*
+    (?P<full_language>                   # Match full language text (for regenerating the line)
+    (?P<language>.+?)\s*                 # Match language name. (currently unused)
+    \(                                   # The "(" of "(en-US)"
+    (?P<language_code>.+?)               # "en"
+    (?:                                  # Optional group
+        -(?P<language_country>.+)        # "-", "US" (currently unused)
+    )?                                   # Actually make the group optional.
+    \)                                   # The ")" of "(en-US)"
+    )                                    # End of full language text
+    (?:                                  # Possibly match IRC nickname
+    \s+-\s+                              #  -
+    IRC\s+Nickname:\s*(?P<nick>[^\s]+)   # IRC nickname
+    )?                                   # ... emphasis on "Possibly"
+    )                                    # End of the main capture group
+    \s*                                  # Handle any possible trailing whitespace
+    $                                    # End of pattern
+""")
 
 @rule('Incoming Client:.* - O2:.*')
-def ratmama_parse(bot, trigger):
-    '''
-    Parse Incoming Kiwiirc clients (gets announced by ratmama)
+@require_chanmsg
+@with_session
+def ratmama_parse(bot, trigger, db):
+    """
+    Parse Incoming KiwiIRC clients that are announced by RatMama
+
     :param trigger: line that triggered this
-    '''
+    """
     # print('[RatBoard] triggered ratmama_parse')
-    line = trigger.group()
     # print('[RatBoard] line: ' + line)
-    if Identifier(trigger.nick) == 'Ratmama[BOT]':
-        import re
-        newline = line.replace("Incoming Client:", bot.config.ratboard.signal.upper() + " - CMDR")
-        cmdr = re.search('(?<=CMDR ).*?(?= - )', newline).group()
-        system = re.search('(?<=System: ).*?(?= - )', newline).group()
-        platform = re.search('(?<=Platform: ).*?(?= - )', newline).group()
-        crstring = re.search('(?<=O2: ).*?(?= -)', newline).group()
-        langID = re.search('Language: .* \((.*)\)', newline).group(1)
-        try:
-            ircnick = re.search('(?<= - IRC Nickname: ).*', newline).group()
-        except:
-            ircnick = cmdr
-        try:
-            langID = langID[0:langID.index('-')]
-        except ValueError:
-            pass
-        result = append_quotes(bot, cmdr, [newline], create=True)
-        cr = False
-        if crstring != "OK":
-            cr = True
-            newline = newline.replace(crstring, color('\u0002' + crstring + '\u000F', colors.RED))
-        if platform == 'XB':
-            newline = newline.replace(platform, color(platform, colors.GREEN))
-        if not result.rescue.system:
-            result.rescue.system = system
-        newline = newline.replace(cmdr, '\u0002' + cmdr + '\u000F').replace(system,
-                                                                            '\u0002' + result.rescue.system + '\u000F').replace(
-            platform, '\u0002' + platform + '\u000F')
-        result.rescue.codeRed = cr
-        result.rescue.platform = platform.lower()
-        with bot.memory['ratbot']['board'].change(result.rescue):
-            result.rescue.data.update(defaultdata)
-            result.rescue.data.update(
-                {'langID': langID, 'IRCNick': ircnick, "boardIndex": int(result.rescue.boardindex)})
-        save_case_later(bot, result.rescue, forceFull=True)
-        if result.created:
-            bot.say(newline + ' (Case #' + str(result.rescue.boardindex) + ')')
-            if cr:
-                prepcrstring = getFact(bot, factname='prepcr', lang=langID)
-                bot.say(
-                    result.rescue.client + " " + prepcrstring)
+
+    if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin'):
+        match = _ratmama_regex.fullmatch(trigger.group())
+        if not match:
+            return
+
+        # Parse results
+        fields = match.groupdict()
+        fields["ratsignal"] = bot.config.ratboard.signal.upper()
+
+        # Create format string
+        fmt = (
+            "{ratsignal} - CMDR {cmdr} - System: {system} - Platform: {platform} - O2: {o2}"
+            " - Language: {full_language}"
+        )
+        if fields["nick"]:
+            fmt += " - IRC Nickname: {nick}"
+
+        # Create plaintext versions of newline
+        newline = fmt.format(**fields)
+        result = append_quotes(bot, fields["cmdr"], fmt.format(**fields), create=True)
+        case = result.rescue  # Reduce typing later.
+
+        # Update the case
+        if not case.system:
+            case.system = fields["system"]
+        case.codeRed = (fields["o2"] != "OK")
+        if fields["platform"] == "PS4":
+            case.platform = "ps"
         else:
-            bot.say('Client ' + result.rescue.client + ' has reconnected to the IRC!')
+            case.platform = fields["platform"].lower()
+        with bot.memory['ratbot']['board'].change(case):
+            case.data.update(defaultdata)
+            case.data.update({
+                'langID': fields["language_code"],
+                'IRCNick': fields["nick"],
+                "boardIndex": int(case.boardindex)
+            })
+
+        if not fields["nick"]:
+            fields["nick"] = fields["cmdr"]
+
+        save_case_later(bot, case, forceFull=True)
+        if result.created:
+            # Add IRC formatting to fields, then substitute them into to output to the channel
+            # (But only if this is a new case, because we aren't using it otherwise)
+            system = db.query(Starsystem).filter(Starsystem.name_lower == fields["system"].lower()).first()
+
+            if case.codeRed:
+                fields["o2"] = bold(color(fields["o2"], colors.RED))
+
+            if case.platform == 'xb':
+                fields["platform"] = color(fields["platform"], colors.GREEN)
+            elif case.platform == 'ps':
+                fields["platform"] = color("PS4", colors.LIGHT_BLUE)
+            fields["platform"] = bold(fields["platform"])
+            fields["system"] = bold(fields["system"])
+            fields["cmdr"] = bold(fields["cmdr"])
+
+            if system:
+                nearest, distance = system.nearest_landmark(db, with_distance=True)
+                if nearest and nearest.name_lower != system.name_lower:
+                    fields["system"] += " ({:.2f} LY from {})".format(distance, nearest.name)
+            else:
+                fields["system"] += " (not in EDDB)"
+
+            bot.say((fmt + " (Case #{boardindex})").format(boardindex=case.boardindex, **fields))
+        else:
+            bot.say("{0.client} has reconnected to the IRC! (Case #{0.boardindex})".format(case))
 
 
 @commands('closed', 'recent')
@@ -1452,7 +1546,7 @@ def cmd_pwl(bot, trigger, case):
         rescue=case, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     shortened = url
     if bot.memory['ratbot']['shortener']:
-        shortened = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)['shorturl']
+        shortened = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
     bot.reply('Here you go: ' + str(shortened))
 
 
@@ -1463,14 +1557,13 @@ def cmd_version(bot, trigger):
     Shows the bot's current version and Uptime
     aliases: version, uptime
     """
-    from ratlib import format_timedelta, format_timestamp
     started = bot.memory['ratbot']['stats']['started']
     bot.say(
         "Version {version}, up {delta} since {time}"
             .format(
             version=bot.memory['ratbot']['version'],
-            delta=format_timedelta(datetime.datetime.now(tz=started.tzinfo) - started),
-            time=format_timestamp(started)
+            delta=timeutil.format_timedelta(datetime.datetime.now(tz=started.tzinfo) - started),
+            time=timeutil.format_timestamp(started)
         )
     )
 
