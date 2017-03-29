@@ -127,6 +127,9 @@ lang = en
 # Use drillsignal for drillsqueak, testsignal for debugging
 signal = ratsignal
 
+# Enables PlayStation Support
+enable_ps_support = False
+
 [socket]
 # Tracker Configuration
 websocketurl = 12345

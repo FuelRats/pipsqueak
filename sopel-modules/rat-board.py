@@ -552,6 +552,8 @@ class AppendQuotesResult:
             return []
         rv = ["Case " + str(self.rescue.boardindex)]
         if self.detected_platform:
+            if self.detected_platform.upper() == 'PS':
+                self.detected_platform = 'ps4'
             rv.append(self.detected_platform.upper())
         if self.detected_system:
             rv.append(self.detected_system)
@@ -629,6 +631,16 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
                     """, line, flags=re.IGNORECASE | re.VERBOSE
             ):
                 platforms.add('xb')
+            if re.search(
+                    r"""
+                    (?:[^\w-]|\A)  # Beginning of line, or non-hyphen word boundary
+                    [pP](?:lay)?(?:[- ])?[sS](?:tation)?      # ... followed by "ps" or "playstation" or "pstation" or "plays" or "Play Station" or ....
+                    (?:[- ]?(?:4|four))?  # ... maybe followed by 4/four, possibly w/ leading hyphen/space
+                    (?:[^\w-]|\Z)  # End of line, or non-hyphen word boundary
+                    """, line, flags=re.IGNORECASE | re.VERBOSE
+            ):
+                if bot.config.ratboard.enable_ps_support == 'True' or False:
+                    platforms.add('ps')
         if len(platforms) == 1:
             rv.rescue.platform = platforms.pop()
             rv.detected_platform = rv.rescue.platform
@@ -706,7 +718,8 @@ def cmd_quote(bot, trigger, rescue):
 
 def func_quote(bot, trigger, rescue, showboardindex=True):
     tags = ['unknown platform' if not rescue.platform or rescue.platform == 'unknown' else rescue.platform.upper()]
-
+    if tags[0] == 'PS':
+        tags[0] = 'PS4'
     if rescue.epic:
         tags.append("epic")
     if rescue.codeRed:
@@ -897,6 +910,8 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
         platform = color(' XB', colors.GREEN)
     if platform == 'pc':
         platform = ' PC'
+    if platform == 'ps':
+        platform = color(' PS4', colors.LIGHT_BLUE)
     if showassigned:
         assignedratsstring = ' Assigned Rats: '
         for rat in rescue.rats:
@@ -1170,7 +1185,7 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     """
     rescue.platform = platform
     bot.say(
-        "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=rescue.platform.upper())
+        "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=('PS4' if rescue.platform.upper() == 'PS' else rescue.platform.upper()))
     )
     save_case_later(
         bot, rescue,
@@ -1195,6 +1210,14 @@ def cmd_platform_xb(bot, trigger):
     """Sets a case's platform to XB"""
     return cmd_platform(bot, trigger, platform='xb')
 
+@commands('ps(?:4)?')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+def cmd_plaform_ps(bot, trigger):
+    """Sets a case's platform to PlayStation"""
+    if bot.config.ratboard.enable_ps_support == 'True' or False:
+        return cmd_platform(bot, trigger, platform='ps')
+    else:
+        bot.say("PlayStation Support not yet enabled.")
 
 @commands('sys', 'system', 'loc', 'location')
 @ratlib.sopel.filter_output
@@ -1303,6 +1326,7 @@ def ratmama_parse(bot, trigger, db):
     """
     # print('[RatBoard] triggered ratmama_parse')
     # print('[RatBoard] line: ' + line)
+
     if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin'):
         match = _ratmama_regex.fullmatch(trigger.group())
         if not match:
@@ -1329,7 +1353,10 @@ def ratmama_parse(bot, trigger, db):
         if not case.system:
             case.system = fields["system"]
         case.codeRed = (fields["o2"] != "OK")
-        case.platform = fields["platform"].lower()
+        if fields["platform"] == "PS4":
+            case.platform = "ps"
+        else:
+            case.platform = fields["platform"].lower()
         with bot.memory['ratbot']['board'].change(case):
             case.data.update(defaultdata)
             case.data.update({
@@ -1342,7 +1369,6 @@ def ratmama_parse(bot, trigger, db):
             fields["nick"] = fields["cmdr"]
 
         save_case_later(bot, case, forceFull=True)
-
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
@@ -1353,8 +1379,8 @@ def ratmama_parse(bot, trigger, db):
 
             if case.platform == 'xb':
                 fields["platform"] = color(fields["platform"], colors.GREEN)
-            # elif case.platform == 'ps4':
-            #     fields["platform"] = color(fields["platform"], colors.BLUE)
+            elif case.platform == 'ps':
+                fields["platform"] = color("PS4", colors.LIGHT_BLUE)
             fields["platform"] = bold(fields["platform"])
             fields["system"] = bold(fields["system"])
             fields["cmdr"] = bold(fields["cmdr"])
