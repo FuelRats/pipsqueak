@@ -15,14 +15,13 @@ try:
 except ImportError:
     import collections as collections_abc
 
-
 import requests
 import sqlalchemy as sa
 from sqlalchemy import sql, orm, schema
 
 from ratlib.db import get_status, get_session, with_session, Starsystem, StarsystemPrefix, SQLPoint, Point
 from ratlib.bloom import BloomFilter
-from ratlib import format_timestamp
+from ratlib.timeutil import format_timestamp
 from ratlib.util import timed, TimedResult
 
 FLUSH_THRESHOLD = 25000  # Chunk size when refreshing starsystems
@@ -32,11 +31,17 @@ class ConcurrentOperationError(RuntimeError):
     pass
 
 
-def refresh_database(bot, force=False, limit_one=True, callback=None, background=False, _lock=threading.Lock()):
+def refresh_database(
+        bot,
+        force=False, prune=True,
+        limit_one=True, callback=None, background=False,
+        _lock=threading.Lock()
+):
     """
     Refreshes the database of starsystems.  Also rebuilds the bloom filter.
     :param bot: Bot instance
     :param force: True to force refresh regardless of age.
+    :param prune: True to prune non-updated systems.  Keep True unless performance testing.
     :param limit_one: If True, prevents multiple concurrent refreshes.
     :param callback: Optional function that is called as soon as the system determines a refresh is needed.
         If running in the background, the function will be called immediately prior to the background task being
@@ -55,7 +60,7 @@ def refresh_database(bot, force=False, limit_one=True, callback=None, background
             if not release:
                 print('refresh_database call already in progress! Aborting.')
                 return False
-        result = _refresh_database(bot, force, callback, background)
+        result = _refresh_database(bot, force=force, prune=prune, callback=callback, background=background)
         if result and background and release:
             result.add_done_callback(lambda *a, **kw: _lock.release())
             release = False
@@ -66,13 +71,14 @@ def refresh_database(bot, force=False, limit_one=True, callback=None, background
 
 
 @with_session
-def _refresh_database(bot, force=False, callback=None, background=False, db=None):
+def _refresh_database(bot, force=False, prune=True, callback=None, background=False, db=None):
     """
     Actual implementation of refresh_database.
 
     Refreshes the database of starsystems.  Also rebuilds the bloom filter.
     :param bot: Bot instance
     :param force: True to force refresh
+    :param prune: True to prune non-updated systems.  Keep True unless performance testing.
     :param callback: Optional function that is called as soon as the system determines a refresh is needed.
     :param background: If True and a refresh is needed, it is submitted as a background task rather than running
         immediately.
@@ -158,7 +164,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
     )
     temptable.create(conn)
 
-    tablenames = {
+    sql_args = {
         'sp': StarsystemPrefix.__tablename__,
         's': Starsystem.__tablename__,
         'ts': temptable.name,
@@ -173,7 +179,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
 
     def exec(sql, *args, **kwargs):
         try:
-            conn.execute(sql.format(*args, **kwargs, **tablenames))
+            conn.execute(sql.format(*args, **kwargs, **sql_args))
         except Exception as ex:
             log("Query failed.")
             import traceback
@@ -240,24 +246,27 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
 
     with timed() as t:
         log("Removing possible duplicates")
-        # Not the most elegant, but it'll do
-        exec("""
-            WITH latest AS (
-                SELECT MAX(id) AS id, eddb_id
-                FROM {ts}
-                GROUP BY eddb_id
-            ) DELETE FROM {ts} AS t USING latest WHERE latest.eddb_id=t.eddb_id AND latest.id<>t.id
-        """)
-        log("Removing non-updates to existing systems")
-        # If a starsystem has been updated, at least one of 'name', 'xz' or 'y' are guarunteed to have changed.
-        # (A change that effects word_ct would effect name as well, for instance.)
-        # Delete any temporary systems that exist in the real table with matching attributes.
-        exec("""
-            DELETE FROM {ts} AS t USING {s} AS s
-            WHERE s.eddb_id=t.eddb_id
-            AND ROW(s.name, s.y) IS NOT DISTINCT FROM ROW(t.name, t.y)
-            AND ((s.xz IS NULL)=(t.xz IS NULL)) AND (s.xz~=t.xz OR s.xz IS NULL)
-        """)
+        exec("DELETE FROM {ts} WHERE eddb_id NOT IN(SELECT MAX(id) AS id FROM {ts} GROUP BY eddb_id)")
+
+        # No need for the temporary 'id' column at this point.
+        exec("ALTER TABLE {ts} DROP id CASCADE");
+        # Making this a primary key (or even just a unique key) apparently affects query planner performance vs the
+        # non-existing unique key.
+        exec("ALTER TABLE {ts} ADD PRIMARY KEY(eddb_id)");
+
+        if prune:
+            log("Removing non-updates to existing systems")
+            # If a starsystem has been updated, at least one of 'name', 'xz' or 'y' are guaranteed to have changed.
+            # (A change that effects word_ct would effect name as well, for instance.)
+            # Delete any temporary systems that exist in the real table with matching attributes.
+            exec("""
+                DELETE FROM {ts} AS t USING {s} AS s
+                WHERE s.eddb_id=t.eddb_id
+                AND ROW(s.name, s.y) IS NOT DISTINCT FROM ROW(t.name, t.y)
+                AND ((s.xz IS NULL)=(t.xz IS NULL)) AND (s.xz~=t.xz OR s.xz IS NULL)
+            """)
+        else:
+            log("Skipping non-update removal phase")
     stats['prune'] += t.seconds
 
     with timed() as t:
@@ -268,28 +277,19 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             AS SELECT DISTINCT first_word, word_ct FROM {ts}
         """)
 
-        # Outdate stats on listed prefixes
-        # This is now implemented differently.
-        # exec("""
-        #     UPDATE {sp} AS sp
-        #     SET ratio=NULL, cume_ratio=NULL
-        #     FROM {tsp} AS t
-        #     WHERE sp.first_word=t.first_word AND sp.word_ct=t.word_ct
-        # """)
-
         # Insert new prefixes
         exec("""
             INSERT INTO {sp} (first_word, word_ct)
             SELECT t.first_word, t.word_ct
             FROM
                 {tsp} AS t
-                LEFT JOIN starsystem_prefix AS sp ON sp.first_word=t.first_word AND sp.word_ct=t.word_ct
+                LEFT JOIN {sp} AS sp ON sp.first_word=t.first_word AND sp.word_ct=t.word_ct
             WHERE sp.first_word IS NULL
         """)
     stats['prefixes'] += t.seconds
 
     with timed() as t:
-        # Update existing systems
+        log("Updating existing systems.")
         exec("""
             UPDATE {s} AS s
             SET name_lower=t.name_lower, name=t.name, first_word=t.first_word, word_ct=t.word_ct, xz=t.xz, y=t.y
@@ -297,7 +297,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             WHERE s.eddb_id=t.eddb_id
         """)
 
-        # Insert new systems
+        log("Inserting new systems.")
         exec("""
             INSERT INTO {s} (eddb_id, name_lower, name, first_word, word_ct, xz, y)
             SELECT t.eddb_id, t.name_lower, t.name, t.first_word, t.word_ct, t.xz, t.y
@@ -305,6 +305,7 @@ def _refresh_database(bot, force=False, callback=None, background=False, db=None
             LEFT JOIN {s} AS s ON s.eddb_id=t.eddb_id
             WHERE s.eddb_id IS NULL
         """)
+
     stats['systems'] += t.seconds
 
     with timed() as t:

@@ -59,6 +59,7 @@ def shorten_cmd(bot, trigger, url, keyword=None):
         result = shortener.shorten(url, keyword)
     except ShortenerError as ex:
         if ex.status == 'error:keyword':
+
             bot.reply('That keyword is already taken, sorry. Please try again with another one.')
         else:
             bot.reply(ex.message)

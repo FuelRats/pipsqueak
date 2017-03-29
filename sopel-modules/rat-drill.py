@@ -31,7 +31,7 @@ def listDrills(bot, trigger):
     """Lists all current rats waiting for a drill, and their drill type."""
 
     #Argument parsing
-    if trigger.group(3) != None:
+    if trigger.group(3) is not None:
         arg = trigger.group(3).lower()
     else:
         arg = ''
@@ -86,10 +86,10 @@ def addDrill(bot, trigger):
     -b = [b]oth types of drills."""
 
     #Argument parsing
-    if trigger.group(3) == None:
+    if trigger.group(3) is None:
         return bot.reply('Missing 2 arguments.')
 
-    if trigger.group(4) == None:
+    if trigger.group(4) is None:
         return bot.reply('Missing 1 argument.')
 
     arg = trigger.group(3).lower()
@@ -132,7 +132,7 @@ def removeDrill(bot, trigger):
     NOTE: to only remove the rat from 1 type, use !drilladd instead"""
 
     #Argument parsing
-    if trigger.group(3) == None:
+    if trigger.group(3) is None:
         return bot.reply('I need a rat to remove...')
     else:
         CMDR = trigger.group(3)

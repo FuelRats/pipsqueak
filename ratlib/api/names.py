@@ -14,7 +14,7 @@ def getRatId(bot, ratname, platform=None):
     if ratname in savedratids.keys():
         element = savedratids.get(ratname)
         strippedname = removeTags(ratname)
-        if (platform == None) and ((str(element['name']).lower()==str(ratname).lower()) or str(element['name']).lower()==str(strippedname).lower() or str(element['name']).lower()==str(strippedname.replace('_',' ')).lower()):
+        if (platform is None) and ((str(element['name']).lower()==str(ratname).lower()) or str(element['name']).lower()==str(strippedname).lower() or str(element['name']).lower()==str(strippedname.replace('_',' ')).lower()):
             # print('platform was None and '+ratname+' was in keys and the name matched. returning '+str(element))
             return element
         elif (platform == element['platform']) and ((str(element['name']).lower()==str(ratname).lower()) or str(element['name']).lower()==str(strippedname).lower() or str(element['name']).lower()==str(strippedname.replace('_',' ')).lower()):
@@ -31,7 +31,7 @@ def getRatId(bot, ratname, platform=None):
         data = result['data']
         # print(data)
         returnlist = []
-        if platform == None:
+        if platform is None:
             if len(data) == 0:
                 raise Exception
             firstmatch = data[0]
