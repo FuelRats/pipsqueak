@@ -780,7 +780,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
         rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     try:
-        url = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)['shorturl']
+        url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
     except:
         print('[RatBoard] Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
 
@@ -1546,7 +1546,7 @@ def cmd_pwl(bot, trigger, case):
         rescue=case, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     shortened = url
     if bot.memory['ratbot']['shortener']:
-        shortened = bot.memory['ratbot']['shortener'].shortenUrl(bot, url)['shorturl']
+        shortened = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
     bot.reply('Here you go: ' + str(shortened))
 
 
