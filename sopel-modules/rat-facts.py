@@ -176,7 +176,7 @@ def cmd_recite_fact(bot, trigger):
     multiple = False
     lines = None
 
-    if len(fact) > 400:
+    if len(fact.message) > 400:
         multiple = True
         lines = textwrap.wrap(fact.message, 400, break_long_words=False)
 
