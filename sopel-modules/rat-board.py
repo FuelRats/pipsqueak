@@ -1075,8 +1075,11 @@ def cmd_active(bot, trigger, rescue):
 def cmd_epic(bot, trigger, rescue):
     """
     Toggle a case epic/not epic
+    CURRENTLY DISABLED
     required parameters: client name.
     """
+    bot.say("Sorry, this command is currently disabled as the epic status is ignored by the API.")
+    return
     rescue.epic = not rescue.epic
     bot.say(
         "{rescue.client_name}'s case is now {epic}"
