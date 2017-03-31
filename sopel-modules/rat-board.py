@@ -788,7 +788,13 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
         rat = getRatId(bot, firstlimpet[0], rescue.platform)['id']
         if rat != "0":
             rescue.firstLimpet = rat
-            bot.say(
+            dt = datetime.date(2017, 4, 1)
+            if datetime.date.today() == dt:
+                bot.say(
+                    'Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: http://t.fuelr.at/a41',
+                    firstlimpet[0])
+            else:
+                bot.say(
                 'Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: ' + url,
                 firstlimpet[0])
             if rat not in rescue.rats:
@@ -1069,8 +1075,11 @@ def cmd_active(bot, trigger, rescue):
 def cmd_epic(bot, trigger, rescue):
     """
     Toggle a case epic/not epic
+    CURRENTLY DISABLED
     required parameters: client name.
     """
+    bot.say("Sorry, this command is currently disabled as the epic status is ignored by the API.")
+    return
     rescue.epic = not rescue.epic
     bot.say(
         "{rescue.client_name}'s case is now {epic}"
