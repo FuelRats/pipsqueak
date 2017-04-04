@@ -1105,17 +1105,19 @@ def cmd_assign(bot, trigger, rescue, *rats):
         else:
             i = getRatId(bot, rat, platform=rescue.platform)
         # Check if id returned is an id, decide for unidentified rats or rats.
+        # print("i is " + str(i))
         idstr = str(i['id'])
         if idstr != '0' and idstr != 'None':
             # print('[RatBoard] id was not 0.')
             rescue.rats.update([i['id']])
-            ratlist.append(getRatName(bot, i['id'])[0])
+            ratlist.append(i['name'])
         else:
             # print('[RatBoard] id was 0')
             bot.reply('Be advised: ' + rat + ' does not have a registered Rat for the case\'s platform!')
             rescue.unidentifiedRats.update([rat])
             ratlist.append(removeTags(rat))
-
+    # print("Trying to say: " + ("{client_name}: Please add the following rat(s) to your friends list: {rats}"
+    #        .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.client_name.replace(' ', '_'))))
     bot.say(
         "{client_name}: Please add the following rat(s) to your friends list: {rats}"
             .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.client_name.replace(' ', '_'))
