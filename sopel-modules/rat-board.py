@@ -511,8 +511,8 @@ def save_case_later(bot, rescue, message=None, timeout=10, forceFull=False):
         traceback.print_exception(exc_type, exc_value, exc_traceback)
         if message is None:
             message = (
-                "API is still not done updating case for {{rescue.client_name}}; continuing in background."
-                    .format(rescue=rescue)
+                "API is still not done updating case for {{name}}; continuing in background."
+                    .format(name=rescue.data["IRCNick"])
             )
         bot.say(message)
         # return future
@@ -1120,7 +1120,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
     #        .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.client_name.replace(' ', '_'))))
     bot.say(
         "{client_name}: Please add the following rat(s) to your friends list: {rats}"
-            .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.client_name.replace(' ', '_'))
+            .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.data["IRCNick"])
     )
     save_case_later(bot, rescue)
 
@@ -1157,8 +1157,8 @@ def cmd_unassign(bot, trigger, rescue, *rats):
             callapi(bot, 'PUT', '/rescues/' + str(rescue.id) + '/unassign/' + rat, triggernick=str(trigger.nick))
 
     bot.say(
-        "Removed from {rescue.client_name}'s case: {rats}"
-            .format(rescue=rescue, rats=", ".join(rats))
+        "Removed from {name}'s case: {rats}"
+            .format(name=rescue.data["IRCNick"], rats=", ".join(rats))
     )
     save_case_later(bot, rescue)
 
@@ -1176,14 +1176,14 @@ def cmd_codered(bot, trigger, rescue):
     """
     rescue.codeRed = not rescue.codeRed
     if rescue.codeRed:
-        bot.say('CODE RED! {rescue.client_name} is on emergency oxygen.'.format(rescue=rescue), transform=False)
+        bot.say('CODE RED! {name} is on emergency oxygen.'.format(name=rescue.data["IRCNick"]), transform=False)
         if rescue.rats:
             ratnames = []
             for rat in rescue.rats:
                 ratnames.append(getRatName(bot, rat)[0])
             bot.say(", ".join(ratnames) + ": This is your case!")
     else:
-        bot.say('{rescue.client_name}\'s case is no longer CR.'.format(rescue=rescue))
+        bot.say('{name}\'s case is no longer CR.'.format(name=rescue.data["IRCNick"]))
 
     save_case_later(bot, rescue)
 
@@ -1196,13 +1196,13 @@ def cmd_platform(bot, trigger, rescue, platform=None):
     """
     rescue.platform = platform
     bot.say(
-        "{rescue.client_name}'s platform set to {platform}".format(rescue=rescue, platform=('PS4' if rescue.platform.upper() == 'PS' else rescue.platform.upper()))
+        "{name}'s platform set to {platform}".format(name=rescue.data["IRCNick"], platform=('PS4' if rescue.platform.upper() == 'PS' else rescue.platform.upper()))
     )
     save_case_later(
         bot, rescue,
         (
-            "API is still not done updating platform for {rescue.client_name}; continuing in background."
-                .format(rescue=rescue)
+            "API is still not done updating platform for {name}; continuing in background."
+                .format(name=rescue.data["IRCNick"])
         )
     )
 
@@ -1245,7 +1245,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
         raise UsageError()
 
     # Try to find the system in EDDB.
-    fmt = "Location of {rescue.client_name} set to {rescue.system}"
+    fmt = "Location of {name} set to {rescue.system}"
 
     result = db.query(Starsystem).filter(Starsystem.name_lower == system.lower()).first()
     if result:
@@ -1253,12 +1253,12 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     else:
         fmt += "  (not in EDDB)"
     rescue.system = system
-    bot.say(fmt.format(rescue=rescue))
+    bot.say(fmt.format(rescue=rescue, name=rescue.data["IRCNick"]))
     save_case_later(
         bot, rescue,
         (
-            "API is still not done updating system for {rescue.client_name}; continuing in background."
-                .format(rescue=rescue)
+            "API is still not done updating system for {name}; continuing in background."
+                .format(name=rescue.data["IRCNick"])
         )
     )
 
@@ -1284,8 +1284,8 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
     save_case_later(
         bot, rescue,
         (
-            "API is still not done updating system for {rescue.client_name}; continuing in background."
-                .format(rescue=rescue)
+            "API is still not done updating system for {name}; continuing in background."
+                .format(name=rescue.data["IRCNick"])
         )
     )
 
@@ -1404,6 +1404,10 @@ def ratmama_parse(bot, trigger, db):
                 fields["system"] += " (not in EDDB)"
 
             bot.say((fmt + " (Case #{boardindex})").format(boardindex=case.boardindex, **fields))
+            if case.codeRed:
+                prepcrstring = getFact(bot, factname='prepcr', lang=fields["language_code"])
+                bot.say(
+                    fields["nick"] + " " + prepcrstring)
         else:
             bot.say("{0.client} has reconnected to the IRC! (Case #{0.boardindex})".format(case))
 
@@ -1540,7 +1544,7 @@ def cmd_title(bot, trigger, rescue, *title):
     for s in title:
         comptitle = comptitle + s
     rescue.title = comptitle
-    bot.say('Set ' + rescue.client + '\'s case Title to "' + comptitle + '"')
+    bot.say('Set ' + rescue.data["IRCNick"] + '\'s case Title to "' + comptitle + '"')
     save_case_later(bot, rescue)
 
 
@@ -1644,7 +1648,7 @@ def cmd_md(bot, trigger, case, reason):
     required parameters: client name or board index and the reason it should be deleted
     aliases: md, mdadd, markfordeletion, markfordelete
     """
-    bot.say('Closing case of ' + str(case.client) + ' (Case #' + str(
+    bot.say('Closing case of ' + str(case.data["IRCNick"]) + ' (Case #' + str(
         case.id) + ') and adding it to the Marked for Deletion List™.')
     func_clear(bot, trigger, case, markingForDeletion=True)
     setRescueMarkedForDeletion(bot=bot, rescue=case, marked=True, reason=reason, reporter=trigger.nick)
@@ -1663,7 +1667,7 @@ def cmd_mdremove(bot, trigger, caseid):
         result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick))
         rescue = Rescue.load(result['data'])
         setRescueMarkedForDeletion(bot, rescue, marked=False)
-        bot.say('Successfully removed ' + str(rescue.client) + '\'s case from the Marked for Deletion List™.')
+        bot.say('Successfully removed ' + str(rescue.data["IRCNick"]) + '\'s case from the Marked for Deletion List™.')
     except:
         bot.reply('Couldn\'t find a case with id ' + str(caseid) + ' or other APIError')
 
