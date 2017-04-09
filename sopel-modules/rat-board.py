@@ -1391,6 +1391,8 @@ def ratmama_parse(bot, trigger, db):
             case.platform = "ps"
         else:
             case.platform = fields["platform"].lower()
+        if not fields["nick"]:
+            fields["nick"] = fields["cmdr"]
         with bot.memory['ratbot']['board'].change(case):
             case.data.update(defaultdata)
             case.data.update({
@@ -1399,8 +1401,7 @@ def ratmama_parse(bot, trigger, db):
                 "boardIndex": int(case.boardindex)
             })
 
-        if not fields["nick"]:
-            fields["nick"] = fields["cmdr"]
+
 
         save_case_later(bot, case, forceFull=True)
         if result.created:
