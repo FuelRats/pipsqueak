@@ -76,6 +76,7 @@ def setup(bot):
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['board'] = RescueBoard()
     bot.memory['ratbot']['board'].bot = bot
+    bot.memory['ratbot']['lastsignal'] = None
 
     if not hasattr(bot.config, 'ratboard') or not bot.config.ratboard.signal:
         signal = 'ratsignal'
@@ -1343,6 +1344,9 @@ def ratmama_parse(bot, trigger, db):
         if not match:
             return
 
+        # Save time of new Ratsignal
+        bot.memory['ratbot']['lastsignal'] = datetime.datetime.now()
+
         # Parse results
         fields = match.groupdict()
         fields["ratsignal"] = bot.config.ratboard.signal.upper()
@@ -1408,6 +1412,7 @@ def ratmama_parse(bot, trigger, db):
                 prepcrstring = getFact(bot, factname='prepcr', lang=fields["language_code"])
                 bot.say(
                     fields["nick"] + " " + prepcrstring)
+            bot.memory['ratbot']['lastsignal'] = datetime.datetime.now()
         else:
             bot.say("{0.client} has reconnected to the IRC! (Case #{0.boardindex})".format(case))
 
@@ -1683,3 +1688,30 @@ def cmd_nick(bot, trigger, case, newnick):
         case.data.update({'IRCNick': newnick})
     save_case_later(bot, case, forceFull=True)
     bot.say('Set Nick to ' + str(newnick))
+
+@commands('quiet', 'lastsignal', 'last')
+@require_rat('Sorry, but you need to be a registered and drilled Rat to use this command.')
+def cmd_quiet(bot, trigger):
+    """
+    Tells the time since the last Signal
+    """
+    if bot.memory['ratbot']['lastsignal'] is None:
+        bot.say("Sadly, I don't remember when we had the last signal. Maybe it was 42 seconds ago?")
+        return
+    tdelta = datetime.datetime.now() - bot.memory['ratbot']['lastsignal']
+    seconds = tdelta.seconds % 60
+    minutes = int(tdelta.seconds / 60)
+    hashours = False
+    hours = 0
+    if minutes > 60:
+        hours = int(minutes/60)
+        minutes = minutes % 60
+        hashours = True
+    ret = str(minutes) + " minutes and " + str(seconds) + " seconds"
+    if hashours:
+        ret = str(hours) + " hours, " + ret
+
+    if hours > 12:
+        bot.say("Wow, the last signal was so long ago... " + ret + " ago to be exact! Orangey approves!")
+        return
+    bot.say("It has been quiet for " + ret + "! Time to summon a case?")
