@@ -116,6 +116,7 @@ def setup(bot):
 
     try:
         refresh_cases(bot)
+        updateBoardIndexes(bot)
     except ratlib.api.http.BadResponseError as ex:
         warnings.warn("Failed to perform initial sync against the API")
         import traceback
@@ -452,6 +453,24 @@ def refresh_cases(bot, rescue=None, force=False):
             if case:
                 board.remove(case)
 
+def updateBoardIndexes(bot):
+    board = bot.memory['ratbot']['board']
+
+    for rescue in board.rescues:
+        with board.change(rescue):
+            rescue.data.update({'boardIndex' : rescue.boardindex})
+        save_case(bot, rescue, forceFull=True)
+
+@commands('reindex', 'updateindex', 'index', 'ri')
+@require_rat('You need to be a registered and drilled Rat to execute this command!')
+def cmd_reindex(bot, trigger):
+    """
+    Updates all Indexes with the API (/Dispatch Board)
+    aliases: reindex, updateindex, index, ri
+    """
+    bot.say("Updating board indexes...")
+    updateBoardIndexes(bot)
+    bot.say("Done.")
 
 def save_case(bot, rescue, forceFull=False):
     """
@@ -1611,13 +1630,15 @@ def cmd_host(bot, trigger):
 @require_overseer('Sorry, but you need to be a registered Overseer or higher to access this command.')
 def cmd_forceRefreshBoard(bot, trigger):
     """
-    Forcefully resets the Board. This removes all "Ghost" Cases as they are grabbed from the API. Boardindexes will get lost and changed by this
+    Forcefully resets the Board. This removes all "Ghost" Cases as they are grabbed from the API. Boardindexes will get changed by , but updated on the Dispatch Board afterwards.
     aliases: refreshboard, resetboard, forceresetboard, forcerefreshboard, br, fbr, boardrefresh (kinda went overBOARD with that. hah. puns.)
     """
     bot.say(
-        'Force refreshing the Board. This removes all cases and grabs them from the API. DISPATCH, be advised: Case numbers may be changed!')
+        'Force refreshing the Board. This removes all cases and grabs them from the API.')
     refresh_cases(bot, force=True)
-    bot.say('Force refresh done.')
+    bot.say('Reload done, trying to update indexes...')
+    updateBoardIndexes(bot)
+    bot.say("All Indexes updated, force refresh complete!")
 
 
 def getFact(bot, factname, lang='en'):
