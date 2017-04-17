@@ -1545,6 +1545,7 @@ def cmd_mdlist(bot, trigger):
 @commands('quoteid')
 @require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
 @parameterize('+', usage='<id>')
+@ratlib.sopel.filter_output
 def cmd_quoteid(bot, trigger, id):
     """
     Quotes a case by its database id
