@@ -1010,14 +1010,24 @@ def cmd_grab(bot, trigger, client):
 
 
 @commands('inject')
-@ratlib.sopel.filter_output
-@parameterize('FT', usage='<client or case number> <text to add>')
+@parameterize("wT", usage="<client or case number> <text to add>")
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
-def cmd_inject(bot, trigger, find_result, line):
+# Using this to prevent cases from created if they are not found, therefor created, but no line to add was specified.
+def cmd_inject(bot, trigger, case, line):
     """
     Inject a custom line of text into the client's case.
     required parameters: Client name or case number, quote to add.
     """
+    func_inject(bot, trigger)
+
+@ratlib.sopel.filter_output
+@parameterize('FT', usage='<client or case number> <text to add>')
+def func_inject(bot, trigger, find_result, line):
+    """
+    Inject a custom line of text into the client's case.
+    required parameters: Client name or case number, quote to add.
+    """
+    # Can probably be removed, keeping it with the above comment so s/o else later understands it.
     if not line:
         raise UsageError()
     result = append_quotes(bot, find_result, line, create=True)
