@@ -1500,6 +1500,7 @@ def cmd_reopen(bot, trigger, id):
     try:
         result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
         refresh_cases(bot, force=True)
+        updateBoardIndexes(bot)
         bot.say('Reopened case. Cases refreshed, care for your case numbers!')
     except ratlib.api.http.APIError:
         # print('[RatBoard] apierror.')
