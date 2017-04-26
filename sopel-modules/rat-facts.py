@@ -339,10 +339,14 @@ def cmd_fact(bot, trigger, db=None):
             _translation_stats(exists, missing, s=opposite_name_s, p=opposite_name_p)
         )
         if full:
-            pm(summary)
+            lines = textwrap.wrap(summary, 400, break_long_words=False)
+            for l in lines:
+                pm(l)
             return NOLIMIT
         else:
-            bot.say(summary)
+            lines = textwrap.wrap(summary, 400, break_long_words=False)
+            for l in lines:
+                bot.say(l)
             return NOLIMIT
 
     bot.reply("'{}' is not a known fact, language, or subcommand".format(command))
