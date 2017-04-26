@@ -1,6 +1,8 @@
 # pipsqueak
 ED Fuel rats [sopel](http://sopel.chat) module package
 
+# The below information is outdated, but will be updated soon™
+
 # Requirements
 
 ## Python 3.4
