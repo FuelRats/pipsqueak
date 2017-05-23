@@ -9,39 +9,105 @@ http://sopel.chat/
 """
 
 #Python core imports
-import json
-import os
 
-#Sopel Imports
+import warnings
+
+import twitter
+# Sopel Imports
 from sopel.config.types import ValidatedAttribute, StaticSection
 from sopel.module import commands
-from sopel.tools import SopelMemory
+from twitter import TwitterError
 
 import ratlib.sopel
-from ratlib.sopel import parameterize
-import twitter
-
 from ratlib.api.names import require_rat
+from ratlib.sopel import parameterize
 
 
 class TwitterSection(StaticSection):
-    consumer_key = ValidatedAttribute('consumer_key', str, default='consumer_key')
-    consumer_secret = ValidatedAttribute('consumer_key', str, default='consumer_secret')
-    access_token_key = ValidatedAttribute('access_token_key', str, default='access_token_key')
-    access_token_secret = ValidatedAttribute('access_token_secret', str, default='access_token_secret')
+    consumer_key = ValidatedAttribute('consumer_key', str, default='undefined')
+    consumer_secret = ValidatedAttribute('consumer_secret', str, default='undefined')
+    access_token_key = ValidatedAttribute('access_token_key', str, default='undefined')
+    access_token_secret = ValidatedAttribute('access_token_secret', str, default='undefined')
 
 def configure(config):
     ratlib.sopel.configure(config)
     config.define_section('twitter', TwitterSection)
+    config.twitter.configure_setting(
+        'consumer_key',
+        (
+            "Consumer key for the twitter application."
+        )
+    )
+    config.twitter.configure_setting(
+        'consumer_secret',
+        (
+            "Consumer secret for the twitter application."
+        )
+    )
+    config.twitter.configure_setting(
+        'access_token_key',
+        (
+            "Access token key for the twitter application."
+        )
+    )
+    config.twitter.configure_setting(
+        'access_token_secret',
+        (
+            "Access token secret for the twitter application."
+        )
+    )
 
 def setup(bot):
     ratlib.sopel.setup(bot)
+    if not hasattr(bot.config, 'twitter'):
+        warnings.warn("Twitter module configuration failed.")
+        return
+
+    api = twitter.Api(
+        consumer_key=bot.config.twitter.consumer_key,
+        consumer_secret=bot.config.twitter.consumer_secret,
+        access_token_key=bot.config.twitter.access_token_key,
+        access_token_secret=bot.config.twitter.access_token_secret
+    )
+
+    try:
+        api.VerifyCredentials()
+    except TwitterError:
+        warnings.warn('Twitter API verification failed.')
+        return
+
+    bot.memory['ratbot']['twitterapi'] = api
+
 
 @commands('tweet')
 @parameterize("t", usage="<text to tweet>")
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_tweet(bot, trigger, line):
-    bot.say('trigger: ' + trigger)
-    bot.say('line: ' + line)
-    pass
 
+    api = bot.memory['ratbot']['twitterapi']
+    if not api:
+        bot.reply("The Twitter interface is not correctly configured. Unable to continue.")
+        return
+
+    if len(line) > 140:
+        bot.reply("Unable to send a tweet that is more than 140 characters long. You need to shave off " + str((len(line)-140)) + " characters.")
+        return
+
+
+    board = bot.memory['ratbot']['board']
+
+    for rescue in board.rescues:
+        with board.change(rescue):
+            if(rescue.client_name.lower() in line.lower() or rescue.system.lower() in line.lower()):
+                bot.say('Tweet not sent: do not give out client information in tweets. Try again.')
+                return
+            pass
+
+    try:
+        api.PostUpdate(line)
+    except TwitterError:
+        bot.say("Tweet failed. Please speak to your friendly neighborhood techies.")
+        return
+
+    bot.say('Tweet sent!')
+    pass

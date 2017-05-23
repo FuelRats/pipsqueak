@@ -142,7 +142,7 @@ shortenertoken = asdf
 
 [twitter]
 # Twitter module config
-consumer_key = default_consumer_key
-consumer_secret = consumer_secret
-access_token_key = access_token_key
-access_token_secret = access_token_secret
+consumer_key = undefined
+consumer_secret = undefined
+access_token_key = undefined
+access_token_secret = undefined
