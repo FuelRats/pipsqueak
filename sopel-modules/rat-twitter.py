@@ -99,6 +99,9 @@ def cmd_tweet(bot, trigger, line):
         bot.reply("Unable to send a tweet that is more than 140 characters long. You need to shave off " + str((len(line)-140)) + " characters.")
         return
 
+    if len(line) < 5:
+        bot.reply("Tweet not sent because it is very short. Did you mean to use !tweetcase?")
+        return
 
     board = bot.memory['ratbot']['board']
 
