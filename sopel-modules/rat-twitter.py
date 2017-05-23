@@ -92,7 +92,9 @@ def requires_case(fn):
 @parameterize("t", usage="<text to tweet>")
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_tweet(bot, trigger, line):
-
+    """
+    Tweet your heart out! Will filter out if you try to give away details about our clients in the message.
+    """
     api = bot.memory['ratbot']['twitterapi']
     if not api:
         bot.reply("The Twitter interface is not correctly configured. Unable to continue.")
@@ -108,20 +110,22 @@ def cmd_tweet(bot, trigger, line):
 
     board = bot.memory['ratbot']['board']
 
+    lowerline = line.lower()
+
     for rescue in board.rescues:
         with board.change(rescue):
-            if(rescue.client_name.lower() in line.lower() or (rescue.system and rescue.system.lower() in line.lower())):
-                bot.say('Tweet not sent: do not give out client information in tweets. Try again.')
+            if(rescue.client_name.lower() in lowerline or (rescue.system and rescue.system.lower() in lowerline)):
+                bot.say('Tweet not sent - do not give out client information in tweets. Try again.')
                 return
             pass
 
     try:
         api.PostUpdate(line)
     except TwitterError:
-        bot.say('Tweet failed. Please speak to your friendly rat technicians.')
+        bot.say('Tweet failed. Please try again in a moment and speak to your friendly rat technicians.')
         return
 
-    bot.say('Tweet sent!')
+    bot.say('Tweet "{}" sent!'.format(line))
     pass
 
 
@@ -132,7 +136,9 @@ def cmd_tweet(bot, trigger, line):
 @with_session
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_tweetc(bot, trigger, rescue, db = None):
-
+    """
+    Send a tweet based on a case. Uses generic terms (in bubble, near landmark) for system and gives no other detail.
+    """
     api = bot.memory['ratbot']['twitterapi']
 
     if not api:
@@ -155,32 +161,40 @@ def cmd_tweetc(bot, trigger, rescue, db = None):
     starsystem = lookup_system(rescue.system)
     cr = "CR " if rescue.codeRed else ""
 
-    message = "{platform} rats needed for {cr}rescue.".format(platform=platform, cr=cr)
+    message = "[{platform}] Rats needed for {cr}rescue!".format(platform=platform, cr=cr)
 
     if starsystem:
         landmark, distance = starsystem.nearest_landmark(db, True)
 
         # is it in the bubble?
-        if (landmark.name_lower == "sol" or landmark.name_lower == "fuelum") and distance < 1000:
-            message = "{platform} rats needed for {cr}rescue in the bubble.".format(platform=platform, cr=cr, system=starsystem.name)
+        if (landmark.name_lower == "sol" or landmark.name_lower == "fuelum") and distance < 500:
+            message = "[{platform}] Rats needed for {cr}rescue in the bubble!".format(platform=platform, cr=cr, system=starsystem.name)
 
         # is it near or at a landmark?
-        elif (starsystem.name_lower == landmark.name_lower) or distance < 250:
-            message = "{platform} rats needed for {cr}rescue near {system}.".format(platform=platform, cr=cr, system=landmark.name)
+        elif (starsystem.name_lower == landmark.name_lower) or distance < 500:
+            message = "[{platform}] Rats needed for {cr}rescue near {system}!".format(platform=platform, cr=cr, system=landmark.name)
 
         # ok, just give us the distance
         else:
-            dist = math.ceil(distance / 1000)
-            message = "{platform} rats needed for {cr}rescue {distance}kly from {system}.".format(platform=platform, cr=cr, distance=dist, system=landmark.name)
+            if distance < 1000:
+                dist = '{dist}ly'.format(dist=math.ceil(distance / 100) * 100)
+            else:
+                dist = '{dist}kly'.format(dist=math.ceil(distance / 1000))
+            message = "[{platform}] Rats needed for {cr}rescue {distance} from {system}!".format(platform=platform, cr=cr, distance=dist, system=landmark.name)
 
     if not message:
-        bot.say('An unknown error occurred. Speak with your local techies')
+        bot.say('An unknown error occurred. Speak with your local Tech Rats')
         return
+
+    if len(message) < 115:
+        message = "{msg} Call your jumps, Rats!".format(msg=message)
+    elif len(message) > 140:
+        bot.say('Tweet failed! Message is too long ({} characters). Please report this to your local Tech Rats'.format(len(message)))
 
     try:
         api.PostUpdate(message)
     except TwitterError:
-        bot.say('Tweet failed. Please speak to your friendly rat technicians.')
+        bot.say('Tweet failed. Please try again in a moment and speak to your friendly rat technicians.')
         return
 
-    bot.say('Tweet sent: ' + message)
+    bot.say('Tweet sent: "' + message + '"')
