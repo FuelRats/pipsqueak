@@ -13,6 +13,7 @@ http://sopel.chat/
 import warnings
 
 import twitter
+import math
 # Sopel Imports
 from sopel.config.types import ValidatedAttribute, StaticSection
 from sopel.module import commands
@@ -20,7 +21,7 @@ from twitter import TwitterError
 
 import ratlib.sopel
 from ratlib.api.names import require_rat
-from ratlib.db import with_session
+from ratlib.db import with_session, Starsystem
 from ratlib.sopel import parameterize
 
 
@@ -111,7 +112,7 @@ def cmd_tweet(bot, trigger, line):
     try:
         api.PostUpdate(line)
     except TwitterError:
-        bot.say("Tweet failed. Please speak to your friendly neighborhood techies.")
+        bot.say('Tweet failed. Please speak to your friendly neighborhood techies.')
         return
 
     bot.say('Tweet sent!')
@@ -121,10 +122,10 @@ def cmd_tweet(bot, trigger, line):
 
 
 @commands('tweetc')
-@requires_case
-@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+@parameterize('r', usage='<client or case number>')
 @with_session
-def cmd_tweetc(bot, trigger, rescue, db):
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+def cmd_tweetc(bot, trigger, rescue, db = None):
 
     api = bot.memory['ratbot']['twitterapi']
 
@@ -132,4 +133,41 @@ def cmd_tweetc(bot, trigger, rescue, db):
         bot.reply("The Twitter interface is not correctly configured. Unable to continue.")
         return
 
-    bot.say("Ok, you picked rescue #" + rescue.boardindex)
+    def lookup_system(name, model=Starsystem):
+        return db.query(model).filter(model.name_lower == name.lower()).first()
+
+
+    platform = rescue.platform
+    message = None
+
+    if not platform or platform == 'unknown':
+        bot.say('The case platform is unknown. Please set it with the corresponding command and try again.')
+        return
+
+    platform = platform.upper()
+    starsystem = lookup_system(rescue.system)
+    cr = "CR " if rescue.codeRed else ""
+
+    message = "{platform} rats needed{cr}.".format(platform=platform, cr=" for CR" if rescue.codeRed else "")
+
+    if starsystem:
+        landmark, distance = starsystem.nearest_landmark(db, True)
+
+        # is it in the bubble?
+        if (landmark.name_lower == "sol" or landmark.name_lower == "fuelum") and distance < 1000:
+            message = "{platform} rats needed for {cr}rescue in the bubble.".format(platform=platform, cr=cr, system=starsystem.name)
+
+        # is it near or at a landmark?
+        elif (starsystem.name_lower == landmark.name_lower) or distance < 250:
+            message = "{platform} rats needed for {cr}rescue near {system}.".format(platform=platform, cr=cr, system=landmark.name)
+
+        # ok, just give us the distance
+        else:
+            dist = math.ceil(distance / 1000)
+            message = "{platform} rats needed for {cr}rescue {distance}kly from {system}.".format(platform=platform, cr=cr, distance=dist, system=landmark.name)
+
+    if not message:
+        bot.say('An unknown error occurred. Speak with your local techies')
+        return
+    
+    bot.say(message)
