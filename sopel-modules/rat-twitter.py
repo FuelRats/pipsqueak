@@ -104,7 +104,7 @@ def cmd_tweet(bot, trigger, line):
 
     for rescue in board.rescues:
         with board.change(rescue):
-            if(rescue.client_name.lower() in line.lower() or rescue.system.lower() in line.lower()):
+            if(rescue.client_name.lower() in line.lower() or (rescue.system and rescue.system.lower() in line.lower())):
                 bot.say('Tweet not sent: do not give out client information in tweets. Try again.')
                 return
             pass
@@ -121,7 +121,7 @@ def cmd_tweet(bot, trigger, line):
 
 
 
-@commands('tweetc')
+@commands('tweetc','tweetcase')
 @parameterize('r', usage='<client or case number>')
 @with_session
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
@@ -149,7 +149,7 @@ def cmd_tweetc(bot, trigger, rescue, db = None):
     starsystem = lookup_system(rescue.system)
     cr = "CR " if rescue.codeRed else ""
 
-    message = "{platform} rats needed{cr}.".format(platform=platform, cr=" for CR" if rescue.codeRed else "")
+    message = "{platform} rats needed for {cr}rescue.".format(platform=platform, cr=cr)
 
     if starsystem:
         landmark, distance = starsystem.nearest_landmark(db, True)
