@@ -100,7 +100,7 @@ def cmd_tweet(bot, trigger, line):
         return
 
     if len(line) < 5:
-        bot.reply("Tweet not sent because it is very short. Did you mean to use !tweetcase?")
+        bot.reply("Tweets need to be at least 5 characters long. Did you mean to use !tweetcase?")
         return
 
     board = bot.memory['ratbot']['board']
