@@ -92,8 +92,10 @@ def requires_case(fn):
 @parameterize("t", usage="<text to tweet>")
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_tweet(bot, trigger, line):
-    """
-    Tweet your heart out! Will filter out if you try to give away details about our clients in the message.
+    """ 
+    Tweet your heart out! (Serious messages though!) 
+    Will filter out if you try to give away details about our clients in the message.
+    Required parameter: The message you want to send, max 140 characters.
     """
     api = bot.memory['ratbot']['twitterapi']
     if not api:
@@ -137,7 +139,8 @@ def cmd_tweet(bot, trigger, line):
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
 def cmd_tweetc(bot, trigger, rescue, db = None):
     """
-    Send a tweet based on a case. Uses generic terms (in bubble, near landmark) for system and gives no other detail.
+    Send a tweet based on a case, using generic terms (in bubble, near landmark).
+    Required parameter: Client name or board index.
     """
     api = bot.memory['ratbot']['twitterapi']
 
