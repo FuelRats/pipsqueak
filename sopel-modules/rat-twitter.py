@@ -112,7 +112,7 @@ def cmd_tweet(bot, trigger, line):
     try:
         api.PostUpdate(line)
     except TwitterError:
-        bot.say('Tweet failed. Please speak to your friendly neighborhood techies.')
+        bot.say('Tweet failed. Please speak to your friendly rat technicians.')
         return
 
     bot.say('Tweet sent!')
@@ -169,5 +169,11 @@ def cmd_tweetc(bot, trigger, rescue, db = None):
     if not message:
         bot.say('An unknown error occurred. Speak with your local techies')
         return
-    
-    bot.say(message)
+
+    try:
+        api.PostUpdate(message)
+    except TwitterError:
+        bot.say('Tweet failed. Please speak to your friendly rat technicians.')
+        return
+
+    bot.say('Tweet sent: ' + message)
