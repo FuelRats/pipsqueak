@@ -1,8 +1,11 @@
 #coding: utf8
 """
-rat-twitter.py - Fuel Rats twitter module
-Copyright 2017, Henrik "Tivec" Bergvin <henrik.bergvin@gmail.com>
-Licensed under the Eiffel Forum License 2.
+rat-twitter.py - Fuel Rats Twitter module
+
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
+
+Licensed under the BSD 3-Clause License.
 
 This module is built on top of the Sopel system.
 http://sopel.chat/
