@@ -2,6 +2,13 @@
 Utilities for handling starsystem names and the like.
 
 This is specifically named 'starsystem' rather than 'system' for reasons that should be obvious.
+
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
+
+Licensed under the BSD 3-Clause License.
+
+See LICENSE.md
 """
 import io
 import datetime

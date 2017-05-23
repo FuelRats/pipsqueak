@@ -1,9 +1,16 @@
 # coding: utf8
 """
 rat-facts.py - Fact reciting module
-Copyright 2015, Dimitri "Tyrope" Molenaars <tyrope@tyrope.nl>
-Copyright 2016, Daniel "Dewin" Grace
-Licensed under the Eiffel Forum License 2.
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
+
+Licensed under the BSD 3-Clause License.
+
+Copyright originally by Dimitri "Tyrope" Molenaars <tyrope@tyrope.nl> (2015) and
+Daniel "dewiniaid" Grace - https://github.com/dewiniaid (2016),
+under the Eiffel Forum License, version 2
+
+See LICENSE.md
 
 These modules are built on top of the Sopel system.
 http://sopel.chat/
