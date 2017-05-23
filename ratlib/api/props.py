@@ -1,8 +1,15 @@
 """
 props.py - Object change tracking and history control.
-Copyright 2016, Daniel "dewiniaid" Grace - https://github.com/dewiniaid
 
-Licensed under the Eiffel Forum License 2.
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
+
+Licensed under the BSD 3-Clause License.
+
+Copyright originally by Daniel "dewiniaid" Grace - https://github.com/dewiniaid (2016),
+under the Eiffel Forum License, version 2
+
+See LICENSE.md
 """
 
 import datetime

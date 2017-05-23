@@ -1,8 +1,14 @@
 # coding: utf8
 """
 rat-socket.py - Fuel Rats Rat Tracker module.
-Copyright 2016, Peter "Marenthyu" Fredebold <marenthyu@marenthyu.de>
-Licensed under the Eiffel Forum License 2.
+
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
+
+Licensed under the BSD 3-Clause License.
+
+Copyright originally by  Peter "Marenthyu" Fredebold <marenthyu@marenthyu.de> (2016),
+under the Eiffel Forum License, version 2
 
 This module is built on top of the Sopel system.
 http://sopel.chat/

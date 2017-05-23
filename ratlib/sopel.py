@@ -1,7 +1,14 @@
 """
 Sopel-specific ratlib constructs.
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
 
-:author: Daniel Grace
+Licensed under the BSD 3-Clause License.
+
+Copyright originally by Daniel "dewiniaid" Grace - https://github.com/dewiniaid (2016),
+under the Eiffel Forum License, version 2
+
+See LICENSE.md
 """
 import datetime
 import os.path

@@ -1,8 +1,16 @@
 # coding: utf8
 """
 rat-board.py - Fuel Rats Cases module.
-Copyright 2015, Dimitri "Tyrope" Molenaars <tyrope@tyrope.nl>
-Licensed under the Eiffel Forum License 2.
+
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
+
+Licensed under the BSD 3-Clause License.
+
+Copyright originally by Dimitri "Tyrope" Molenaars <tyrope@tyrope.nl> (2015),
+under the Eiffel Forum License, version 2
+
+See LICENSE.md
 
 This module is built on top of the Sopel system.
 http://sopel.chat/
