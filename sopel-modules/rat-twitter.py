@@ -20,6 +20,7 @@ from twitter import TwitterError
 
 import ratlib.sopel
 from ratlib.api.names import require_rat
+from ratlib.db import with_session
 from ratlib.sopel import parameterize
 
 
@@ -79,6 +80,10 @@ def setup(bot):
     bot.memory['ratbot']['twitterapi'] = api
 
 
+# Convenience function
+def requires_case(fn):
+    return parameterize('r', "<client or case number>")(fn)
+
 @commands('tweet')
 @parameterize("t", usage="<text to tweet>")
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
@@ -111,3 +116,20 @@ def cmd_tweet(bot, trigger, line):
 
     bot.say('Tweet sent!')
     pass
+
+
+
+
+@commands('tweetc')
+@requires_case
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+@with_session
+def cmd_tweetc(bot, trigger, rescue, db):
+
+    api = bot.memory['ratbot']['twitterapi']
+
+    if not api:
+        bot.reply("The Twitter interface is not correctly configured. Unable to continue.")
+        return
+
+    bot.say("Ok, you picked rescue #" + rescue.boardindex)
