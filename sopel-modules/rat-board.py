@@ -797,6 +797,10 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     if len(firstlimpet) > 1:
         raise UsageError()
 
+    if not markingForDeletion and (not rescue.platform or rescue.platform == 'unknown'):
+        bot.say('The case platform is unknown. Please set it with the corresponding command and try again.')
+        return
+
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
         rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     try:
