@@ -134,11 +134,12 @@ def cmd_tweetc(bot, trigger, rescue, db = None):
         return
 
     def lookup_system(name, model=Starsystem):
-        return db.query(model).filter(model.name_lower == name.lower()).first()
+        if name is not None:
+            return db.query(model).filter(model.name_lower == name.lower()).first()
+        return None
 
 
     platform = rescue.platform
-    message = None
 
     if not platform or platform == 'unknown':
         bot.say('The case platform is unknown. Please set it with the corresponding command and try again.')
