@@ -139,3 +139,10 @@ websocketport = 9000
 # Url shortener Config
 shortenerurl = http://t.fuelr.at/yourls-api.php
 shortenertoken = asdf
+
+[twitter]
+# Twitter module config
+consumer_key = default_consumer_key
+consumer_secret = consumer_secret
+access_token_key = access_token_key
+access_token_secret = access_token_secret
