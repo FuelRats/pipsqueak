@@ -29,6 +29,7 @@ from sqlalchemy import exc, inspect
 from ratlib.db import Fact, with_session
 import ratlib.sopel
 from ratlib.api.names import *
+from ratlib.hastebin import post_to_hastebin
 
 
 class RatfactsSection(StaticSection):
@@ -218,7 +219,7 @@ def cmd_fact(bot, trigger, db=None):
 
     The following commands require privileges:
     !fact import [-f] - Reimports JSON data.  -f overwrites existing rows.
-    !fact full - Dumps all facts, all languages to a PM.
+    !fact full - Display the link to the Confluence page with all the facts. 
     !fact add <id> <text> - Creates a new fact or updates an existing one.  <id> must be of the format <factname>-<lang>
         Aliases: set
     !fact del <id> <text> - Deletes a fact.  <id> must be of the format <factname>-<lang>
@@ -253,13 +254,7 @@ def cmd_fact(bot, trigger, db=None):
 
     @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
     def cmd_fact_full(bot, trigger):
-        if not trigger.is_privmsg:
-            bot.reply("Messaging you the complete fact database.")
-        pm("Language search order is {}".format(", ".join(bot.memory['ratfacts']['lang'])))
-        for fact in Fact.findall(db):
-            pm(format_fact(fact))
-        pm("-- End of list --")
-        return NOLIMIT
+        return bot.reply("The full list is here: http://t.fuelr.at/allfacts")
 
     if command == 'full':
         return cmd_fact_full(bot, trigger)
