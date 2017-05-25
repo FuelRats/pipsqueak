@@ -29,7 +29,6 @@ from sqlalchemy import exc, inspect
 from ratlib.db import Fact, with_session
 import ratlib.sopel
 from ratlib.api.names import *
-from ratlib.hastebin import post_to_hastebin
 
 
 class RatfactsSection(StaticSection):
@@ -252,7 +251,7 @@ def cmd_fact(bot, trigger, db=None):
     if command == 'import':
         return cmd_fact_import(bot, trigger)
 
-    @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
+    @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
     def cmd_fact_full(bot, trigger):
         return bot.reply("The full list is here: http://t.fuelr.at/allfacts")
 
