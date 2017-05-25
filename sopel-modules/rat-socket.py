@@ -506,5 +506,5 @@ class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
 
     def retry(self, connector=None):
-        MyClientProtocol.bot.say('[Websocket] Reconnecting to API Websocket in ' + str(self.delay) + ' seconds...')
+        MyClientProtocol.bot.say('[Websocket] Reconnecting to API Websocket in ' + str(int(self.delay)) + ' seconds...')
         ReconnectingClientFactory.retry(self)
