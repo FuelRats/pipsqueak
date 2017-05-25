@@ -186,12 +186,12 @@ def get_tweet_for_case(rescue, db):
             return "[{platform}] Rats needed for {cr}rescue near {system}!".format(platform=platform, cr=cr, system=landmark.name)
 
         # let's work on distances
-        if distance < 250:
-            dist = '{dist}ly'.format(dist=math.ceil(distance / 10) * 10)
-        elif distance < 1000:
-            dist = '{dist}ly'.format(dist=math.ceil(distance / 100) * 100)
+        if distance < 500:
+            dist = '{dist}LY'.format(dist=math.ceil(distance / 10) * 10)
+        elif distance < 2000:
+            dist = '{dist}LY'.format(dist=math.ceil(distance / 100) * 100)
         else:
-            dist = '{dist}kly'.format(dist=math.ceil(distance / 1000))
+            dist = '{dist}kLY'.format(dist=math.ceil(distance / 1000))
 
         return "[{platform}] Rats needed for {cr}rescue {distance} from {system}!".format(platform=platform, cr=cr, distance=dist, system=landmark.name)
 
