@@ -218,7 +218,6 @@ def cmd_fact(bot, trigger, db=None):
 
     The following commands require privileges:
     !fact import [-f] - Reimports JSON data.  -f overwrites existing rows.
-    !fact full - Display the link to the Confluence page with all the facts. 
     !fact add <id> <text> - Creates a new fact or updates an existing one.  <id> must be of the format <factname>-<lang>
         Aliases: set
     !fact del <id> <text> - Deletes a fact.  <id> must be of the format <factname>-<lang>
@@ -251,12 +250,6 @@ def cmd_fact(bot, trigger, db=None):
     if command == 'import':
         return cmd_fact_import(bot, trigger)
 
-    @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
-    def cmd_fact_full(bot, trigger):
-        return bot.reply("The full list is here: http://t.fuelr.at/allfacts")
-
-    if command == 'full':
-        return cmd_fact_full(bot, trigger)
 
     @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
     def cmd_fact_edit(bot, trigger):
