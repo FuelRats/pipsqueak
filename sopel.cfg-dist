@@ -60,9 +60,9 @@ alembic = alembic.ini
 ## API Selection.
 # If no API URL is defined, Mecha will operate in offline mode.
 ## Development API
-apiurl = http://dev.api.fuelrats.com
+apiurl = https://dev.api.fuelrats.com
 ## Production API
-# apiurl = http://api.fuelrats.com
+# apiurl = https://api.fuelrats.com
 
 ## API Auth Token.
 # Previously generated Oauth2 Token to authorize API Calls
@@ -139,3 +139,10 @@ websocketport = 9000
 # Url shortener Config
 shortenerurl = http://t.fuelr.at/yourls-api.php
 shortenertoken = asdf
+
+[twitter]
+# Twitter module config
+consumer_key = undefined
+consumer_secret = undefined
+access_token_key = undefined
+access_token_secret = undefined

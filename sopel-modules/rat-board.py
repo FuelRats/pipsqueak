@@ -1,8 +1,16 @@
 # coding: utf8
 """
 rat-board.py - Fuel Rats Cases module.
-Copyright 2015, Dimitri "Tyrope" Molenaars <tyrope@tyrope.nl>
-Licensed under the Eiffel Forum License 2.
+
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
+
+Licensed under the BSD 3-Clause License.
+
+Copyright originally by Dimitri "Tyrope" Molenaars <tyrope@tyrope.nl> (2015),
+under the Eiffel Forum License, version 2
+
+See LICENSE.md
 
 This module is built on top of the Sopel system.
 http://sopel.chat/
@@ -796,6 +804,10 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     # print('[RatBoard] firstlimpet = ' + str(firstlimpet))
     if len(firstlimpet) > 1:
         raise UsageError()
+
+    if not markingForDeletion and (not rescue.platform or rescue.platform == 'unknown'):
+        bot.say('The case platform is unknown. Please set it with the corresponding command and try again.')
+        return
 
     url = "{apiurl}/rescues/edit/{rescue.id}".format(
         rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))

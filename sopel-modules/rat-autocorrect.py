@@ -1,9 +1,16 @@
 #coding: utf8
 """
 rat-autocorrect.py - System name autocorrection.
-Copyright 2016, Daniel "dewin" Grace
 
-Licensed under the Eiffel Forum License 2.
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
+
+Licensed under the BSD 3-Clause License.
+
+Copyright originally by Daniel "dewiniaid" Grace - https://github.com/dewiniaid (2016),
+under the Eiffel Forum License, version 2
+
+See LICENSE.md
 
 These modules are built on top of the Sopel system.
 http://sopel.chat/
