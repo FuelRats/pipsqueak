@@ -1,9 +1,16 @@
 # coding: utf8
 """
 rat-facts.py - Fact reciting module
-Copyright 2015, Dimitri "Tyrope" Molenaars <tyrope@tyrope.nl>
-Copyright 2016, Daniel "Dewin" Grace
-Licensed under the Eiffel Forum License 2.
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
+
+Licensed under the BSD 3-Clause License.
+
+Copyright originally by Dimitri "Tyrope" Molenaars <tyrope@tyrope.nl> (2015) and
+Daniel "dewiniaid" Grace - https://github.com/dewiniaid (2016),
+under the Eiffel Forum License, version 2
+
+See LICENSE.md
 
 These modules are built on top of the Sopel system.
 http://sopel.chat/
@@ -211,7 +218,6 @@ def cmd_fact(bot, trigger, db=None):
 
     The following commands require privileges:
     !fact import [-f] - Reimports JSON data.  -f overwrites existing rows.
-    !fact full - Dumps all facts, all languages to a PM.
     !fact add <id> <text> - Creates a new fact or updates an existing one.  <id> must be of the format <factname>-<lang>
         Aliases: set
     !fact del <id> <text> - Deletes a fact.  <id> must be of the format <factname>-<lang>
@@ -244,18 +250,6 @@ def cmd_fact(bot, trigger, db=None):
     if command == 'import':
         return cmd_fact_import(bot, trigger)
 
-    @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
-    def cmd_fact_full(bot, trigger):
-        if not trigger.is_privmsg:
-            bot.reply("Messaging you the complete fact database.")
-        pm("Language search order is {}".format(", ".join(bot.memory['ratfacts']['lang'])))
-        for fact in Fact.findall(db):
-            pm(format_fact(fact))
-        pm("-- End of list --")
-        return NOLIMIT
-
-    if command == 'full':
-        return cmd_fact_full(bot, trigger)
 
     @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
     def cmd_fact_edit(bot, trigger):

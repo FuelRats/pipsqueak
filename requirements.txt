@@ -10,3 +10,4 @@ twisted
 pyopenssl
 service_identity
 numpy
+python-twitter

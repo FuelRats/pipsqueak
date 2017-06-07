@@ -1,3 +1,13 @@
+"""
+This is specifically named 'starsystem' rather than 'system' for reasons that should be obvious.
+
+Copyright (c) 2017 The Fuel Rats Mischief, 
+All rights reserved.
+
+Licensed under the BSD 3-Clause License.
+
+See LICENSE.md
+"""
 import ratlib
 import ratlib.api
 import ratlib.api.http
@@ -336,7 +346,7 @@ def require_recruit(message=None):
         return actual_decorator(message)
     return actual_decorator
 
-privlevels = {'recruit.fuelrats.com':0, 'rat.fuelrats.com':1, 'dispatch.fuelrats.com':2, 'overseer.fuelrats.com':3, 'op.fuelrats.com':4, 'techrat.fuelrats.com':5, 'netadmin.fuelrats.com':6}
+privlevels = {'recruit.fuelrats.com':0, 'rat.fuelrats.com':1, 'dispatch.fuelrats.com':2, 'overseer.fuelrats.com':3, 'op.fuelrats.com':4, 'techrat.fuelrats.com':5, 'netadmin.fuelrats.com':6, 'admin.fuelrats.com':6}
 
 def getPrivLevel(trigger):
     if trigger.owner:
