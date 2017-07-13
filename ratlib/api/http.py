@@ -224,6 +224,6 @@ class Shortener:
         response.raise_for_status()
         data = response.json()
 
-        if data and data['status'] != 'success':
+        if data and (data['status'] != 'success' and 'shorturl' not in data):
             raise ShortenerError(data['status'], data['message'], data['statusCode'])
         return data
