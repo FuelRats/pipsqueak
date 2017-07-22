@@ -1334,7 +1334,7 @@ def cmd_commander(bot, trigger, rescue, commander, db=None):
 _ratmama_regex = re.compile(r"""
     (?x)
     # The above makes whitespace and comments in the pattern ignored.
-    # Saved at https://regex101.com/r/kt3gjH/3
+    # Saved at https://regex101.com/r/jhKtQD/1
     \s*                                  # Handle any possible leading whitespace
     Incoming\s+Client:\s*   # Match "Incoming Client" prefix
     # Wrap the entirety of rest of the pattern in a group to make it easier to echo the entire thing
