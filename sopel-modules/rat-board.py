@@ -1344,6 +1344,7 @@ _ratmama_regex = re.compile(r"""
                                          # those cases if it turns out to be a thing, or someone can fix Ratmama too.
     \s+-\s+                              #  -
     System:\s*(?P<system>.*?)            # Match system name
+    (?:\s[sS][yY][sS][tT][eE][mM]|)      # Strip " system" from end, if present (case insensitive)
     \s+-\s+                              #  -
     Platform:\s*(?P<platform>\w+)        # Match platform (currently can't contain spaces)
     \s+-\s+                              #  -
