@@ -68,10 +68,12 @@ def search(bot, trigger, db=None):
         system = re.sub(r'\s\s+', ' ', system.strip())
     if not system:
         bot.reply("Usage: {} <name of system>".format(trigger.group(1)))
+        return
 
     if len(system) > 100:
         # Postgres has a hard limit of 255, but this is long enough.
         bot.reply("System name is too long.")
+        return
 
     # Try autocorrection first.
     result = correct(system)
