@@ -141,8 +141,8 @@ class RescueBoard:
     INDEX_TYPES = {
         'boardindex': operator.attrgetter('boardindex'),
         'id': operator.attrgetter('id'),
-        'client': lambda x: x.client.lower(),
-        'nick': lambda x: None if not x.data.get('IRCNick') else str(x.data['IRCNick']).lower(),
+        'client': lambda x: str(x.client).lower(),
+        'nick': lambda x: None if x.data is None or (not x.data.get('IRCNick')) else str(x.data['IRCNick']).lower(),
     }
 
     MAX_POOLED_CASES = 10
@@ -466,7 +466,10 @@ def updateBoardIndexes(bot):
 
     for rescue in board.rescues:
         with board.change(rescue):
-            rescue.data.update({'boardIndex' : rescue.boardindex})
+            if rescue.data is None:
+                rescue.data = {'boardIndex': rescue.boardindex}
+            else:
+                rescue.data.update({'boardIndex' : rescue.boardindex})
         save_case(bot, rescue, forceFull=True)
 
 @commands('reindex', 'updateindex', 'index', 'ri')
