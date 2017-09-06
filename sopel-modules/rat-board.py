@@ -22,10 +22,6 @@ import datetime
 import collections
 import itertools
 import warnings
-import functools
-import json
-import numpy
-import math
 
 import sys
 import contextlib
@@ -51,6 +47,7 @@ from ratlib.sopel import UsageError
 import ratlib.api.http
 import ratlib.db
 from ratlib.db import with_session, Starsystem
+from ratlib.api.v2compatibility import convertV2DataToV1
 
 urljoin = ratlib.api.http.urljoin
 
@@ -425,21 +422,23 @@ def refresh_cases(bot, rescue=None, force=False):
         uri += "/" + rescue.id
 
     else:
-        uri += "?open=true"
+        uri += "?status=open&status=inactive"
 
     # Exceptions here are the responsibility of the caller.
     result = callapi(bot, 'GET', uri)
+    addNamesFromV2Response(result['included'])
+    result['data'] = convertV2DataToV1(result['data'])
     # print('[RatBoard] refreshing returned '+str(result))
     if force:
         bot.memory['ratbot']['board'] = RescueBoard()
     board = bot.memory['ratbot']['board']
 
     if rescue:
-        if not result['data']:
+        if len(result['data']) != 1:
             board.remove(rescue)
         else:
             with rescue.change():
-                rescue.refresh(result['data'])
+                rescue.refresh(result['data'][0])
         return
 
     with board:
@@ -508,10 +507,12 @@ def save_case(bot, rescue, forceFull=False):
     def task():
         result = callapi(bot, method, uri, data=data)
         rescue.commit()
+        addNamesFromV2Response(result['included'])
+        result['data'] = convertV2DataToV1(result['data'])
         if 'data' not in result or not result['data']:
             raise RuntimeError("API response returned unusable data.")
         with rescue.change():
-            rescue.refresh(result['data'])
+            rescue.refresh(result['data'][0])
         return rescue
 
     return bot.memory['ratbot']['executor'].submit(task)
@@ -811,8 +812,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     if not markingForDeletion and (not rescue.platform or rescue.platform == 'unknown'):
         bot.say('The case platform is unknown. Please set it with the corresponding command and try again.')
         return
-
-    url = "{apiurl}/rescues/edit/{rescue.id}".format(
+    url = "https://fuelrats.com/paperwork{rescue.id}".format(
         rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     try:
         url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
@@ -1471,8 +1471,10 @@ def cmd_closed(bot, trigger):
     aliases: closed, recent
     '''
     try:
-        result = callapi(bot=bot, uri='/rescues?open=False&limit=5&order=updatedAt&direction=DESC', method='GET',
+        result = callapi(bot=bot, uri='/rescues?status=closed&limit=5&order=updatedAt', method='GET',
                          triggernick=str(trigger.nick))
+        addNamesFromV2Response(result['included'])
+        result['data'] = convertV2DataToV1(result['data'])
         data = result['data']
         rescue0 = getDummyRescue()
         rescue1 = getDummyRescue()
@@ -1489,21 +1491,19 @@ def cmd_closed(bot, trigger):
         except:
             bot.say('Couldn\'t grab 5 cases. The output might look weird.')
         bot.say(
-            "These are the newest closed rescues: 1: Client " + str(rescue0['client']) + " at " + str(
-                rescue0['system']) + " - id: " + str(rescue0['id']) + " 2: Client " + str(
-                rescue1['client']) + " at " + str(rescue1['system']) + " - id: " + str(rescue1['id']))
-        bot.say("3: Client " + str(rescue2['client']) + " at " + str(rescue2['system']) + " - id: " + str(
-            rescue2['id']) + " 4: Client " + str(rescue3['client']) + " at " + str(rescue3['system']) + " - id: " + str(
-            rescue3['id']))
+            "These are the newest closed rescues: 1: Client {0[attributes][client]} at {0[attributes][system]} - id: {0[id]} 2: Client {1[attributes][client]} at {1[attributes][system]} - id: {1[id]}".format(rescue0, rescue1))
         bot.say(
-            "5: Client " + str(rescue4['client']) + " at " + str(rescue4['system']) + " - id: " + str(rescue4['id']))
+            "3: Client {0[attributes][client]} at {0[attributes][system]} - id: {0[id]} 4: Client {1[attributes][client]} at {1[attributes][system]} - id: {1[id]}".format(
+                rescue2, rescue3))
+        bot.say(
+            "5: Client {0[attributes][client]} at {0[attributes][system]} - id: {0[id]}".format(rescue4))
 
     except ratlib.api.http.APIError:
         bot.reply('Got an APIError, sorry. Try again later!')
 
 
 def getDummyRescue():
-    return {'client': 'dummy', 'system': 'dummy', 'id': 'dummy'}
+    return {'attributes':{'client': 'dummy', 'system': 'dummy'}, 'id': 'dummy'}
 
 
 @commands('reopen')
@@ -1514,7 +1514,7 @@ def cmd_reopen(bot, trigger, id):
     Reopens a case by its full database ID
     """
     try:
-        result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
+        result = callapi(bot, 'PUT', data={'status': 'open'}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
         refresh_cases(bot, force=True)
         updateBoardIndexes(bot)
         bot.say('Reopened case. Cases refreshed, care for your case numbers!')
@@ -1549,6 +1549,8 @@ def func_delete(bot, trigger, id):
         result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}',
                          triggernick=str(trigger.nick))
         caselist = []
+        addNamesFromV2Response(result['included'])
+        result['data'] = convertV2DataToV1(result['data'])
         for case in result['data']:
             rescue = Rescue.load(case)
             caselist.append(format_rescue(bot, rescue))
@@ -1579,7 +1581,9 @@ def cmd_quoteid(bot, trigger, id):
     """
     try:
         result = callapi(bot, method='GET', uri='/rescues/' + str(id), triggernick=str(trigger.nick))
-        rescue = Rescue.load(result['data'])
+        addNamesFromV2Response(result['included'])
+        result['data'] = convertV2DataToV1(result['data'])
+        rescue = Rescue.load(result['data'][0])
         func_quote(bot, trigger, rescue, showboardindex=False)
     except:
         bot.reply('Couldn\'t find a case with id ' + str(id) + ' or other APIError')
@@ -1610,7 +1614,7 @@ def cmd_pwl(bot, trigger, case):
     required parameters: client name or board index
     aliases: pwl, pwlink, paperwork, paperworklink
     """
-    url = "{apiurl}/rescues/edit/{rescue.id}".format(
+    url = "https://fuelrats.com/paperwork/{rescue.id}".format(
         rescue=case, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     shortened = url
     if bot.memory['ratbot']['shortener']:
@@ -1720,7 +1724,9 @@ def cmd_mdremove(bot, trigger, caseid):
     """
     try:
         result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick))
-        rescue = Rescue.load(result['data'])
+        addNamesFromV2Response(result['included'])
+        result['data'] = convertV2DataToV1(result['data'])
+        rescue = Rescue.load(result['data'][0])
         setRescueMarkedForDeletion(bot, rescue, marked=False)
         bot.say('Successfully removed ' + str(rescue.data["IRCNick"]) + '\'s case from the Marked for Deletion List™.')
     except:

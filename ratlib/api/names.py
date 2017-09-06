@@ -33,12 +33,12 @@ def getRatId(bot, ratname, platform=None):
 
 
     try:
-        uri = '/nicknames/search/' + ratname
+        uri = '/nicknames/' + ratname
         # print('looking for name '+ratname)
         # print('uri: '+str(uri))
         result = callapi(bot=bot, method='GET', uri=uri)
         # print(result)
-        data = result['data']
+        data = result['data']['attributes']['rows']
         # print(data)
         returnlist = []
         if platform is None:
@@ -52,7 +52,7 @@ def getRatId(bot, ratname, platform=None):
 
             for ratobject in firstmatch['rats']:
                 id = ratobject['id']
-                tempnam = ratobject['CMDRname']
+                tempnam = ratobject['name']
                 tempplat = ratobject['platform']
                 if (str(tempnam).lower()==str(ratname).lower() or str(tempnam).lower()==str(strippedname).lower() or str(tempnam).lower()==str(strippedname.replace('_', ' ')).lower()):
                     retlist.append({'id': id, 'name':tempnam , 'platform':tempplat})
@@ -76,7 +76,7 @@ def getRatId(bot, ratname, platform=None):
                 raise Exception
             for user in data:
                 for ratobject in user['rats']:
-                    ratnam = ratobject['CMDRname']
+                    ratnam = ratobject['name']
                     ratplat = ratobject['platform']
                     cmdr = ratobject['id']
                     rat = {'id':cmdr, 'platform':ratplat, 'name':ratnam}
@@ -118,7 +118,7 @@ def idFallback(bot, ratname, platform=None):
     strippedname = removeTags(ratname)
     print('[NamesAPI] Had to call idFallback for '+str(ratname))
     try:
-        uri = '/rats?CMDRname=' + strippedname + (('&platform='+platform) if platform is not None else '')
+        uri = '/rats?name=' + strippedname + (('&platform='+platform) if platform is not None else '')
         result = callapi(bot=bot, method='GET', uri=uri)
         # print(result)
         data = result['data']
@@ -155,8 +155,8 @@ def getRatName(bot, ratid):
         print('got Api error during api call')
         return 'unknown', 'unknown'
     try:
-        data = result['data']
-        name = data['CMDRname']
+        data = result['data'][0]['attributes']
+        name = data['name']
         platform = data['platform']
         ret = name, platform
     except:
@@ -208,7 +208,7 @@ def getClientName(bot, resId):
 
     try:
         result = callapi(bot=bot, method='GET', uri='/rescues/' + resId)
-        data = result['data']
+        data = result['data'][0]['attributes']
         ret = data['client']
     except:
         ret = 'unknown'
@@ -360,3 +360,11 @@ def getPrivLevel(trigger):
             if str(trigger.host).endswith(key):
                 return privlevels.get(key)
         return -1
+
+def addNamesFromV2Response(ratdata):
+    for rat in ratdata:
+        if rat['type'] != "rats":
+            continue
+        r = {'id':rat['id'], 'name':rat['attributes']['name'], 'platform':rat['attributes']['platform']}
+        savedratids.update({rat['attributes']['name']: r})
+        savedratnames.update({rat['id']: {'name': rat['attributes']['name'], 'platform': rat['attributes']['platform']}})
