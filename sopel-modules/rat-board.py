@@ -1486,7 +1486,7 @@ def cmd_closed(bot, trigger):
     aliases: closed, recent
     '''
     try:
-        result = callapi(bot=bot, uri='/rescues?status=closed&limit=5&order=updatedAt', method='GET',
+        result = callapi(bot=bot, uri='/rescues?status=closed&limit=5&order=-updatedAt', method='GET',
                          triggernick=str(trigger.nick))
         try:
             addNamesFromV2Response(result['included'])
@@ -1509,12 +1509,12 @@ def cmd_closed(bot, trigger):
         except:
             bot.say('Couldn\'t grab 5 cases. The output might look weird.')
         bot.say(
-            "These are the newest closed rescues: 1: Client {0[attributes][client]} at {0[attributes][system]} - id: {0[id]} 2: Client {1[attributes][client]} at {1[attributes][system]} - id: {1[id]}".format(rescue0, rescue1))
+            "These are the newest closed rescues: 1: Client {0[client]} at {0[system]} - id: {0[id]} 2: Client {1[client]} at {1[system]} - id: {1[id]}".format(rescue0, rescue1))
         bot.say(
-            "3: Client {0[attributes][client]} at {0[attributes][system]} - id: {0[id]} 4: Client {1[attributes][client]} at {1[attributes][system]} - id: {1[id]}".format(
+            "3: Client {0[client]} at {0[system]} - id: {0[id]} 4: Client {1[client]} at {1[system]} - id: {1[id]}".format(
                 rescue2, rescue3))
         bot.say(
-            "5: Client {0[attributes][client]} at {0[attributes][system]} - id: {0[id]}".format(rescue4))
+            "5: Client {0[client]} at {0[system]} - id: {0[id]}".format(rescue4))
 
     except ratlib.api.http.APIError:
         bot.reply('Got an APIError, sorry. Try again later!')
@@ -1593,9 +1593,9 @@ def cmd_mdlist(bot, trigger):
 
 
 @commands('quoteid')
-@require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
-@parameterize('+', usage='<id>')
 @ratlib.sopel.filter_output
+@parameterize('+', usage='<id>')
+@require_overseer('Sorry pal, you\'re not an overseer or higher!')
 def cmd_quoteid(bot, trigger, id):
     """
     Quotes a case by its database id
