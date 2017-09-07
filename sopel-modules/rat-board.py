@@ -47,7 +47,7 @@ from ratlib.sopel import UsageError
 import ratlib.api.http
 import ratlib.db
 from ratlib.db import with_session, Starsystem
-from ratlib.api.v2compatibility import convertV2DataToV1
+from ratlib.api.v2compatibility import convertV2DataToV1, convertV1RescueToV2
 
 urljoin = ratlib.api.http.urljoin
 
@@ -422,11 +422,14 @@ def refresh_cases(bot, rescue=None, force=False):
         uri += "/" + rescue.id
 
     else:
-        uri += "?status=open&status=inactive"
+        uri += "?status.not=closed"
 
     # Exceptions here are the responsibility of the caller.
     result = callapi(bot, 'GET', uri)
-    addNamesFromV2Response(result['included'])
+    try:
+        addNamesFromV2Response(result['included'])
+    except:
+        pass
     result['data'] = convertV2DataToV1(result['data'])
     # print('[RatBoard] refreshing returned '+str(result))
     if force:
@@ -444,6 +447,7 @@ def refresh_cases(bot, rescue=None, force=False):
     with board:
         # Cases we have but the refresh doesn't.  We'll assume these are closed after winnowing down the list.
         missing = set(board.indexes['id'].keys())
+        # print("Result: " + str(result))
         for case in result['data']:
             id = case['id']
             missing.discard(id)  # Case still exists.
@@ -505,10 +509,13 @@ def save_case(bot, rescue, forceFull=False):
         method = "POST"
 
     def task():
-        result = callapi(bot, method, uri, data=data)
+        result = callapi(bot, method, uri, data=convertV1RescueToV2(data))
         rescue.commit()
-        addNamesFromV2Response(result['included'])
-        result['data'] = convertV2DataToV1(result['data'])
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
+        result['data'] = convertV2DataToV1(result['data'], single=(method=="POST"))
         if 'data' not in result or not result['data']:
             raise RuntimeError("API response returned unusable data.")
         with rescue.change():
@@ -1144,6 +1151,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
     aliases: assign, add, go
     """
     ratlist = []
+    ratids = []
     for rat in rats:
         if rescue.platform == 'unknown':
             i = getRatId(bot, rat)
@@ -1156,6 +1164,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
             # print('[RatBoard] id was not 0.')
             rescue.rats.update([i['id']])
             ratlist.append(i['name'])
+            ratids.append(i['id'])
         else:
             # print('[RatBoard] id was 0')
             bot.reply('Be advised: ' + rat + ' does not have a registered Rat for the case\'s platform!')
@@ -1168,6 +1177,8 @@ def cmd_assign(bot, trigger, rescue, *rats):
             .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.data["IRCNick"])
     )
     save_case_later(bot, rescue)
+    if len(ratids) > 0:
+        callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
 
 
 @commands('ratid', 'id')
@@ -1195,11 +1206,15 @@ def cmd_unassign(bot, trigger, rescue, *rats):
     aliases: unassign, deassign, rm, remove, standdown
     """
     rescue.unidentifiedRats -= set(rats)
+    ratids = []
     for rat in rats:
         rat = str(getRatId(bot, rat)['id'])
+
         if rat != '0':
+            ratids.append(rat)
             rescue.rats -= {rat}
-            callapi(bot, 'PUT', '/rescues/' + str(rescue.id) + '/unassign/' + rat, triggernick=str(trigger.nick))
+
+    callapi(bot, 'PUT', '/rescues/unassign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
 
     bot.say(
         "Removed from {name}'s case: {rats}"
@@ -1473,7 +1488,10 @@ def cmd_closed(bot, trigger):
     try:
         result = callapi(bot=bot, uri='/rescues?status=closed&limit=5&order=updatedAt', method='GET',
                          triggernick=str(trigger.nick))
-        addNamesFromV2Response(result['included'])
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
         result['data'] = convertV2DataToV1(result['data'])
         data = result['data']
         rescue0 = getDummyRescue()
@@ -1549,7 +1567,10 @@ def func_delete(bot, trigger, id):
         result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}',
                          triggernick=str(trigger.nick))
         caselist = []
-        addNamesFromV2Response(result['included'])
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
         result['data'] = convertV2DataToV1(result['data'])
         for case in result['data']:
             rescue = Rescue.load(case)
@@ -1581,7 +1602,10 @@ def cmd_quoteid(bot, trigger, id):
     """
     try:
         result = callapi(bot, method='GET', uri='/rescues/' + str(id), triggernick=str(trigger.nick))
-        addNamesFromV2Response(result['included'])
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
         result['data'] = convertV2DataToV1(result['data'])
         rescue = Rescue.load(result['data'][0])
         func_quote(bot, trigger, rescue, showboardindex=False)
@@ -1724,7 +1748,10 @@ def cmd_mdremove(bot, trigger, caseid):
     """
     try:
         result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick))
-        addNamesFromV2Response(result['included'])
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
         result['data'] = convertV2DataToV1(result['data'])
         rescue = Rescue.load(result['data'][0])
         setRescueMarkedForDeletion(bot, rescue, marked=False)

@@ -104,7 +104,7 @@ def func_connect(bot):
     MyClientProtocol.bot = bot
     MyClientProtocol.debug_channel = bot.config.ratbot.debug_channel
     MyClientProtocol.board = bot.memory['ratbot']['board']
-    factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport)
+    factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport + '?bearer=' + str(MyClientProtocol.bot.config.ratbot.apitoken))
 
     factory.protocol = MyClientProtocol
     # print('in connect')
@@ -161,17 +161,18 @@ def connectSocket(bot, trigger):
 class MyClientProtocol(WebSocketClientProtocol):
     bot = None
     board = None
-    authed = False
     debug_channel = ''
 
     def onOpen(self):
         WebSocketClientProtocol.onOpen(self)
         MyClientProtocol.bot.say('[Websocket] Successfully openend connection to Websocket!', MyClientProtocol.debug_channel)
-        print(
-            '[Websocket] Authenticating with message: ' + '{ "action": "authorization", "bearer": "' + MyClientProtocol.bot.config.ratbot.apitoken + '"}')
-        self.sendMessage(
-            str('{ "action": "authorization", "bearer": "' + MyClientProtocol.bot.config.ratbot.apitoken + '"}').encode(
-                'utf-8'))
+        #print(
+        #    '[Websocket] Authenticating with message: ' + '{ "action": "authorization", "bearer": "' + MyClientProtocol.bot.config.ratbot.apitoken + '"}')
+        #self.sendMessage(
+            #str('{ "action": "authorization", "bearer": "' + MyClientProtocol.bot.config.ratbot.apitoken + '"}').encode(
+            #    'utf-8'))
+        print("[Websocket] onOpen received, sending rattracker sub")
+        self.sendMessage(str('{ "action":["stream","subscribe"], "id":"0xDEADBEEF" }').encode('utf-8'))
 
     def onMessage(self, payload, isBinary):
         if isBinary:
@@ -179,7 +180,7 @@ class MyClientProtocol(WebSocketClientProtocol):
 
 
         else:
-            print("[Websocket] Text message received: {0}".format(payload.decode('utf8')))
+            # print("[Websocket] Text message received: {0}".format(payload.decode('utf8')))
             handleWSMessage(payload, self)
 
     def onClose(self, wasClean, code, reason):
@@ -191,17 +192,23 @@ class MyClientProtocol(WebSocketClientProtocol):
 
 def handleWSMessage(payload, senderinstance):
     response = json.loads(payload.decode('utf8'))
-    action = response['meta']['action']
-    try:
-        data = response['data']
-    except KeyError as ex:
-        MyClientProtocol.bot.say(
-            '[Websocket] Couldn\'t grab Data field. Here\'s the Error field: ' + str(response['errors']), debug_channel)
-        return
     say = MyClientProtocol.bot.say
     bot = MyClientProtocol.bot
     board = MyClientProtocol.board
     debug_channel = MyClientProtocol.debug_channel
+
+    try:
+        # print("[Websocket] Response: " + str(response))
+        data = response['data']
+        if 'action' in response.keys():
+            action = response['action'][0]
+        else:
+            action = response['meta']['event']
+    except KeyError:
+        print("[Websocket] Message: " + str(response))
+        print("[Websocket] Couldn't get data or action - Ignoring Websocket Event.")
+        return
+
 
     def filterClient(bot, data):
         resId = data.get('RescueID') or data.get('rescueID') or data.get('RescueId') or data.get(
@@ -428,18 +435,10 @@ def handleWSMessage(payload, senderinstance):
                 save_case(bot, res)
                 # bot.say('Client name: ' + client + ', Ratname: ' + rat)
 
-    def authorize(data):
-        MyClientProtocol.authed = True
-        bot.say('[RatTracker] Connected with RatTracker!')
-        bot.say('[Websocket] Authenticated with the API!', debug_channel)
-        print(
-            '[Websocket] Authed! Subscribing to RT with message: ' + '{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }')
-        senderinstance.sendMessage(str('{ "action":"stream:subscribe", "applicationId":"0xDEADBEEF" }').encode('utf-8'))
 
-    wsevents = {"OnDuty:update": onduty, 'welcome': welcome, 'FriendRequest:update': fr, 'WingRequest:update': wr,
-                'SysArrived:update': system, 'BeaconSpotted:update': bc, 'InstanceSuccessful:update': inst,
-                'Fueled:update': fueled, 'CallJumps:update': calljumps, 'ClientSystem:update': clientupdate,
-                'authorization': authorize}
+    wsevents = {"OnDuty": onduty, 'welcome': welcome, 'FriendRequest': fr, 'WingRequest': wr,
+                'SysArrived': system, 'BeaconSpotted': bc, 'InstanceSuccessful': inst,
+                'Fueled': fueled, 'CallJumps': calljumps, 'ClientSystem': clientupdate}
     # print('keys of wsevents: '+str(wsevents.keys()))
     # print(action)
 
