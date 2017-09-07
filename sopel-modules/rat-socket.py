@@ -37,6 +37,8 @@ from twisted.internet.protocol import ReconnectingClientFactory
 from twisted.internet.ssl import optionsForClientTLS
 from twisted.internet import defer
 
+from ratlib.api.v2compatibility import convertV1RescueToV2, convertV2DataToV1
+
 log.startLogging(sys.stdout)
 defer.setDebugging(True)
 
@@ -440,7 +442,8 @@ def handleWSMessage(payload, senderinstance):
                 'SysArrived': system, 'BeaconSpotted': bc, 'InstanceSuccessful': inst,
                 'Fueled': fueled, 'CallJumps': calljumps, 'ClientSystem': clientupdate}
     # print('keys of wsevents: '+str(wsevents.keys()))
-    # print(action)
+    print("[Websocket] Action was: " + str(action))
+    print("[Websocket] message was: " + str(response))
 
     if action in wsevents.keys():
         # print('Action is in wskeys!!')
@@ -469,7 +472,7 @@ def save_case(bot, rescue, forceFull=False):
     if not bot.config.ratbot.apiurl:
         return None  # API Disabled
 
-    uri = '/api/rescues'
+    uri = '/rescues'
     if rescue.id:
         method = "PUT"
         uri += "/" + rescue.id
@@ -477,12 +480,17 @@ def save_case(bot, rescue, forceFull=False):
         method = "POST"
 
     def task():
-        result = callapi(bot, method, uri, data=data)
+        result = callapi(bot, method, uri, data=convertV1RescueToV2(data))
         rescue.commit()
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
+        result['data'] = convertV2DataToV1(result['data'], single=(method=="POST"))
         if 'data' not in result or not result['data']:
-            raise RuntimeError("[Websocket] API response returned unusable data.")
+            raise RuntimeError("API response returned unusable data.")
         with rescue.change():
-            rescue.refresh(result['data'])
+            rescue.refresh(result['data'][0])
         return rescue
 
     return bot.memory['ratbot']['executor'].submit(task)
