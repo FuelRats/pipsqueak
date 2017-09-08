@@ -1,5 +1,5 @@
 """
-MEthods to allow for compatibility with v2 of the Fuel Rats API
+Methods to allow for compatibility with v2 of the Fuel Rats API
 
 Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
