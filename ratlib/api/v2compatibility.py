@@ -49,6 +49,8 @@ def convertV1RescueToV2(v1Rescue):
     # print(str(v1Rescue))
     if 'id' in v1Rescue.keys():
         v2obj['id'] = v1Rescue['id']
+    if 'title' in v1Rescue.keys():
+        v2obj['title'] = v1Rescue['title']
     if 'client' in v1Rescue.keys():
         v2obj['client'] = v1Rescue['client']
     if 'data' in v1Rescue.keys():
