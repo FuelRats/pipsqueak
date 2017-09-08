@@ -1889,3 +1889,35 @@ def pretty_date(time=False):
 
 def prepexpired(bot):
     bot.say("Caution: The most recent client has NOT been !prep-ed!")
+
+@commands('paperworkneeded', 'needspaperwork', 'npw', 'pwn')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+def cmd_pwn(bot, trigger):
+    '''
+    Lists all cases with incomplete paperwork
+    aliases: paperworkneeded, needspaperwork, npw, pwn
+    '''
+    try:
+        result = callapi(bot=bot, uri='/rescues?outcome=null&order=-updatedAt', method='GET',
+                         triggernick=str(trigger.nick))
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
+        result['data'] = convertV2DataToV1(result['data'])
+        data = result['data']
+        if len(data) > 0:
+            bot.say("Incomplete Paperwork Cases:")
+        else:
+            bot.say("All Paperwork done!")
+        for case in data:
+            url = "https://fuelrats.com/paperwork/{id}".format(id=case['id'])
+            try:
+                url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
+            except:
+                print('[RatBoard] Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
+            ratname = getRatName(bot, ratid=case['firstLimpet'])
+            bot.say("Rescue of {case[client]} at {case[system]} by {ratname} - link: {url}".format(case=case, ratname=ratname, url=url))
+
+    except ratlib.api.http.APIError:
+        bot.reply('Got an APIError, sorry. Try again later!')
