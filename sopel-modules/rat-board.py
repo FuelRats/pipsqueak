@@ -22,17 +22,15 @@ import datetime
 import collections
 import itertools
 import warnings
-import functools
-import json
-import numpy
-import math
 
 import sys
 import contextlib
 import traceback
 import threading
+from threading import Timer
 import operator
 import concurrent.futures
+import dateutil.parser
 
 # Sopel imports
 from sopel.formatting import bold, color, colors
@@ -51,6 +49,7 @@ from ratlib.sopel import UsageError
 import ratlib.api.http
 import ratlib.db
 from ratlib.db import with_session, Starsystem
+from ratlib.api.v2compatibility import convertV2DataToV1, convertV1RescueToV2
 
 urljoin = ratlib.api.http.urljoin
 
@@ -60,7 +59,9 @@ HISTORY_MAX = 10000  # Max number of nicks we'll remember history for at once.
 defaultdata = {'IRCNick': 'unknown client name', 'langID': 'en',
                'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}, "status": {},
                "boardIndex": None}
-
+def dummymethod():
+    pass
+preptimer = Timer(0, dummymethod)
 
 ## Start setup section ###
 class RatboardSection(StaticSection):
@@ -425,26 +426,32 @@ def refresh_cases(bot, rescue=None, force=False):
         uri += "/" + rescue.id
 
     else:
-        uri += "?open=true"
+        uri += "?status.not=closed"
 
     # Exceptions here are the responsibility of the caller.
     result = callapi(bot, 'GET', uri)
+    try:
+        addNamesFromV2Response(result['included'])
+    except:
+        pass
+    result['data'] = convertV2DataToV1(result['data'])
     # print('[RatBoard] refreshing returned '+str(result))
     if force:
         bot.memory['ratbot']['board'] = RescueBoard()
     board = bot.memory['ratbot']['board']
 
     if rescue:
-        if not result['data']:
+        if len(result['data']) != 1:
             board.remove(rescue)
         else:
             with rescue.change():
-                rescue.refresh(result['data'])
+                rescue.refresh(result['data'][0])
         return
 
     with board:
         # Cases we have but the refresh doesn't.  We'll assume these are closed after winnowing down the list.
         missing = set(board.indexes['id'].keys())
+        # print("Result: " + str(result))
         for case in result['data']:
             id = case['id']
             missing.discard(id)  # Case still exists.
@@ -506,12 +513,17 @@ def save_case(bot, rescue, forceFull=False):
         method = "POST"
 
     def task():
-        result = callapi(bot, method, uri, data=data)
+        result = callapi(bot, method, uri, data=convertV1RescueToV2(data))
         rescue.commit()
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
+        result['data'] = convertV2DataToV1(result['data'], single=(method=="POST"))
         if 'data' not in result or not result['data']:
             raise RuntimeError("API response returned unusable data.")
         with rescue.change():
-            rescue.refresh(result['data'])
+            rescue.refresh(result['data'][0])
         return rescue
 
     return bot.memory['ratbot']['executor'].submit(task)
@@ -593,7 +605,7 @@ class AppendQuotesResult:
         return rv
 
 
-def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_platform=True, detect_system=True):
+def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_platform=True, detect_system=True, author="Mecha"):
     """
     Appends lines to a (possibly newly created) case.  Returns a tuple of (Rescue, appended_lines).
 
@@ -676,7 +688,11 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
             rv.rescue.platform = platforms.pop()
             rv.detected_platform = rv.rescue.platform
 
-    rv.rescue.quotes.extend(rv.added_lines)
+    json_lines = []
+    for line in rv.added_lines:
+        json_lines.append({"message":line, "updatedAt":datetime.datetime.now().isoformat(),
+                           "createdAt":datetime.datetime.now().isoformat(), "author":author, "lastAuthor":author})
+    rv.rescue.quotes.extend(json_lines)
     return rv
 
 
@@ -719,7 +735,7 @@ def rule_ratsignal(bot, trigger):
     if value[0]:
         bot.reply('You already sent a Signal! Please stand by, someone will help you soon!')
         return
-    result = append_quotes(bot, trigger.nick, [line], create=True)
+    result = append_quotes(bot, trigger.nick, [line], create=True, author=trigger.nick)
     bot.say(
         "Received RATSIGNAL from {nick}.  Calling all available rats!  ({tags})"
             .format(nick=trigger.nick, tags=", ".join(result.tags()) if result else "<unknown>")
@@ -733,7 +749,21 @@ def rule_ratsignal(bot, trigger):
         "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick),
         forceFull=True
     )
+    global preptimer
+    try:
+        preptimer.cancel()
+    except:
+        pass
+    preptimer = Timer(180, prepexpired, args=[bot])
+    preptimer.start()
 
+@rule('!prep.*')
+def prepsent(bot, trigger):
+    global preptimer
+    try:
+        preptimer.cancel()
+    except:
+        pass
 
 @commands('quote')
 @ratlib.sopel.filter_output
@@ -783,7 +813,17 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
     if rescue.unidentifiedRats:
         bot.say("Assigned unidentifiedRats: " + ", ".join(rescue.unidentifiedRats))
     for ix, quote in enumerate(rescue.quotes):
-        bot.say('[{ix}]{quote}'.format(ix=ix, quote=quote))
+        pdate = "unknown" if quote["updatedAt"] is None else pretty_date(dateutil.parser.parse(quote['updatedAt']))
+        if quote['lastAuthor'] is None:
+            bot.say(
+                '[{ix}][{quote[author]} {ago}] {quote[message]}'.format(ix=ix, quote=quote, ago=pdate))
+        elif quote['lastAuthor'] == quote['author']:
+            bot.say(
+                '[{ix}][{quote[author]} {ago}] {quote[message]}'.format(ix=ix, quote=quote, ago=pdate))
+        else:
+            bot.say(
+                '[{ix}][{quote[author]}, {quote[lastAuthor]} {ago}] {quote[message]}'.format(ix=ix, quote=quote,
+                                                                                                    ago=pdate))
 
 
 @commands('clear', 'close')
@@ -811,8 +851,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     if not markingForDeletion and (not rescue.platform or rescue.platform == 'unknown'):
         bot.say('The case platform is unknown. Please set it with the corresponding command and try again.')
         return
-
-    url = "{apiurl}/rescues/edit/{rescue.id}".format(
+    url = "https://fuelrats.com/paperwork{rescue.id}".format(
         rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     try:
         url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
@@ -1001,7 +1040,7 @@ def cmd_grab(bot, trigger, client):
         # After all, why make a case with no information?
         return bot.reply(client + ' has not spoken recently.')
 
-    result = append_quotes(bot, client, line, create=True)
+    result = append_quotes(bot, client, line, create=True, author=client)
     if not result:
         return bot.reply("Case was not found and could not be created.")
 
@@ -1045,7 +1084,7 @@ def func_inject(bot, trigger, find_result, line):
     # Can probably be removed, keeping it with the above comment so s/o else later understands it.
     if not line:
         raise UsageError()
-    result = append_quotes(bot, find_result, line, create=True)
+    result = append_quotes(bot, find_result, line, create=True, author=trigger.nick)
     if result.created:
         with bot.memory['ratbot']['board'].change(result.rescue):
             result.rescue.data.update(defaultdata)
@@ -1089,7 +1128,9 @@ def cmd_sub(bot, trigger, rescue, lineno, line=None):
         rescue.quotes.pop(lineno)
         bot.say("Deleted line {}".format(lineno))
     else:
-        rescue.quotes[lineno] = line
+        rescue.quotes[lineno] = {"message":line, "updatedAt":datetime.datetime.now().isoformat(),
+                                 "createdAt":rescue.quotes[lineno]["createdAt"],
+                                 "author":rescue.quotes[lineno]["author"], "lastAuthor":trigger.nick}
         bot.say("Updated line {}".format(lineno))
 
     save_case_later(bot, rescue)
@@ -1144,6 +1185,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
     aliases: assign, add, go
     """
     ratlist = []
+    ratids = []
     for rat in rats:
         if rescue.platform == 'unknown':
             i = getRatId(bot, rat)
@@ -1156,6 +1198,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
             # print('[RatBoard] id was not 0.')
             rescue.rats.update([i['id']])
             ratlist.append(i['name'])
+            ratids.append(i['id'])
         else:
             # print('[RatBoard] id was 0')
             bot.reply('Be advised: ' + rat + ' does not have a registered Rat for the case\'s platform!')
@@ -1168,6 +1211,8 @@ def cmd_assign(bot, trigger, rescue, *rats):
             .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.data["IRCNick"])
     )
     save_case_later(bot, rescue)
+    if len(ratids) > 0:
+        callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
 
 
 @commands('ratid', 'id')
@@ -1195,11 +1240,15 @@ def cmd_unassign(bot, trigger, rescue, *rats):
     aliases: unassign, deassign, rm, remove, standdown
     """
     rescue.unidentifiedRats -= set(rats)
+    ratids = []
     for rat in rats:
         rat = str(getRatId(bot, rat)['id'])
+
         if rat != '0':
+            ratids.append(rat)
             rescue.rats -= {rat}
-            callapi(bot, 'PUT', '/rescues/' + str(rescue.id) + '/unassign/' + rat, triggernick=str(trigger.nick))
+
+    callapi(bot, 'PUT', '/rescues/unassign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
 
     bot.say(
         "Removed from {name}'s case: {rats}"
@@ -1406,7 +1455,7 @@ def ratmama_parse(bot, trigger, db):
 
         # Create plaintext versions of newline
         newline = fmt.format(**fields)
-        result = append_quotes(bot, fields["cmdr"], fmt.format(**fields), create=True)
+        result = append_quotes(bot, fields["cmdr"], fmt.format(**fields), create=True, author="Mecha")
         case = result.rescue  # Reduce typing later.
 
         # Update the case
@@ -1459,6 +1508,14 @@ def ratmama_parse(bot, trigger, db):
                 bot.say(
                     fields["nick"] + " " + prepcrstring)
             bot.memory['ratbot']['lastsignal'] = datetime.datetime.now()
+            global preptimer
+            try:
+                preptimer.cancel()
+            except:
+                pass
+            if not case.codeRed:
+                preptimer = Timer(180, prepexpired, args=[bot])
+                preptimer.start()
         else:
             bot.say("{0.client} has reconnected to the IRC! (Case #{0.boardindex})".format(case))
 
@@ -1471,8 +1528,13 @@ def cmd_closed(bot, trigger):
     aliases: closed, recent
     '''
     try:
-        result = callapi(bot=bot, uri='/rescues?open=False&limit=5&order=updatedAt&direction=DESC', method='GET',
+        result = callapi(bot=bot, uri='/rescues?status=closed&limit=5&order=-updatedAt', method='GET',
                          triggernick=str(trigger.nick))
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
+        result['data'] = convertV2DataToV1(result['data'])
         data = result['data']
         rescue0 = getDummyRescue()
         rescue1 = getDummyRescue()
@@ -1489,21 +1551,19 @@ def cmd_closed(bot, trigger):
         except:
             bot.say('Couldn\'t grab 5 cases. The output might look weird.')
         bot.say(
-            "These are the newest closed rescues: 1: Client " + str(rescue0['client']) + " at " + str(
-                rescue0['system']) + " - id: " + str(rescue0['id']) + " 2: Client " + str(
-                rescue1['client']) + " at " + str(rescue1['system']) + " - id: " + str(rescue1['id']))
-        bot.say("3: Client " + str(rescue2['client']) + " at " + str(rescue2['system']) + " - id: " + str(
-            rescue2['id']) + " 4: Client " + str(rescue3['client']) + " at " + str(rescue3['system']) + " - id: " + str(
-            rescue3['id']))
+            "These are the newest closed rescues: 1: Client {0[client]} at {0[system]} - id: {0[id]} 2: Client {1[client]} at {1[system]} - id: {1[id]}".format(rescue0, rescue1))
         bot.say(
-            "5: Client " + str(rescue4['client']) + " at " + str(rescue4['system']) + " - id: " + str(rescue4['id']))
+            "3: Client {0[client]} at {0[system]} - id: {0[id]} 4: Client {1[client]} at {1[system]} - id: {1[id]}".format(
+                rescue2, rescue3))
+        bot.say(
+            "5: Client {0[client]} at {0[system]} - id: {0[id]}".format(rescue4))
 
     except ratlib.api.http.APIError:
         bot.reply('Got an APIError, sorry. Try again later!')
 
 
 def getDummyRescue():
-    return {'client': 'dummy', 'system': 'dummy', 'id': 'dummy'}
+    return {'attributes':{'client': 'dummy', 'system': 'dummy'}, 'id': 'dummy'}
 
 
 @commands('reopen')
@@ -1514,7 +1574,7 @@ def cmd_reopen(bot, trigger, id):
     Reopens a case by its full database ID
     """
     try:
-        result = callapi(bot, 'PUT', data={'open': True}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
+        result = callapi(bot, 'PUT', data={'status': 'open'}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
         refresh_cases(bot, force=True)
         updateBoardIndexes(bot)
         bot.say('Reopened case. Cases refreshed, care for your case numbers!')
@@ -1549,6 +1609,11 @@ def func_delete(bot, trigger, id):
         result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}',
                          triggernick=str(trigger.nick))
         caselist = []
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
+        result['data'] = convertV2DataToV1(result['data'])
         for case in result['data']:
             rescue = Rescue.load(case)
             caselist.append(format_rescue(bot, rescue))
@@ -1570,16 +1635,21 @@ def cmd_mdlist(bot, trigger):
 
 
 @commands('quoteid')
-@require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
-@parameterize('+', usage='<id>')
 @ratlib.sopel.filter_output
+@parameterize('+', usage='<id>')
+@require_overseer('Sorry pal, you\'re not an overseer or higher!')
 def cmd_quoteid(bot, trigger, id):
     """
     Quotes a case by its database id
     """
     try:
         result = callapi(bot, method='GET', uri='/rescues/' + str(id), triggernick=str(trigger.nick))
-        rescue = Rescue.load(result['data'])
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
+        result['data'] = convertV2DataToV1(result['data'])
+        rescue = Rescue.load(result['data'][0])
         func_quote(bot, trigger, rescue, showboardindex=False)
     except:
         bot.reply('Couldn\'t find a case with id ' + str(id) + ' or other APIError')
@@ -1610,7 +1680,7 @@ def cmd_pwl(bot, trigger, case):
     required parameters: client name or board index
     aliases: pwl, pwlink, paperwork, paperworklink
     """
-    url = "{apiurl}/rescues/edit/{rescue.id}".format(
+    url = "https://fuelrats.com/paperwork/{rescue.id}".format(
         rescue=case, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     shortened = url
     if bot.memory['ratbot']['shortener']:
@@ -1720,7 +1790,12 @@ def cmd_mdremove(bot, trigger, caseid):
     """
     try:
         result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick))
-        rescue = Rescue.load(result['data'])
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
+        result['data'] = convertV2DataToV1(result['data'])
+        rescue = Rescue.load(result['data'][0])
         setRescueMarkedForDeletion(bot, rescue, marked=False)
         bot.say('Successfully removed ' + str(rescue.data["IRCNick"]) + '\'s case from the Marked for Deletion List™.')
     except:
@@ -1765,3 +1840,85 @@ def cmd_quiet(bot, trigger):
         bot.say("Wow, the last signal was so long ago... " + ret + " ago to be exact! Orangey approves!")
         return
     bot.say("It has been quiet for " + ret + "! Time to summon a case?")
+
+
+
+
+def pretty_date(time=False):
+    """
+    Get a datetime object or a int() Epoch timestamp and return a
+    pretty string like 'an hour ago', 'Yesterday', '3 months ago',
+    'just now', etc
+    SOURCE: https://stackoverflow.com/questions/1551382/user-friendly-time-format-in-python
+    """
+    from datetime import datetime
+    now = datetime.now()
+    if type(time) is int:
+        diff = now - datetime.fromtimestamp(time)
+    elif isinstance(time,datetime):
+        diff = now - time
+    else:
+        diff = now - now
+    second_diff = diff.seconds
+    day_diff = diff.days
+
+    if day_diff < 0:
+        return ''
+
+    if day_diff == 0:
+        if second_diff < 10:
+            return "just now"
+        if second_diff < 60:
+            return str(int(second_diff)) + " seconds ago"
+        if second_diff < 120:
+            return "a minute ago"
+        if second_diff < 3600:
+            return str(int(second_diff / 60)) + " minutes ago"
+        if second_diff < 7200:
+            return "an hour ago"
+        if second_diff < 86400:
+            return str(int(second_diff / 3600)) + " hours ago"
+    if day_diff == 1:
+        return "Yesterday"
+    if day_diff < 7:
+        return str(int(day_diff)) + " days ago"
+    if day_diff < 31:
+        return str(int(day_diff / 7)) + " weeks ago"
+    if day_diff < 365:
+        return str(int(day_diff / 30)) + " months ago"
+    return str(int(day_diff / 365)) + " years ago"
+
+def prepexpired(bot):
+    bot.say("Caution: The most recent client has NOT been !prep-ed!")
+
+@commands('paperworkneeded', 'needspaperwork', 'npw', 'pwn')
+@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+def cmd_pwn(bot, trigger):
+    '''
+    Lists all cases with incomplete paperwork
+    aliases: paperworkneeded, needspaperwork, npw, pwn
+    '''
+    try:
+        result = callapi(bot=bot, uri='/rescues?outcome=null&order=-updatedAt', method='GET',
+                         triggernick=str(trigger.nick))
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
+        result['data'] = convertV2DataToV1(result['data'])
+        data = result['data']
+        if len(data) > 0:
+            bot.say("Incomplete Paperwork Cases:")
+        else:
+            bot.say("All Paperwork done!")
+        for case in data:
+            url = "https://fuelrats.com/paperwork/{id}".format(id=case['id'])
+            try:
+                url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
+            except:
+                print('[RatBoard] Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
+            ratname = getRatName(bot, ratid=case['firstLimpet'])[0]
+            bot.say("Rescue of {case[client]} at {case[system]} by {ratname} - link: {url}".format(case=case, ratname=ratname, url=url))
+
+    except ratlib.api.http.APIError:
+        bot.reply('Got an APIError, sorry. Try again later!')
