@@ -851,7 +851,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     if not markingForDeletion and (not rescue.platform or rescue.platform == 'unknown'):
         bot.say('The case platform is unknown. Please set it with the corresponding command and try again.')
         return
-    url = "https://fuelrats.com/paperwork{rescue.id}".format(
+    url = "https://fuelrats.com/paperwork/{rescue.id}".format(
         rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     try:
         url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
@@ -1277,7 +1277,7 @@ def cmd_codered(bot, trigger, rescue):
                 ratnames.append(getRatName(bot, rat)[0])
             bot.say(", ".join(ratnames) + ": This is your case!")
     else:
-        bot.say('{name}\'s case is no longer CR.'.format(name=rescue.data["IRCNick"]))
+        bot.say('{name}\'s case is no longer CR'.format(name=rescue.data["IRCNick"]))
 
     save_case_later(bot, rescue)
 
