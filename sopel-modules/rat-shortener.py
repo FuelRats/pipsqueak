@@ -76,4 +76,4 @@ def shorten_cmd(bot, trigger, url, keyword=None):
         bot.reply(str(ex))
         return
 
-    bot.reply("Your short URL is: {}".format(result['shorturl']))
+    bot.reply("Your short URL is: {} - Title: {}".format(result['shorturl'], result["title"]))
