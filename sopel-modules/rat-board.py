@@ -59,7 +59,9 @@ HISTORY_MAX = 10000  # Max number of nicks we'll remember history for at once.
 defaultdata = {'IRCNick': 'unknown client name', 'langID': 'en',
                'markedForDeletion': {'marked': False, 'reason': 'None.', 'reporter': 'Noone.'}, "status": {},
                "boardIndex": None}
-
+def dummymethod():
+    pass
+preptimer = Timer(0, dummymethod)
 
 ## Start setup section ###
 class RatboardSection(StaticSection):
@@ -747,7 +749,21 @@ def rule_ratsignal(bot, trigger):
         "API is still not done with ratsignal from {nick}; continuing in background.".format(nick=trigger.nick),
         forceFull=True
     )
+    global preptimer
+    try:
+        preptimer.cancel()
+    except:
+        pass
+    preptimer = Timer(180, prepexpired, args=[bot])
+    preptimer.start()
 
+@rule('!prep.*')
+def prepsent(bot, trigger):
+    global preptimer
+    try:
+        preptimer.cancel()
+    except:
+        pass
 
 @commands('quote')
 @ratlib.sopel.filter_output
@@ -1492,6 +1508,13 @@ def ratmama_parse(bot, trigger, db):
                 bot.say(
                     fields["nick"] + " " + prepcrstring)
             bot.memory['ratbot']['lastsignal'] = datetime.datetime.now()
+            global preptimer
+            try:
+                preptimer.cancel()
+            except:
+                pass
+            preptimer = Timer(180, prepexpired, args=[bot])
+            preptimer.start()
         else:
             bot.say("{0.client} has reconnected to the IRC! (Case #{0.boardindex})".format(case))
 
@@ -1863,3 +1886,6 @@ def pretty_date(time=False):
     if day_diff < 365:
         return str(int(day_diff / 30)) + " months ago"
     return str(int(day_diff / 365)) + " years ago"
+
+def prepexpired(bot):
+    bot.say("Caution: The most recent client has NOT been !prep-ed!")
