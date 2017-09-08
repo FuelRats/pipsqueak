@@ -27,8 +27,10 @@ import sys
 import contextlib
 import traceback
 import threading
+from threading import Timer
 import operator
 import concurrent.futures
+import dateutil.parser
 
 # Sopel imports
 from sopel.formatting import bold, color, colors
@@ -601,7 +603,7 @@ class AppendQuotesResult:
         return rv
 
 
-def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_platform=True, detect_system=True):
+def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_platform=True, detect_system=True, author="Mecha"):
     """
     Appends lines to a (possibly newly created) case.  Returns a tuple of (Rescue, appended_lines).
 
@@ -684,7 +686,11 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
             rv.rescue.platform = platforms.pop()
             rv.detected_platform = rv.rescue.platform
 
-    rv.rescue.quotes.extend(rv.added_lines)
+    json_lines = []
+    for line in rv.added_lines:
+        json_lines.append({"message":line, "updatedAt":datetime.datetime.now().isoformat(),
+                           "createdAt":datetime.datetime.now().isoformat(), "author":author, "lastAuthor":author})
+    rv.rescue.quotes.extend(json_lines)
     return rv
 
 
@@ -727,7 +733,7 @@ def rule_ratsignal(bot, trigger):
     if value[0]:
         bot.reply('You already sent a Signal! Please stand by, someone will help you soon!')
         return
-    result = append_quotes(bot, trigger.nick, [line], create=True)
+    result = append_quotes(bot, trigger.nick, [line], create=True, author=trigger.nick)
     bot.say(
         "Received RATSIGNAL from {nick}.  Calling all available rats!  ({tags})"
             .format(nick=trigger.nick, tags=", ".join(result.tags()) if result else "<unknown>")
@@ -791,7 +797,17 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
     if rescue.unidentifiedRats:
         bot.say("Assigned unidentifiedRats: " + ", ".join(rescue.unidentifiedRats))
     for ix, quote in enumerate(rescue.quotes):
-        bot.say('[{ix}]{quote}'.format(ix=ix, quote=quote))
+        pdate = "unknown" if quote["updatedAt"] is None else pretty_date(dateutil.parser.parse(quote['updatedAt']))
+        if quote['lastAuthor'] is None:
+            bot.say(
+                '[{ix}][{quote[author]} {ago}] {quote[message]}'.format(ix=ix, quote=quote, ago=pdate))
+        elif quote['lastAuthor'] == quote['author']:
+            bot.say(
+                '[{ix}][{quote[author]} {ago}] {quote[message]}'.format(ix=ix, quote=quote, ago=pdate))
+        else:
+            bot.say(
+                '[{ix}][{quote[author]}, {quote[lastAuthor]} {ago}] {quote[message]}'.format(ix=ix, quote=quote,
+                                                                                                    ago=pdate))
 
 
 @commands('clear', 'close')
@@ -1008,7 +1024,7 @@ def cmd_grab(bot, trigger, client):
         # After all, why make a case with no information?
         return bot.reply(client + ' has not spoken recently.')
 
-    result = append_quotes(bot, client, line, create=True)
+    result = append_quotes(bot, client, line, create=True, author=client)
     if not result:
         return bot.reply("Case was not found and could not be created.")
 
@@ -1052,7 +1068,7 @@ def func_inject(bot, trigger, find_result, line):
     # Can probably be removed, keeping it with the above comment so s/o else later understands it.
     if not line:
         raise UsageError()
-    result = append_quotes(bot, find_result, line, create=True)
+    result = append_quotes(bot, find_result, line, create=True, author=trigger.nick)
     if result.created:
         with bot.memory['ratbot']['board'].change(result.rescue):
             result.rescue.data.update(defaultdata)
@@ -1096,7 +1112,9 @@ def cmd_sub(bot, trigger, rescue, lineno, line=None):
         rescue.quotes.pop(lineno)
         bot.say("Deleted line {}".format(lineno))
     else:
-        rescue.quotes[lineno] = line
+        rescue.quotes[lineno] = {"message":line, "updatedAt":datetime.datetime.now().isoformat(),
+                                 "createdAt":rescue.quotes[lineno]["createdAt"],
+                                 "author":rescue.quotes[lineno]["author"], "lastAuthor":trigger.nick}
         bot.say("Updated line {}".format(lineno))
 
     save_case_later(bot, rescue)
@@ -1421,7 +1439,7 @@ def ratmama_parse(bot, trigger, db):
 
         # Create plaintext versions of newline
         newline = fmt.format(**fields)
-        result = append_quotes(bot, fields["cmdr"], fmt.format(**fields), create=True)
+        result = append_quotes(bot, fields["cmdr"], fmt.format(**fields), create=True, author="Mecha")
         case = result.rescue  # Reduce typing later.
 
         # Update the case
@@ -1798,3 +1816,50 @@ def cmd_quiet(bot, trigger):
         bot.say("Wow, the last signal was so long ago... " + ret + " ago to be exact! Orangey approves!")
         return
     bot.say("It has been quiet for " + ret + "! Time to summon a case?")
+
+
+
+
+def pretty_date(time=False):
+    """
+    Get a datetime object or a int() Epoch timestamp and return a
+    pretty string like 'an hour ago', 'Yesterday', '3 months ago',
+    'just now', etc
+    SOURCE: https://stackoverflow.com/questions/1551382/user-friendly-time-format-in-python
+    """
+    from datetime import datetime
+    now = datetime.now()
+    if type(time) is int:
+        diff = now - datetime.fromtimestamp(time)
+    elif isinstance(time,datetime):
+        diff = now - time
+    else:
+        diff = now - now
+    second_diff = diff.seconds
+    day_diff = diff.days
+
+    if day_diff < 0:
+        return ''
+
+    if day_diff == 0:
+        if second_diff < 10:
+            return "just now"
+        if second_diff < 60:
+            return str(int(second_diff)) + " seconds ago"
+        if second_diff < 120:
+            return "a minute ago"
+        if second_diff < 3600:
+            return str(int(second_diff / 60)) + " minutes ago"
+        if second_diff < 7200:
+            return "an hour ago"
+        if second_diff < 86400:
+            return str(int(second_diff / 3600)) + " hours ago"
+    if day_diff == 1:
+        return "Yesterday"
+    if day_diff < 7:
+        return str(int(day_diff)) + " days ago"
+    if day_diff < 31:
+        return str(int(day_diff / 7)) + " weeks ago"
+    if day_diff < 365:
+        return str(int(day_diff / 30)) + " months ago"
+    return str(int(day_diff / 365)) + " years ago"
