@@ -10,7 +10,7 @@ See LICENSE.md
 """
 def convertV2DataToV1(v2Data, single=False):
     newdata = []
-    print("Converting New Data: " + str(v2Data))
+    # print("Converting New Data: " + str(v2Data))
     if single:
         v2Data = [v2Data]
     for case in v2Data:
