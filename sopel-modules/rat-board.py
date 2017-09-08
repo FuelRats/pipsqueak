@@ -1777,7 +1777,10 @@ def cmd_md(bot, trigger, case, reason):
         case.id) + ') and adding it to the Marked for Deletion List™.')
     func_clear(bot, trigger, case, markingForDeletion=True)
     setRescueMarkedForDeletion(bot=bot, rescue=case, marked=True, reason=reason, reporter=trigger.nick)
-
+    try:
+        preptimer.cancel()
+    except:
+        pass
 
 @commands('mdremove', 'mdr', 'mdd', 'mddeny')
 @parameterize('w', '<id>')
