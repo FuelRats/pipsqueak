@@ -1916,7 +1916,7 @@ def cmd_pwn(bot, trigger):
                 url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
             except:
                 print('[RatBoard] Couldn\'t grab shortened URL for Paperwork. Ignoring, posting long link.')
-            ratname = getRatName(bot, ratid=case['firstLimpet'])
+            ratname = getRatName(bot, ratid=case['firstLimpet'])[0]
             bot.say("Rescue of {case[client]} at {case[system]} by {ratname} - link: {url}".format(case=case, ratname=ratname, url=url))
 
     except ratlib.api.http.APIError:

@@ -149,6 +149,8 @@ def getRatName(bot, ratid):
     """
     if (str(ratid) is not '0') and str(ratid) in savedratnames.keys():
         return savedratnames.get(ratid)['name'], savedratnames.get(ratid)['platform']
+    if str(ratid) == 'None':
+        return 'unknown', 'unknown'
     try:
         result = callapi(bot=bot, method='GET', uri='/rats/' + str(ratid))
     except ratlib.api.http.APIError:
