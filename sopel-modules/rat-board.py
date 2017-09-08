@@ -1513,8 +1513,9 @@ def ratmama_parse(bot, trigger, db):
                 preptimer.cancel()
             except:
                 pass
-            preptimer = Timer(180, prepexpired, args=[bot])
-            preptimer.start()
+            if not case.codeRed:
+                preptimer = Timer(180, prepexpired, args=[bot])
+                preptimer.start()
         else:
             bot.say("{0.client} has reconnected to the IRC! (Case #{0.boardindex})".format(case))
 
