@@ -1925,3 +1925,33 @@ def cmd_pwn(bot, trigger):
 
     except ratlib.api.http.APIError:
         bot.reply('Got an APIError, sorry. Try again later!')
+
+
+@commands('invalid', 'invalidate')
+@parameterize('w', '<id>')
+@require_overseer('Sorry, but you need to be an overseer or higher to use this command!')
+def cmd_mdremove(bot, trigger, caseid):
+    """
+    Remove a case from the Marked for Deletion List™ (Does NOT reopen the case!)
+    required parameter: database id
+    aliases: mdremove, mdr, mdd, mddeny
+    """
+    try:
+        result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick))
+        try:
+            addNamesFromV2Response(result['included'])
+        except:
+            pass
+        case = result["data"][0]
+        findresult = bot.memory['ratbot']['board'].find(case["attributes"]["client"], create=False)
+        if findresult != (None, None):
+            bot.reply("A Case for that rescues client is still on the board. Please !close or !md it first")
+            return
+
+        case["attributes"]["data"]["markedForDeletion"]["marked"] = False
+        case["attributes"]["outcome"] = "invalid"
+        result = callapi(bot, method='PUT', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick), data=case["attributes"])
+        bot.reply("Set Case to invalid outcome and removed it from the Marked For Deletion List™")
+
+    except:
+        bot.reply('Couldn\'t find a case with id ' + str(caseid) + ' or other APIError')
