@@ -851,7 +851,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     if not markingForDeletion and (not rescue.platform or rescue.platform == 'unknown'):
         bot.say('The case platform is unknown. Please set it with the corresponding command and try again.')
         return
-    url = "https://fuelrats.com/paperwork/{rescue.id}".format(
+    url = "https://fuelrats.com/paperwork/{rescue.id}/edit".format(
         rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     try:
         url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
@@ -1680,7 +1680,7 @@ def cmd_pwl(bot, trigger, case):
     required parameters: client name or board index
     aliases: pwl, pwlink, paperwork, paperworklink
     """
-    url = "https://fuelrats.com/paperwork/{rescue.id}".format(
+    url = "https://fuelrats.com/paperwork/{rescue.id}/edit".format(
         rescue=case, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
     shortened = url
     if bot.memory['ratbot']['shortener']:
@@ -1915,7 +1915,7 @@ def cmd_pwn(bot, trigger):
         else:
             bot.say("All Paperwork done!")
         for case in data:
-            url = "https://fuelrats.com/paperwork/{id}".format(id=case['id'])
+            url = "https://fuelrats.com/paperwork/{id}/edit".format(id=case['id'])
             try:
                 url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
             except:
