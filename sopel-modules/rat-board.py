@@ -1210,9 +1210,9 @@ def cmd_assign(bot, trigger, rescue, *rats):
         "{client_name}: Please add the following rat(s) to your friends list: {rats}"
             .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.data["IRCNick"])
     )
-    save_case_later(bot, rescue)
     if len(ratids) > 0:
         callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
+    save_case_later(bot, rescue)
 
 
 @commands('ratid', 'id')
