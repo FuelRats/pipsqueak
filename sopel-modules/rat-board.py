@@ -690,8 +690,8 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
 
     json_lines = []
     for line in rv.added_lines:
-        json_lines.append({"message":line, "updatedAt":datetime.datetime.now().isoformat(),
-                           "createdAt":datetime.datetime.now().isoformat(), "author":author, "lastAuthor":author})
+        json_lines.append({"message":line, "updatedAt":datetime.datetime.utcnow().isoformat(),
+                           "createdAt":datetime.datetime.utcnow().isoformat(), "author":author, "lastAuthor":author})
     rv.rescue.quotes.extend(json_lines)
     return rv
 
@@ -1128,7 +1128,7 @@ def cmd_sub(bot, trigger, rescue, lineno, line=None):
         rescue.quotes.pop(lineno)
         bot.say("Deleted line {}".format(lineno))
     else:
-        rescue.quotes[lineno] = {"message":line, "updatedAt":datetime.datetime.now().isoformat(),
+        rescue.quotes[lineno] = {"message":line, "updatedAt":datetime.datetime.utcnow().isoformat(),
                                  "createdAt":rescue.quotes[lineno]["createdAt"],
                                  "author":rescue.quotes[lineno]["author"], "lastAuthor":trigger.nick}
         bot.say("Updated line {}".format(lineno))
@@ -1439,7 +1439,7 @@ def ratmama_parse(bot, trigger, db):
             return
 
         # Save time of new Ratsignal
-        bot.memory['ratbot']['lastsignal'] = datetime.datetime.now()
+        bot.memory['ratbot']['lastsignal'] = datetime.datetime.utcnow()
 
         # Parse results
         fields = match.groupdict()
@@ -1507,7 +1507,7 @@ def ratmama_parse(bot, trigger, db):
                 prepcrstring = getFact(bot, factname='prepcr', lang=fields["language_code"])
                 bot.say(
                     fields["nick"] + " " + prepcrstring)
-            bot.memory['ratbot']['lastsignal'] = datetime.datetime.now()
+            bot.memory['ratbot']['lastsignal'] = datetime.datetime.utcnow()
             global preptimer
             try:
                 preptimer.cancel()
@@ -1826,7 +1826,7 @@ def cmd_quiet(bot, trigger):
     if bot.memory['ratbot']['lastsignal'] is None:
         bot.say("Sadly, I don't remember when we had the last signal. Maybe it was 42 seconds ago?")
         return
-    tdelta = datetime.datetime.now() - bot.memory['ratbot']['lastsignal']
+    tdelta = datetime.datetime.utcnow() - bot.memory['ratbot']['lastsignal']
     seconds = tdelta.seconds % 60
     minutes = int(tdelta.seconds / 60)
     hashours = False
@@ -1855,7 +1855,7 @@ def pretty_date(time=False):
     SOURCE: https://stackoverflow.com/questions/1551382/user-friendly-time-format-in-python
     """
     from datetime import datetime
-    now = datetime.now()
+    now = datetime.utcnow()
     if type(time) is int:
         diff = now - datetime.fromtimestamp(time)
     elif isinstance(time,datetime):
