@@ -1930,7 +1930,7 @@ def cmd_pwn(bot, trigger):
 @commands('invalid', 'invalidate')
 @parameterize('w', '<id>')
 @require_overseer('Sorry, but you need to be an overseer or higher to use this command!')
-def cmd_mdremove(bot, trigger, caseid):
+def cmd_invalid(bot, trigger, caseid):
     """
     Remove a case from the Marked for Deletion List™ (Does NOT reopen the case!)
     required parameter: database id
