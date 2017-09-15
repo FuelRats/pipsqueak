@@ -125,13 +125,12 @@ def idFallback(bot, ratname, platform=None):
         # print(data)
         firstmatch = data[0]
         id = firstmatch['id']
-        ret =  {'id': id, 'name': strippedname, 'platform':firstmatch['platform']}
+        ret =  {'id': id, 'name': strippedname, 'platform':firstmatch['attributes']['platform']}
         savedratids.update({ratname:ret})
         savedratnames.update({id:{'name':strippedname, 'platform':firstmatch['platform']}})
         return ret
 
-
-    except IndexError as ex:
+    except (IndexError, KeyError) as ex:
                 # print('no rats with that commandername or nickname or gamertag found.')
                 return {'id': '0', 'name': ratname, 'error': ex, 'platform':'unknown',
                         'description': 'no rats with that commandername or nickname or gamertag found.'}
