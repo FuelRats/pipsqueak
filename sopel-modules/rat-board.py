@@ -1831,7 +1831,7 @@ def cmd_quiet(bot, trigger):
     minutes = int(tdelta.seconds / 60)
     hashours = False
     hours = 0
-    if minutes > 60:
+    if minutes >= 60:
         hours = int(minutes/60)
         minutes = minutes % 60
         hashours = True
