@@ -1194,7 +1194,10 @@ def cmd_assign(bot, trigger, rescue, *rats):
         # Check if id returned is an id, decide for unidentified rats or rats.
         # print("i is " + str(i))
         idstr = str(i['id'])
-        if idstr != '0' and idstr != 'None':
+        if rat.lower() == rescue.data['IRCNick'].lower():  # sanity check
+            bot.reply("Unable to assign a client to their own case.")
+            return
+        elif idstr != '0' and idstr != 'None':
             # print('[RatBoard] id was not 0.')
             rescue.rats.update([i['id']])
             ratlist.append(i['name'])
