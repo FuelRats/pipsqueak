@@ -147,6 +147,9 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
                 data=json.dumps(data, sort_keys=True, indent=" " * 4)
             )
         )
+        if response is not None:
+            print("Response:")
+            print(response.text)
         raise HTTPError(code=ex.response.status_code, details=str(ex)) from ex
     except exc.RequestException as ex:
         try:
