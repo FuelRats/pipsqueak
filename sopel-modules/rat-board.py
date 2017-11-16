@@ -325,7 +325,7 @@ class Rescue(TrackedBase):
     rats = SetProperty(default=lambda: set())
     unidentifiedRats = SetProperty(default=lambda: set())
     quotes = ListProperty(default=lambda: [])
-    platform = TrackedProperty(default='unknown')
+    platform = TrackedProperty(default=None)
     open = TypeCoercedProperty(default=True, coerce=bool)
     epic = TypeCoercedProperty(default=False, coerce=bool)
     codeRed = TypeCoercedProperty(default=False, coerce=bool)
@@ -653,7 +653,7 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
             rv.detected_system = systems.pop()
             rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
             rv.rescue.system = rv.detected_system
-    if detect_platform and rv.rescue.platform == 'unknown':
+    if detect_platform and rv.rescue.platform == None:
         platforms = set()
         for line in rv.added_lines:
             if re.search(
@@ -984,7 +984,7 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
     cl = (('Operation ' + rescue.title) if rescue.title else (getattr(rescue, attr)))
     platform = rescue.platform
     assignedratsstring = ''
-    if platform == 'unknown':
+    if platform == None:
         platform = ''
     if platform == 'xb':
         platform = color(' XB', colors.GREEN)
@@ -1187,7 +1187,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
     ratlist = []
     ratids = []
     for rat in rats:
-        if rescue.platform == 'unknown':
+        if rescue.platform == None:
             i = getRatId(bot, rat)
         else:
             i = getRatId(bot, rat, platform=rescue.platform)
