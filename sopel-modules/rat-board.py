@@ -325,7 +325,7 @@ class Rescue(TrackedBase):
     rats = SetProperty(default=lambda: set())
     unidentifiedRats = SetProperty(default=lambda: set())
     quotes = ListProperty(default=lambda: [])
-    platform = TrackedProperty(default='unknown')
+    platform = TrackedProperty(default=None)
     open = TypeCoercedProperty(default=True, coerce=bool)
     epic = TypeCoercedProperty(default=False, coerce=bool)
     codeRed = TypeCoercedProperty(default=False, coerce=bool)
@@ -653,7 +653,7 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
             rv.detected_system = systems.pop()
             rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
             rv.rescue.system = rv.detected_system
-    if detect_platform and rv.rescue.platform == 'unknown':
+    if detect_platform and rv.rescue.platform == None:
         platforms = set()
         for line in rv.added_lines:
             if re.search(
@@ -690,8 +690,8 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
 
     json_lines = []
     for line in rv.added_lines:
-        json_lines.append({"message":line, "updatedAt":datetime.datetime.utcnow().isoformat(),
-                           "createdAt":datetime.datetime.utcnow().isoformat(), "author":author, "lastAuthor":author})
+        json_lines.append({"message":line, "updatedAt":datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'),
+                           "createdAt":datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'), "author":author, "lastAuthor":author})
     rv.rescue.quotes.extend(json_lines)
     return rv
 
@@ -984,7 +984,7 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
     cl = (('Operation ' + rescue.title) if rescue.title else (getattr(rescue, attr)))
     platform = rescue.platform
     assignedratsstring = ''
-    if platform == 'unknown':
+    if platform == None:
         platform = ''
     if platform == 'xb':
         platform = color(' XB', colors.GREEN)
@@ -1128,7 +1128,7 @@ def cmd_sub(bot, trigger, rescue, lineno, line=None):
         rescue.quotes.pop(lineno)
         bot.say("Deleted line {}".format(lineno))
     else:
-        rescue.quotes[lineno] = {"message":line, "updatedAt":datetime.datetime.utcnow().isoformat(),
+        rescue.quotes[lineno] = {"message":line, "updatedAt":datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'),
                                  "createdAt":rescue.quotes[lineno]["createdAt"],
                                  "author":rescue.quotes[lineno]["author"], "lastAuthor":trigger.nick}
         bot.say("Updated line {}".format(lineno))
@@ -1187,14 +1187,17 @@ def cmd_assign(bot, trigger, rescue, *rats):
     ratlist = []
     ratids = []
     for rat in rats:
-        if rescue.platform == 'unknown':
+        if rescue.platform == None:
             i = getRatId(bot, rat)
         else:
             i = getRatId(bot, rat, platform=rescue.platform)
         # Check if id returned is an id, decide for unidentified rats or rats.
         # print("i is " + str(i))
         idstr = str(i['id'])
-        if idstr != '0' and idstr != 'None':
+        if rat.lower() == rescue.data['IRCNick'].lower():  # sanity check
+            bot.reply("Unable to assign a client to their own case.")
+            return
+        elif idstr != '0' and idstr != 'None':
             # print('[RatBoard] id was not 0.')
             rescue.rats.update([i['id']])
             ratlist.append(i['name'])
@@ -1831,7 +1834,7 @@ def cmd_quiet(bot, trigger):
     minutes = int(tdelta.seconds / 60)
     hashours = False
     hours = 0
-    if minutes > 60:
+    if minutes >= 60:
         hours = int(minutes/60)
         minutes = minutes % 60
         hashours = True
