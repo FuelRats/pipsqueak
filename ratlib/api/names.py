@@ -18,6 +18,8 @@ urljoin = ratlib.api.http.urljoin
 savedratids = {}
 savedratnames = {}
 savedclientnames = {}
+# defining this here, so it does not have to be redefined every time a new @require_rat command is made
+msg_not_idented = "Sorry, but you need to be a registered and drilled Rat with an identified IRC nickname to use this command."
 
 def getRatId(bot, ratname, platform=None):
 

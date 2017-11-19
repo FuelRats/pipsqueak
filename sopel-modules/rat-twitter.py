@@ -23,7 +23,7 @@ from sopel.module import commands
 from twitter import TwitterError
 
 import ratlib.sopel
-from ratlib.api.names import require_rat, require_techrat
+from ratlib.api.names import require_rat, require_techrat, msg_not_idented
 from ratlib.db import with_session, Starsystem
 from ratlib.sopel import parameterize
 
@@ -103,7 +103,7 @@ def cmd_tweetdebug(bot, trigger):
 
 @commands('tweet')
 @parameterize("t", usage="<text to tweet>")
-@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+@require_rat(msg_not_idented)
 def cmd_tweet(bot, trigger, line):
     """ 
     Tweet your heart out! (Serious messages though!) 
@@ -200,7 +200,7 @@ def get_tweet_for_case(rescue, db):
 @commands('tweetcase','tweetc')
 @parameterize('r', usage='<client or case number>')
 @with_session
-@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+@require_rat(msg_not_idented)
 def cmd_tweetc(bot, trigger, rescue, db = None):
     """
     Send a tweet based on a case, using generic terms (in bubble, near landmark).

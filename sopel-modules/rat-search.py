@@ -36,7 +36,7 @@ from ratlib.db import with_session, Starsystem, StarsystemPrefix, Landmark, get_
 from ratlib.starsystem import refresh_database, scan_for_systems, ConcurrentOperationError
 from ratlib.autocorrect import correct
 import re
-from ratlib.api.names import require_rat, require_overseer
+from ratlib.api.names import require_rat, require_overseer, msg_not_idented
 from ratlib.hastebin import post_to_hastebin
 from ratlib.util import timed
 
@@ -241,7 +241,7 @@ def cmd_scan(bot, trigger):
 
 
 @commands('plot')
-@require_rat('You need to be a registered and drilled Rat to use this Command!')
+@require_rat(msg_not_idented)
 # @rate(60 * 30)
 @with_session
 def cmd_plot(bot, trigger, db=None):
@@ -379,7 +379,7 @@ def cmd_plot(bot, trigger, db=None):
 
 
 @commands('landmark')
-@require_rat('You need to be a registered and drilled Rat to use this Command!')
+@require_rat(msg_not_idented)
 @with_session
 def cmd_landmark(bot, trigger, db=None):
     """
