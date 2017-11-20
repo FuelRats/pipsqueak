@@ -292,7 +292,7 @@ def require_overseer(message='Sorry pal, you\'re not an overseer or higher!'):
         return actual_decorator(message)
     return actual_decorator
 
-def require_dispatch(message=None):
+def require_dispatch(message="Sorry, but you need to be a dispatch or higher to use this command"):
     """Decorate a function to require the triggering user to be a FuelRats dispatch (as in, the currently active dispatch).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
