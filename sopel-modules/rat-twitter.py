@@ -89,7 +89,7 @@ def requires_case(fn):
     return parameterize('r', "<client or case number>")(fn)
 
 @commands('tweetdebug')
-@require_techrat
+@require_techrat(None)
 def cmd_tweetdebug(bot, trigger):
     """
     Toggles debug mode on and off. Does not save when the bot is reloaded.
