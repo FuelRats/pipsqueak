@@ -220,7 +220,7 @@ def flushNames():
     savedratnames.clear()
     savedclientnames.clear()
 
-def require_netadmin(message=None):
+def require_netadmin(message="Hey Buddy, you know you need to be an identified NetAdmin to use this command, right?"):
     """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
@@ -238,7 +238,7 @@ def require_netadmin(message=None):
         return actual_decorator(message)
     return actual_decorator
 
-def require_techrat(message=None):
+def require_techrat(message='I am sorry, but this command is restricted for TechRats and above.'):
     """Decorate a function to require the triggering user to be a FuelRats TechRat (as in, a rat that's part of the RatTech team.).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
