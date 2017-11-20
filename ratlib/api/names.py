@@ -256,7 +256,7 @@ def require_techrat(message='I am sorry, but this command is restricted for Tech
         return actual_decorator(message)
     return actual_decorator
 
-def require_op(message=None):
+def require_op(message="This command is restricted for Ops and above."):
     """Decorate a function to require the triggering user to be a FuelRats op (as in, an operator.).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
