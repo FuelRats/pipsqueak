@@ -86,7 +86,6 @@ def setup(bot):
     bot.memory['ratbot']['board'] = RescueBoard()
     bot.memory['ratbot']['board'].bot = bot
     bot.memory['ratbot']['lastsignal'] = None
-    bot.memory['ratbot']['lastCase'] = None  # store the last case in memory
 
     if not hasattr(bot.config, 'ratboard') or not bot.config.ratboard.signal:
         signal = 'ratsignal'
@@ -1049,7 +1048,6 @@ def cmd_grab(bot, trigger, client):
         with bot.memory['ratbot']['board'].change(result.rescue):
             result.rescue.data.update(defaultdata)
             result.rescue.data.update({'IRCNick': result.rescue.client, "boardIndex": int(result.rescue.boardindex)})
-            bot.memory['ratbot']['lastCase'] = result.rescue  # wait... this doesn't fire prepcr does it?
 
     bot.say(
         "{rescue.client_name}'s case {verb} with: \"{line}\"  ({tags})"
