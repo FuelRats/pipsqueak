@@ -1573,7 +1573,7 @@ def getDummyRescue():
 
 @commands('reopen')
 @parameterize('+', usage="<id>")
-@require_overseer('Sorry pal, you\'re not an overseer or higher!')
+@require_overseer()
 def cmd_reopen(bot, trigger, id):
     """
     Reopens a case by its full database ID
@@ -1589,7 +1589,7 @@ def cmd_reopen(bot, trigger, id):
 
 
 @commands('delete')
-@require_overseer(message='Sorry pal, you\'re not an overseer or higher!')
+@require_overseer()
 @parameterize('+', usage='<id/list>')
 def cmd_delete(bot, trigger, id):
     """
@@ -1631,7 +1631,7 @@ def func_delete(bot, trigger, id):
 
 
 @commands('mdlist')
-@require_overseer('Sorry pal, you\'re not an overseer or higher!')
+@require_overseer()
 def cmd_mdlist(bot, trigger):
     """
     Shows the Marked for Deletion List™
@@ -1642,7 +1642,7 @@ def cmd_mdlist(bot, trigger):
 @commands('quoteid')
 @ratlib.sopel.filter_output
 @parameterize('+', usage='<id>')
-@require_overseer('Sorry pal, you\'re not an overseer or higher!')
+@require_overseer()
 def cmd_quoteid(bot, trigger, id):
     """
     Quotes a case by its database id
@@ -1731,7 +1731,7 @@ def cmd_host(bot, trigger):
 
 
 @commands('refreshboard', 'resetboard', 'forceresetboard', 'forcerefreshboard', 'frb', 'fbr', 'boardrefresh')
-@require_overseer('Sorry, but you need to be a registered Overseer or higher to access this command.')
+@require_overseer()
 def cmd_forceRefreshBoard(bot, trigger):
     """
     Forcefully resets the Board. This removes all "Ghost" Cases as they are grabbed from the API. Boardindexes will get changed by , but updated on the Dispatch Board afterwards.
@@ -1789,7 +1789,7 @@ def cmd_md(bot, trigger, case, reason):
 
 @commands('mdremove', 'mdr', 'mdd', 'mddeny')
 @parameterize('w', '<id>')
-@require_overseer('Sorry, but you need to be an overseer or higher to use this command!')
+@require_overseer()
 def cmd_mdremove(bot, trigger, caseid):
     """
     Remove a case from the Marked for Deletion List™ (Does NOT reopen the case!)
@@ -1934,7 +1934,7 @@ def cmd_pwn(bot, trigger):
 
 @commands('invalid', 'invalidate')
 @parameterize('w', '<id>')
-@require_overseer('Sorry, but you need to be an overseer or higher to use this command!')
+@require_overseer()
 def cmd_invalid(bot, trigger, caseid):
     """
     Remove a case from the Marked for Deletion List™ (Does NOT reopen the case!)

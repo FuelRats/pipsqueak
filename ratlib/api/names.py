@@ -274,7 +274,7 @@ def require_op(message="This command is restricted for Ops and above."):
         return actual_decorator(message)
     return actual_decorator
 
-def require_overseer(message=None):
+def require_overseer(message='Sorry pal, you\'re not an overseer or higher!'):
     """Decorate a function to require the triggering user to be a FuelRats overseer (as in, a highly experienced and trustworthy person).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):

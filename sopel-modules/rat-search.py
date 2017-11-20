@@ -442,7 +442,7 @@ def cmd_landmark(bot, trigger, db=None):
             .format(starsystem=starsystem, landmark=landmark, distance=distance)
         )
 
-    @require_overseer
+    @require_overseer(None)
     def subcommand_add(*unused_args, **unused_kwargs):
         starsystem = get_system_or_none(system_name)
         if not starsystem:
@@ -457,7 +457,7 @@ def cmd_landmark(bot, trigger, db=None):
         else:
             bot.reply("Added system '{}' as a landmark.".format(starsystem.name))
 
-    @require_overseer
+    @require_overseer(None)
     def subcommand_del(*unused_args, **unused_kwargs):
         landmark = lookup_system(system_name, Landmark)
         if landmark is None:
@@ -468,7 +468,7 @@ def cmd_landmark(bot, trigger, db=None):
         bot.reply("Removed system '{}' from the list of landmarks.".format(landmark.name))
         pass
 
-    @require_overseer
+    @require_overseer(None)
     def subcommand_refresh(*unused_args, **unused_kwargs):
         ct = (
             db.query(Landmark)
