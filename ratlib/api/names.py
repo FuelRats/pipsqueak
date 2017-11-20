@@ -18,7 +18,7 @@ urljoin = ratlib.api.http.urljoin
 savedratids = {}
 savedratnames = {}
 savedclientnames = {}
-# defining this here, so it does not have to be redefined every time a new @require_rat command is made
+
 def getRatId(bot, ratname, platform=None):
 
     if ratname in savedratids.keys():
