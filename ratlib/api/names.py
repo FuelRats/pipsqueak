@@ -19,8 +19,6 @@ savedratids = {}
 savedratnames = {}
 savedclientnames = {}
 # defining this here, so it does not have to be redefined every time a new @require_rat command is made
-msg_not_idented = "Sorry, but you need to be a registered and drilled Rat with an identified IRC nickname to use this command."
-
 def getRatId(bot, ratname, platform=None):
 
     if ratname in savedratids.keys():
@@ -313,7 +311,9 @@ def require_dispatch(message=None):
         return actual_decorator(message)
     return actual_decorator
 
-def require_rat(message=None):
+def require_rat(message="Sorry, but you need to be a registered and drilled Rat with an identified IRC nickname to use "
+                        "this command."
+):
     """Decorate a function to require the triggering user to be a FuelRats rat (as in, registered with the API and drilled).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):

@@ -481,7 +481,7 @@ def updateBoardIndexes(bot):
         save_case(bot, rescue, forceFull=True)
 
 @commands('reindex', 'updateindex', 'index', 'ri')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_reindex(bot, trigger):
     """
     Updates all Indexes with the API (/Dispatch Board)
@@ -769,7 +769,7 @@ def prepsent(bot, trigger):
 @commands('quote')
 @ratlib.sopel.filter_output
 @requires_case
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_quote(bot, trigger, rescue):
     """
     Recites all known information for the specified rescue
@@ -830,7 +830,7 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
 @commands('clear', 'close')
 # @ratlib.sopel.filter_output
 @parameterize('r*', '<client name or case number> [Rat that fired first limpet]')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_clear(bot, trigger, rescue, *firstlimpet):
     """
     Mark a case as closed.
@@ -899,7 +899,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
 @commands('list')
 @ratlib.sopel.filter_output
 @parameterize('w', usage="[-iru@]")
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_list(bot, trigger, params=''):
     """
     List the currently active, open cases.
@@ -1025,7 +1025,7 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
 @commands('grab')
 @ratlib.sopel.filter_output
 @parameterize('w', usage='<client name>')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_grab(bot, trigger, client):
     """
     Grab the last line the client said and add it to the case.
@@ -1067,7 +1067,7 @@ def cmd_grab(bot, trigger, client):
 
 @commands('inject')
 @parameterize("wT", usage="<client or case number> <text to add>")
-@require_rat(msg_not_idented)
+@require_rat()
 # Using this to prevent cases from created if they are not found, therefor created, but no line to add was specified.
 def cmd_inject(bot, trigger, case, line):
     """
@@ -1111,7 +1111,7 @@ def func_inject(bot, trigger, find_result, line):
 @commands('sub')
 @ratlib.sopel.filter_output
 @parameterize('rwT', usage='<client or case number> <line number> [<replacement text>]')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_sub(bot, trigger, rescue, lineno, line=None):
     """
     Substitute or delete an existing line of text to the client's case.  Does not perform autocorrection/autodetection
@@ -1141,7 +1141,7 @@ def cmd_sub(bot, trigger, rescue, lineno, line=None):
 @commands('active', 'activate', 'inactive', 'deactivate')
 @ratlib.sopel.filter_output
 @requires_case
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_active(bot, trigger, rescue):
     """
     Toggle a case active/inactive
@@ -1159,7 +1159,7 @@ def cmd_active(bot, trigger, rescue):
 @commands('epic')
 @ratlib.sopel.filter_output
 @requires_case
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_epic(bot, trigger, rescue):
     """
     Toggle a case epic/not epic
@@ -1179,7 +1179,7 @@ def cmd_epic(bot, trigger, rescue):
 @commands('assign', 'add', 'go')
 @ratlib.sopel.filter_output
 @parameterize('r+', usage="<client or case number> <rats...>")
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_assign(bot, trigger, rescue, *rats):
     """
     Assign rats to a client's case.
@@ -1223,7 +1223,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
 @commands('ratid', 'id')
 @ratlib.sopel.filter_output
 @parameterize('w', usage='<ratname>')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_ratid(bot, trigger, rat):
     """
     Get a rats' id from the api
@@ -1237,7 +1237,7 @@ def cmd_ratid(bot, trigger, rat):
 @commands('unassign', 'deassign', 'rm', 'remove', 'standdown')
 @ratlib.sopel.filter_output
 @parameterize('r+', usage="<client or case number> <rats...>")
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_unassign(bot, trigger, rescue, *rats):
     """
     Remove rats from a client's case.
@@ -1265,7 +1265,7 @@ def cmd_unassign(bot, trigger, rescue, *rats):
 @commands('codered', 'casered', 'cr')
 @ratlib.sopel.filter_output
 @requires_case
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_codered(bot, trigger, rescue):
     """
     Toggles the code red status of a case.
@@ -1288,7 +1288,7 @@ def cmd_codered(bot, trigger, rescue):
 
 
 @requires_case
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_platform(bot, trigger, rescue, platform=None):
     """
     Sets a case platform to PC or xbox.
@@ -1308,20 +1308,20 @@ def cmd_platform(bot, trigger, rescue, platform=None):
 
 # For some reason, this can't be tricked with functools.partial.
 @commands('pc')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_platform_pc(bot, trigger):
     """Sets a case's platform to PC"""
     return cmd_platform(bot, trigger, platform='pc')
 
 
 @commands('xb(?:ox)?(?:-?(?:1|one))?')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_platform_xb(bot, trigger):
     """Sets a case's platform to XB"""
     return cmd_platform(bot, trigger, platform='xb')
 
 @commands('ps(?:4)?')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_plaform_ps(bot, trigger):
     """Sets a case's platform to PlayStation"""
     if bot.config.ratboard.enable_ps_support == 'True' or False:
@@ -1333,7 +1333,7 @@ def cmd_plaform_ps(bot, trigger):
 @ratlib.sopel.filter_output
 @parameterize('rT', usage='<client or case number> <system name>')
 @ratlib.db.with_session
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_system(bot, trigger, rescue, system, db=None):
     """
     Sets a case's system.
@@ -1366,7 +1366,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
 @ratlib.sopel.filter_output
 @parameterize('rT', usage='<client or case number> <commander namename>')
 @ratlib.db.with_session
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_commander(bot, trigger, rescue, commander, db=None):
     """
     Sets a client's in-game commander name.
@@ -1526,7 +1526,7 @@ def ratmama_parse(bot, trigger, db):
 
 
 @commands('closed', 'recent')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_closed(bot, trigger):
     '''
     Lists the 5 last closed rescues to give the ability to reopen them
@@ -1662,7 +1662,7 @@ def cmd_quoteid(bot, trigger, id):
 
 @commands('title')
 @parameterize('rw*', '<case # or client name> <title to set>')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_title(bot, trigger, rescue, *title):
     """
     Sets the Operation Title of a rescue.
@@ -1678,7 +1678,7 @@ def cmd_title(bot, trigger, rescue, *title):
 
 @commands('pwl', 'pwlink', 'paperwork', 'paperworklink')
 @parameterize(params='r', usage='<client name or case number>')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_pwl(bot, trigger, case):
     """
     Creates the link for the paperwork of any currently open rescue and shortens it (if the shortener module is active)
@@ -1712,7 +1712,7 @@ def cmd_version(bot, trigger):
 
 
 @commands('flush', 'resetnames', 'rn', 'flushnames', 'fn')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_flush(bot, trigger):
     """
     Resets the cached RatNames. Helps with Bugged rat names on !assign
@@ -1771,7 +1771,7 @@ def setRescueMarkedForDeletion(bot, rescue, marked, reason='None.', reporter='No
 
 @commands('md', 'mdadd', 'markfordeletion', 'markfordelete')
 @parameterize('rt', '<client/board #> <reason>')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_md(bot, trigger, case, reason):
     """
     Closes a rescue and adds it to the Marked for Deletion List™
@@ -1812,7 +1812,7 @@ def cmd_mdremove(bot, trigger, caseid):
 
 @commands('ircnick', 'nick', 'nickname')
 @parameterize('rt')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_nick(bot, trigger, case, newnick):
     """
     Sets a new nickname for this case.
@@ -1823,7 +1823,7 @@ def cmd_nick(bot, trigger, case, newnick):
     bot.say('Set Nick to ' + str(newnick))
 
 @commands('quiet', 'lastsignal', 'last')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_quiet(bot, trigger):
     """
     Tells the time since the last Signal
@@ -1900,7 +1900,7 @@ def prepexpired(bot):
     bot.say("Caution: The most recent client has NOT been !prep-ed!")
 
 @commands('paperworkneeded', 'needspaperwork', 'npw', 'pwn')
-@require_rat(msg_not_idented)
+@require_rat()
 def cmd_pwn(bot, trigger):
     '''
     Lists all cases with incomplete paperwork
