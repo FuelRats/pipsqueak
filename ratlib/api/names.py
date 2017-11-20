@@ -18,7 +18,6 @@ urljoin = ratlib.api.http.urljoin
 savedratids = {}
 savedratnames = {}
 savedclientnames = {}
-
 def getRatId(bot, ratname, platform=None):
 
     if ratname in savedratids.keys():
@@ -315,7 +314,7 @@ def require_rat(message="Sorry, but you need to be a registered and drilled Rat 
                         "this command."
 ):
     """Decorate a function to require the triggering user to be a FuelRats rat (as in, registered with the API and drilled).
-    If they are not, `message` will be said if given."""
+    If they are not, `message` will be said."""
     def actual_decorator(function):
         @functools.wraps(function)
         def guarded(bot, trigger, *args, **kwargs):
