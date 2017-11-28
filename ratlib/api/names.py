@@ -250,7 +250,6 @@ def require_permission(privilage:Permissions, message =''):
                     bot.say(message)
                     return NOLIMIT
             else:
-                bot.say("has privlage, executing")
                 return function(bot, trigger, *args, **kwargs)
         return guarded
     # Hack to allow decorator without parens
