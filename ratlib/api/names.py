@@ -259,26 +259,6 @@ def require_permission(privilage:Permissions, message =''):
     return actual_decorator
 
 
-def require_rat(message="Sorry, but you need to be a registered and drilled Rat with an identified IRC nickname to use "
-                        "this command."
-):
-    """Decorate a function to require the triggering user to be a FuelRats rat (as in, registered with the API and drilled).
-    If they are not, `message` will be said."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<1:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
-
 def require_recruit(message=None):
     """Decorate a function to require the triggering user to be a FuelRats recruit (as in, a user registered with the API but undrilled).
     If they are not, `message` will be said if given."""
