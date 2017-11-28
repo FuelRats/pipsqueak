@@ -259,24 +259,6 @@ def require_permission(privilage:Permissions, message =''):
     return actual_decorator
 
 
-def require_dispatch(message="Sorry, but you need to be a dispatch or higher to use this command"):
-    """Decorate a function to require the triggering user to be a FuelRats dispatch (as in, the currently active dispatch).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<2:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
-
 def require_rat(message="Sorry, but you need to be a registered and drilled Rat with an identified IRC nickname to use "
                         "this command."
 ):
