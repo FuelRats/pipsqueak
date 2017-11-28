@@ -898,7 +898,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
 @commands('list')
 @ratlib.sopel.filter_output
 @parameterize('w', usage="[-iru@]")
-@require_privilege(Permissions.rat)
+@require_permission(Permissions.rat)
 def cmd_list(bot, trigger, params=''):
     """
     List the currently active, open cases.
@@ -1571,7 +1571,7 @@ def getDummyRescue():
 
 @commands('reopen')
 @parameterize('+', usage="<id>")
-@require_privilege(Permissions.overseer)
+@require_permission(Permissions.overseer)
 def cmd_reopen(bot, trigger, id):
     """
     Reopens a case by its full database ID
@@ -1587,7 +1587,7 @@ def cmd_reopen(bot, trigger, id):
 
 
 @commands('delete')
-@require_privilege(Permissions.overseer)
+@require_permission(Permissions.overseer)
 @parameterize('+', usage='<id/list>')
 def cmd_delete(bot, trigger, id):
     """
@@ -1629,7 +1629,7 @@ def func_delete(bot, trigger, id):
 
 
 @commands('mdlist')
-@require_privilege(Permissions.overseer)
+@require_permission(Permissions.overseer)
 def cmd_mdlist(bot, trigger):
     """
     Shows the Marked for Deletion List™
@@ -1640,7 +1640,7 @@ def cmd_mdlist(bot, trigger):
 @commands('quoteid')
 @ratlib.sopel.filter_output
 @parameterize('+', usage='<id>')
-@require_privilege(Permissions.overseer)
+@require_permission(Permissions.overseer)
 def cmd_quoteid(bot, trigger, id):
     """
     Quotes a case by its database id
@@ -1660,7 +1660,7 @@ def cmd_quoteid(bot, trigger, id):
 
 @commands('title')
 @parameterize('rw*', '<case # or client name> <title to set>')
-@require_privilege(Permissions.rat)
+@require_permission(Permissions.rat)
 def cmd_title(bot, trigger, rescue, *title):
     """
     Sets the Operation Title of a rescue.
@@ -1677,7 +1677,7 @@ def cmd_title(bot, trigger, rescue, *title):
 @commands('pwl', 'pwlink', 'paperwork', 'paperworklink')
 @parameterize(params='r', usage='<client name or case number>')
 # @require_rat()
-@require_privilege(Permissions.rat)
+@require_permission(Permissions.rat)
 def cmd_pwl(bot, trigger, case):
     """
     Creates the link for the paperwork of any currently open rescue and shortens it (if the shortener module is active)
@@ -1712,7 +1712,7 @@ def cmd_version(bot, trigger):
 
 @commands('flush', 'resetnames', 'rn', 'flushnames', 'fn')
 # @require_rat()
-@require_privilege(Permissions.rat)
+@require_permission(Permissions.rat)
 def cmd_flush(bot, trigger):
     """
     Resets the cached RatNames. Helps with Bugged rat names on !assign
@@ -1732,7 +1732,7 @@ def cmd_host(bot, trigger):
 
 @commands('refreshboard', 'resetboard', 'forceresetboard', 'forcerefreshboard', 'frb', 'fbr', 'boardrefresh')
 # @require_overseer()
-@require_privilege(Permissions.overseer)
+@require_permission(Permissions.overseer)
 def cmd_forceRefreshBoard(bot, trigger):
     """
     Forcefully resets the Board. This removes all "Ghost" Cases as they are grabbed from the API. Boardindexes will get changed by , but updated on the Dispatch Board afterwards.
@@ -1773,7 +1773,7 @@ def setRescueMarkedForDeletion(bot, rescue, marked, reason='None.', reporter='No
 @commands('md', 'mdadd', 'markfordeletion', 'markfordelete')
 @parameterize('rt', '<client/board #> <reason>')
 # @require_rat()
-@require_privilege(Permissions.rat)
+@require_permission(Permissions.rat)
 def cmd_md(bot, trigger, case, reason):
     """
     Closes a rescue and adds it to the Marked for Deletion List™
@@ -1792,7 +1792,7 @@ def cmd_md(bot, trigger, case, reason):
 @commands('mdremove', 'mdr', 'mdd', 'mddeny')
 @parameterize('w', '<id>')
 # @require_overseer()
-@require_privilege(Permissions.overseer)
+@require_permission(Permissions.overseer)
 def cmd_mdremove(bot, trigger, caseid):
     """
     Remove a case from the Marked for Deletion List™ (Does NOT reopen the case!)
@@ -1816,7 +1816,7 @@ def cmd_mdremove(bot, trigger, caseid):
 @commands('ircnick', 'nick', 'nickname')
 @parameterize('rt')
 # @require_rat()
-@require_privilege(Permissions.rat)
+@require_permission(Permissions.rat)
 def cmd_nick(bot, trigger, case, newnick):
     """
     Sets a new nickname for this case.
@@ -1828,7 +1828,7 @@ def cmd_nick(bot, trigger, case, newnick):
 
 @commands('quiet', 'lastsignal', 'last')
 # @require_rat()
-@require_privilege(Permissions.rat)
+@require_permission(Permissions.rat)
 def cmd_quiet(bot, trigger):
     """
     Tells the time since the last Signal
@@ -1906,7 +1906,7 @@ def prepexpired(bot):
 
 @commands('paperworkneeded', 'needspaperwork', 'npw', 'pwn')
 # @require_rat()
-@require_privilege(Permissions.rat)
+@require_permission(Permissions.rat)
 def cmd_pwn(bot, trigger):
     '''
     Lists all cases with incomplete paperwork
@@ -1941,7 +1941,7 @@ def cmd_pwn(bot, trigger):
 @commands('invalid', 'invalidate')
 @parameterize('w', '<id>')
 # @require_overseer()
-@require_privilege(Permissions.overseer)
+@require_permission(Permissions.overseer)
 def cmd_invalid(bot, trigger, caseid):
     """
     Remove a case from the Marked for Deletion List™ (Does NOT reopen the case!)

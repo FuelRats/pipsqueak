@@ -151,7 +151,7 @@ def sockettest(bot, trigger):
 
 
 @commands('connectsocket', 'connect')
-@require_privilege(Permissions.techrat)
+@require_permission(Permissions.techrat)
 @ratlib.sopel.filter_output
 def connectSocket(bot, trigger):
     """

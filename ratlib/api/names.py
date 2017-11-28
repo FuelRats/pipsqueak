@@ -232,7 +232,8 @@ def flushNames():
     savedratnames.clear()
     savedclientnames.clear()
 
-def require_privilege(privilage:Permissions, message = ''):
+
+def require_permission(privilage:Permissions, message =''):
     """
     Requires the invoking user to have a specified privilege level
     :param privilage: Permission level
