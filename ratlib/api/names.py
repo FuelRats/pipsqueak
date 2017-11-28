@@ -232,6 +232,30 @@ def flushNames():
     savedratnames.clear()
     savedclientnames.clear()
 
+def require_privilege(privilage:Permissions, message = ''):
+    """
+    Requires the invoking user to have a specified privilege level
+    :param privilage: Permission level
+    :param msg: (optional) overwrite message
+    :return:
+    """
+    if message == '': message = None
+    def actual_decorator(function):
+        @functools.wraps(function)
+        def guarded(bot, trigger, *args, **kwargs):
+
+            if getPrivLevel(trigger)<privilage.value[0]:
+                if message and not callable(message):
+                    bot.say(message)
+                    return NOLIMIT
+            else:
+                return function(bot, trigger, *args, **kwargs)
+        return guarded
+    # Hack to allow decorator without parens
+    if callable(message):
+        return actual_decorator(message)
+    return actual_decorator
+
 def require_netadmin(message="Hey Buddy, you know you need to be an identified NetAdmin to use this command, right?"):
     """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
     If they are not, `message` will be said if given."""
