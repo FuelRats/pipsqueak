@@ -13,6 +13,18 @@ import ratlib.api
 import ratlib.api.http
 import functools
 from sopel.module import NOLIMIT
+from enum import Enum
+
+class Permissions(Enum):
+    recruit = (0, None)
+    rat = (1, "Sorry, but you need to be a registered and drilled Rat with an identified IRC nickname to use "
+                        "this command.")
+    dispatch = (2,"Sorry, but you need to be a dispatch or higher to use this command")
+    overseer = (3, 'Sorry pal, you\'re not an overseer or higher!')
+    op = (4, "This command is restricted for Ops and above only.")
+    techrat = (5,'I am sorry, but this command is restricted for TechRats and above only.')
+    netadmin = (6, "Hey Buddy, you know you need to be an identified NetAdmin to use this command, right?")
+
 
 urljoin = ratlib.api.http.urljoin
 savedratids = {}
@@ -256,7 +268,7 @@ def require_techrat(message='I am sorry, but this command is restricted for Tech
         return actual_decorator(message)
     return actual_decorator
 
-def require_op(message="This command is restricted for Ops and above."):
+def require_op(message="This command is restricted for Ops and above only."):
     """Decorate a function to require the triggering user to be a FuelRats op (as in, an operator.).
     If they are not, `message` will be said if given."""
     def actual_decorator(function):
