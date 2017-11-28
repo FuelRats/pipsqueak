@@ -293,23 +293,23 @@ def require_privilege(privilage:Permissions, message = ''):
 #         return actual_decorator(message)
 #     return actual_decorator
 
-def require_op(message="This command is restricted for Ops and above only."):
-    """Decorate a function to require the triggering user to be a FuelRats op (as in, an operator.).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<4:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
+# def require_op(message="This command is restricted for Ops and above only."):
+#     """Decorate a function to require the triggering user to be a FuelRats op (as in, an operator.).
+#     If they are not, `message` will be said if given."""
+#     def actual_decorator(function):
+#         @functools.wraps(function)
+#         def guarded(bot, trigger, *args, **kwargs):
+#             if getPrivLevel(trigger)<4:
+#                 if message and not callable(message):
+#                     bot.say(message)
+#                     return NOLIMIT
+#             else:
+#                 return function(bot, trigger, *args, **kwargs)
+#         return guarded
+#     # Hack to allow decorator without parens
+#     if callable(message):
+#         return actual_decorator(message)
+#     return actual_decorator
 
 def require_overseer(message='Sorry pal, you\'re not an overseer or higher!'):
     """Decorate a function to require the triggering user to be a FuelRats overseer (as in, a highly experienced and trustworthy person).
