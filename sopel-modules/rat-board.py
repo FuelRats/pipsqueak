@@ -898,7 +898,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
 @commands('list')
 @ratlib.sopel.filter_output
 @parameterize('w', usage="[-iru@]")
-@require_rat()
+@require_privilege(Permissions.rat)
 def cmd_list(bot, trigger, params=''):
     """
     List the currently active, open cases.

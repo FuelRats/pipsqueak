@@ -239,7 +239,7 @@ def require_privilege(privilage:Permissions, message = ''):
     :param msg: (optional) overwrite message
     :return:
     """
-    if message == '': message = None
+    if message == '': message = privilage.value[1]
     def actual_decorator(function):
         @functools.wraps(function)
         def guarded(bot, trigger, *args, **kwargs):
@@ -249,6 +249,7 @@ def require_privilege(privilage:Permissions, message = ''):
                     bot.say(message)
                     return NOLIMIT
             else:
+                bot.say("has privlage, executing")
                 return function(bot, trigger, *args, **kwargs)
         return guarded
     # Hack to allow decorator without parens
@@ -256,41 +257,41 @@ def require_privilege(privilage:Permissions, message = ''):
         return actual_decorator(message)
     return actual_decorator
 
-def require_netadmin(message="Hey Buddy, you know you need to be an identified NetAdmin to use this command, right?"):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<6:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
+# def require_netadmin(message="Hey Buddy, you know you need to be an identified NetAdmin to use this command, right?"):
+#     """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
+#     If they are not, `message` will be said if given."""
+#     def actual_decorator(function):
+#         @functools.wraps(function)
+#         def guarded(bot, trigger, *args, **kwargs):
+#             if getPrivLevel(trigger)<6:
+#                 if message and not callable(message):
+#                     bot.say(message)
+#                     return NOLIMIT
+#             else:
+#                 return function(bot, trigger, *args, **kwargs)
+#         return guarded
+#     # Hack to allow decorator without parens
+#     if callable(message):
+#         return actual_decorator(message)
+#     return actual_decorator
 
-def require_techrat(message='I am sorry, but this command is restricted for TechRats and above.'):
-    """Decorate a function to require the triggering user to be a FuelRats TechRat (as in, a rat that's part of the RatTech team.).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<5:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
+# def require_techrat(message='I am sorry, but this command is restricted for TechRats and above.'):
+#     """Decorate a function to require the triggering user to be a FuelRats TechRat (as in, a rat that's part of the RatTech team.).
+#     If they are not, `message` will be said if given."""
+#     def actual_decorator(function):
+#         @functools.wraps(function)
+#         def guarded(bot, trigger, *args, **kwargs):
+#             if getPrivLevel(trigger)<5:
+#                 if message and not callable(message):
+#                     bot.say(message)
+#                     return NOLIMIT
+#             else:
+#                 return function(bot, trigger, *args, **kwargs)
+#         return guarded
+#     # Hack to allow decorator without parens
+#     if callable(message):
+#         return actual_decorator(message)
+#     return actual_decorator
 
 def require_op(message="This command is restricted for Ops and above only."):
     """Decorate a function to require the triggering user to be a FuelRats op (as in, an operator.).
