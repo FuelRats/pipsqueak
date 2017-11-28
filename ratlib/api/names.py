@@ -259,24 +259,6 @@ def require_permission(privilage:Permissions, message =''):
     return actual_decorator
 
 
-def require_recruit(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats recruit (as in, a user registered with the API but undrilled).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<0:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
-
 privlevels = {'recruit.fuelrats.com':0, 'rat.fuelrats.com':1, 'dispatch.fuelrats.com':2, 'overseer.fuelrats.com':3, 'op.fuelrats.com':4, 'techrat.fuelrats.com':5, 'netadmin.fuelrats.com':6, 'admin.fuelrats.com':6}
 
 def getPrivLevel(trigger):
