@@ -1194,7 +1194,8 @@ def cmd_assign(bot, trigger, rescue, *rats):
         # Check if id returned is an id, decide for unidentified rats or rats.
         # print("i is " + str(i))
         idstr = str(i['id'])
-        if rat.lower() == rescue.data['IRCNick'].lower():  # sanity check
+        # IRCNick may (but shouldn't be) be None - convert to string so it does not error out
+        if rat.lower() == str(rescue.data['IRCNick']).lower():  # sanity check
             bot.reply("Unable to assign a client to their own case.")
             return
         elif idstr != '0' and idstr != 'None':
@@ -1450,7 +1451,7 @@ def ratmama_parse(bot, trigger, db):
 
         # Create format string
         fmt = (
-            "{ratsignal} - CMDR {cmdr} - System: {system} - Platform: {platform} - O2: {o2}"
+            "{ratsignal} - CMDR {cmdr} - Reported System: {system} - Platform: {platform} - O2: {o2}"
             " - Language: {full_language}"
         )
         if fields["nick"]:
@@ -1464,6 +1465,9 @@ def ratmama_parse(bot, trigger, db):
         # Update the case
         if not case.system:
             case.system = fields["system"]
+        # using lower() as systems may be saved in different capitalisation than the client entered it
+        if case.system.lower() != fields["system"].lower():
+            bot.say("Caution - Reported and autodetected System do not match! Dispatch, check it is set to the correct one! (" + case.system + " vs " + fields["system"] + ")")
         case.codeRed = (fields["o2"] != "OK")
         if fields["platform"] == "PS4":
             case.platform = "ps"
