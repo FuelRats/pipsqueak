@@ -1174,7 +1174,7 @@ def cmd_epic(bot, trigger, rescue):
     save_case_later(bot, rescue)
 
 
-@commands('assign', 'add', 'go')
+@commands('assign', 'add', 'go', 'gocr')
 @ratlib.sopel.filter_output
 @parameterize('r+', usage="<client or case number> <rats...>")
 @require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
@@ -1210,10 +1210,14 @@ def cmd_assign(bot, trigger, rescue, *rats):
             ratlist.append(removeTags(rat))
     # print("Trying to say: " + ("{client_name}: Please add the following rat(s) to your friends list: {rats}"
     #        .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.client_name.replace(' ', '_'))))
-    bot.say(
-        "{client_name}: Please add the following rat(s) to your friends list: {rats}"
-            .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.data["IRCNick"])
-    )
+    if rescue.codeRed:
+        bot.say("{client_name}: Please REMAIN at the main menu and add the following rat(s) to your friends list: {rats}"
+                .format(client_name=rescue.data["IRCNick"], rats = ", ".join(ratlist)))
+    else:
+        bot.say(
+            "{client_name}: Please add the following rat(s) to your friends list: {rats}"
+                .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.data["IRCNick"])
+        )
     if len(ratids) > 0:
         callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
     save_case_later(bot, rescue)
