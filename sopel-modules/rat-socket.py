@@ -151,7 +151,7 @@ def sockettest(bot, trigger):
 
 
 @commands('connectsocket', 'connect')
-@require_techrat('I am sorry, but this command is restricted for TechRats and above.')
+@require_permission(Permissions.techrat)
 @ratlib.sopel.filter_output
 def connectSocket(bot, trigger):
     """
