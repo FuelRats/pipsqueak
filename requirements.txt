@@ -5,10 +5,9 @@ iso8601
 sqlalchemy
 alembic
 psycopg2
-autobahn[twisted]
-twisted
 pyopenssl
 service_identity
 numpy
 python-twitter
 python-dateutil
+websocket
