@@ -6,7 +6,7 @@ ED Fuel rats [sopel](http://sopel.chat) module package
 # Requirements
 
 ## Python 3.4
-In addition to Python 3.4 itself, pipsqueak uses the following modules which will be installed
+In addition to Python 3.5 itself, pipsqueak uses the following modules which will be installed
  for you during part of the setup process:
  
 - **Sopel** for the bot framework itself
@@ -197,3 +197,20 @@ websocketport | The Port of the WebSocket to connect to | 80
 ## Detailed module information
 Used to Connect to the WebSocket Part of the API to listen for Updates from RatTracker. Currently only Dumping gotten messages into Chat only though.
 Will Attempt to reconnect to the WebSocket if the initial connection fails or the connection gets lost at any point. If a reconnect fails, it will retry indefinitely with an always increasing delay which grows exponentiollay. 
+
+# unit_tests.py
+Base unit test module
+## Detailed module information
+This file contains the Unit Tests for Mecha, and should be called via the `unittest` module
+
+It should be called from the command line via : `python -m unittest tests.unit_tests` from **the project root directory**
+
+#mock.py
+Name | Purpose | Example
+--- | --- | ---
+Bot | imitate a sopel bot instance| bot = Bot()
+Trigger | Imitate a sopel bot trigger instance  | myTrigger = mock.Trigger(host="recruit.fuelrats.com")
+
+## Detailed module information
+This is a helper class for Unit Testing, immitatiing some Sopel structures to allow for Unit Testing without having to 
+boot mecha itself up.
