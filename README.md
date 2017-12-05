@@ -206,6 +206,7 @@ This file contains the Unit Tests for Mecha, and should be called via the `unitt
 It should be called from the command line via : `python -m unittest tests.unit_tests` from **the project root directory**
 
 #mock.py
+
 Name | Purpose | Example
 --- | --- | ---
 Bot | imitate a sopel bot instance| bot = Bot()
