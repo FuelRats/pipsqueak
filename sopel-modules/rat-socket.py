@@ -28,19 +28,9 @@ from sopel.tools import Identifier, SopelMemory
 import ratlib.sopel
 from sopel.config.types import StaticSection, ValidatedAttribute
 
-# Autobahn&Twisted imports
-from twisted.python import log
-from twisted.internet import reactor
-from autobahn.twisted.websocket import WebSocketClientProtocol
-from autobahn.twisted.websocket import WebSocketClientFactory
-from twisted.internet.protocol import ReconnectingClientFactory
-from twisted.internet.ssl import optionsForClientTLS
-from twisted.internet import defer
-
+import websocket
 from ratlib.api.v2compatibility import convertV1RescueToV2, convertV2DataToV1
 
-log.startLogging(sys.stdout)
-defer.setDebugging(True)
 
 # ratlib imports
 import ratlib.api.http
@@ -50,6 +40,26 @@ urljoin = ratlib.api.http.urljoin
 
 import threading
 import collections
+
+
+class Request:
+    """
+    Creates a request JSON object
+    """
+    def __init__(self, action, data, meta, status):
+        self.action = action
+        self.data = data
+        self.meta = meta
+        self.status = status
+
+    def request(self):
+        obj = {
+            'action': self.action,
+            'status': self.status,
+            'data': self.data,
+            'meta': self.meta
+        }
+        return json.dumps(obj)
 
 
 ## Start Config Section ##
@@ -77,10 +87,87 @@ def configure(config):
 
 def shutdown(bot=None):
     # Ignored by sopel?!?!?! - Sometimes.
-    print('[Websocket] shutdown for socket')
-    reactor.stop()
+    print('[Websocket] shutdown for socket called.')
+    API.is_shutdown = True
 
 
+class Api:
+    is_shutdown = False
+    my_websocket = None  # class field - NOT instance bound!
+
+    def on_recv(self, socket, message):
+        print("[API] got message: data is {}".format(message))
+        # socket:websocket.WebSocketApp
+        # TODO: do something with this data
+
+    def on_open(self, socket):
+        print("[API] connection to API opened")
+        Api.my_websocket = socket
+
+    @staticmethod
+    def on_error(socket, error):
+        print("some error occured!\n{}".format(error))
+
+    @staticmethod
+    def on_close(socket):
+        print("####\tsocket closed\t####")
+
+    @staticmethod
+    async def parse_json(data: dict):
+        """
+        parse incoming client data from API
+        :param data: dict, raw JSON dict to parse
+        :return output_data: array of Case instances
+        """
+        output_data = {}  # since we are going to be parsing multiple cases at once
+        for entry in data['data']:
+            # FIXME use mecha's Case data structure
+            # await output_data.update({entry['attributes']['data']['boardIndex']: Case(
+            #     client=entry['attributes']['data']['IRCNick'],
+            #     language=entry["attributes"]['data']['langID'],
+            #     cr=entry['attributes']['codeRed'],
+            #     system=entry['attributes']['set_system'],
+            #     index=entry['attributes']['data']['boardIndex'],
+            #     platform=entry['attributes']['platform'],
+            #     raw=entry
+            #
+            # )})
+            pass
+        return output_data
+
+    @staticmethod
+    async def retrieve_cases(socket):
+        """
+
+        :param socket: open websocket to tx/rx over
+        :return:
+        """
+        # socket: websocket.WebSocket
+        await socket.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}))
+        response = await socket.recv()  # as this may take a while
+        return Api.parse_json(response)
+        # return response
+
+    @staticmethod
+    def worker():
+        """
+        Fetch and maintain a websocket connection to the API
+        :return:
+        """
+        while not Api.is_shutdown:
+            #let the games begin
+            # Do init
+            # ws = websocket.create_connection(Config.api_url.format(token=bearer_token), )
+            # spawn a websocket client instance
+            url =Config.api_url.format(token=bearer_token)
+            # print("url = {}".format(url))
+            ws_client = websocket.WebSocketApp(url=url,
+                                               on_close=Api.on_close,
+                                               on_error=Api.on_error,
+                                               on_message=Api.on_recv)
+            ws_client.on_open = Api.on_open
+            # loop = asyncio.get_event_loop()
+            ws_client.run_forever()
 
 def setup(bot):
     ratlib.sopel.setup(bot)
