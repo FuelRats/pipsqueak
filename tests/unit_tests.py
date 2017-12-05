@@ -32,23 +32,21 @@ class RatlibNamesTests(unittest.TestCase):
         Verifies the role lockouts function as intended (via brute force checking)
         :return:
         """
-        level = name.Permissions.rat
         for level in name.Permissions:
             with self.subTest(permission=level):
                 # define and decorate a test function
                 @name.require_permission(level)
                 def foo(bot, trigger):
                     return 42  # because failed conditions return 1 (thanks rate limiting!)
-                # define and reset the itterator, used during the loop over hostnames
-                i = 0
                 for host in name.privlevels:
-                    if i < level.value[0]:  # if the vhost does not have sufficient privilages
+                    if name.privlevels[host] < level.value[0]:  # if the vhost does not have sufficient privilages
                         # we know this function call will fail and not return the expected value
+                        # print("<<<<<=====>>>>>\n"
+                        #       "i={}\tlevel.value[0] = {}\nlevel = {}\nhost={}".format(i, level.value[0], level, host))
                         self.assertNotEqual(foo(mock.Bot(), mock.Trigger(host=host)), 42)  # ensure func is not callable
                     else:
                         # the function call should suceed, and output the expected value
                         self.assertEqual(foo(mock.Bot(), mock.Trigger(host=host)), 42)  # ensure func is callable
-                    i += 1
 
 
 # class RatBoardTests(unittest.TestCase):
