@@ -60,6 +60,19 @@ class RatlibNamesTests(unittest.TestCase):
                 # netadmin and admin are both level 6, and there is nothing above that (currently)
                 i += 1 if i != 6 else 0  # so truncate as not to break the test
 
+    def test_remove_tags(self):
+        """
+        Tests removeTags for consistency
+        Because why not?
+        :return:
+        """
+        # words = {"raw": "expected"}
+        words = {"theunkn0wn1[pc]": "theunkn0wn1", "mechasqueak[bot]": "mechasqueak", "theunkn[0wn": "theunkn"}
+
+        for word in words:
+            with self.subTest(raw=word, expected=words[word]):
+                self.assertEqual(words[word], name.removeTags(word))
+
 # class RatBoardTests(unittest.TestCase):
 #     """
 #     tests for the rat-board module
