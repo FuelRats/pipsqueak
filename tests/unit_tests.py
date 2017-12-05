@@ -53,12 +53,10 @@ class RatlibNamesTests(unittest.TestCase):
         Test getPrivLevel for consistency
         :return:
         """
-        i = 0
         for level in name.privlevels:
             with self.subTest(level=level, levelValue=name.privlevels[level]):
-                self.assertEqual(name.getPrivLevel(mock.Trigger(host=level)), i)
+                self.assertEqual(name.getPrivLevel(mock.Trigger(host=level)), name.privlevels[level])
                 # netadmin and admin are both level 6, and there is nothing above that (currently)
-                i += 1 if i != 6 else 0  # so truncate as not to break the test
 
     def test_remove_tags(self):
         """

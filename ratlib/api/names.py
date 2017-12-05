@@ -14,6 +14,7 @@ import ratlib.api.http
 import functools
 from sopel.module import NOLIMIT
 from enum import Enum
+from collections import OrderedDict
 
 
 class Permissions(Enum):
@@ -260,7 +261,8 @@ def require_permission(privilage:Permissions, message =''):
     return actual_decorator
 
 
-privlevels = {'recruit.fuelrats.com':0, 'rat.fuelrats.com':1, 'dispatch.fuelrats.com':2, 'overseer.fuelrats.com':3, 'op.fuelrats.com':4, 'techrat.fuelrats.com':5, 'netadmin.fuelrats.com':6, 'admin.fuelrats.com':6}
+privlevels = {'recruit.fuelrats.com': 0, 'rat.fuelrats.com': 1, 'dispatch.fuelrats.com': 2, 'overseer.fuelrats.com': 3,
+              'op.fuelrats.com': 4, 'techrat.fuelrats.com': 5, 'netadmin.fuelrats.com': 6, 'admin.fuelrats.com': 6}
 
 def getPrivLevel(trigger):
     if trigger.owner:
