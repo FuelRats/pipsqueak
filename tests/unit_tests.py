@@ -14,7 +14,7 @@ Licensed under the BSD 3-Clause License.
 See LICENSE.md
 """
 
-@unittest.expectedFailure
+
 class RatlibNamesTests(unittest.TestCase):
     """
     Tests for ratlib.api.names
