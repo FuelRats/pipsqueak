@@ -85,15 +85,19 @@ def configure(config):
     )
 
 
-def shutdown(bot=None):
-    # Ignored by sopel?!?!?! - Sometimes.
-    print('[Websocket] shutdown for socket called.')
-    API.is_shutdown = True
 
 
-class Api:
+
+class Api(threading.Thread):
     is_shutdown = False
     my_websocket = None  # class field - NOT instance bound!
+
+    def __init__(self, connection_string: str, connection_port: int, token=None):
+        super().__init__()
+        Api.my_websocket = self
+        self.url = connection_string
+        self.port = connection_port
+        self.__token = token
 
     def on_recv(self, socket, message):
         print("[API] got message: data is {}".format(message))
@@ -110,7 +114,7 @@ class Api:
 
     @staticmethod
     def on_close(socket):
-        print("####\tsocket closed\t####")
+        print("[API]####\tsocket closed\t####")
 
     @staticmethod
     async def parse_json(data: dict):
@@ -148,8 +152,7 @@ class Api:
         return Api.parse_json(response)
         # return response
 
-    @staticmethod
-    def worker():
+    def run(self):
         """
         Fetch and maintain a websocket connection to the API
         :return:
@@ -159,15 +162,15 @@ class Api:
             # Do init
             # ws = websocket.create_connection(Config.api_url.format(token=bearer_token), )
             # spawn a websocket client instance
-            url =Config.api_url.format(token=bearer_token)
-            # print("url = {}".format(url))
-            ws_client = websocket.WebSocketApp(url=url,
-                                               on_close=Api.on_close,
-                                               on_error=Api.on_error,
-                                               on_message=Api.on_recv)
-            ws_client.on_open = Api.on_open
+            url = self.url.format(token=self.__token)
+            # create the websocket client object
+            ws_client = websocket.WebSocketApp(url=url,  # url to connect to
+                                               on_close=Api.on_close,  # on close callback
+                                               on_error=Api.on_error,  # on error callback
+                                               on_message=Api.on_recv)  # onMessage callback
+            ws_client.on_open = Api.on_open  # on_open callback
             # loop = asyncio.get_event_loop()
-            ws_client.run_forever()
+            ws_client.run_forever()  # run forever, duh. (set socket.is_shutdown to True to shut down.)
 
 def setup(bot):
     ratlib.sopel.setup(bot)
@@ -605,3 +608,9 @@ class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
     def retry(self, connector=None):
         MyClientProtocol.bot.say('[Websocket] Reconnecting to API Websocket in ' + str(int(self.delay)) + ' seconds...')
         ReconnectingClientFactory.retry(self)
+
+
+def shutdown(bot=None):
+    # Ignored by sopel?!?!?! - Sometimes.
+    print('[Websocket] shutdown for socket called.')
+    Api.is_shutdown = True
