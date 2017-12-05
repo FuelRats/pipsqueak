@@ -8,7 +8,7 @@ install:
 cache: pip
 
 script:
-  - python ./tests/tests.py -v
+  - python -m ./tests/tests.py -v
 # Disabling the notifications for now, lets get the thing working first
 #notifications:
 #  webhooks:
