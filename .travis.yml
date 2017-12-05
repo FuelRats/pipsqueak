@@ -3,6 +3,7 @@ python:
   - "3.5"
 
 install:
+  - sudo apt-get install libenchant1c2a  # because enchant..
   - pip install -r requirements.txt
 cache: pip
 
