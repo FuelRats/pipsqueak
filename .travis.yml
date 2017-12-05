@@ -9,10 +9,10 @@ cache: pip
 
 script:
   - python -m unittest tests.unit_tests -v
-# Disabling the notifications for now, lets get the thing working first
-#notifications:
-#  webhooks:
-#    urls:
-#      - http://orthanc.localecho.net/cgi-bin/webhook.py
-#    on_success: always
-#    on_failure: always
+
+notifications:
+  webhooks:
+    urls:
+      - http://orthanc.localecho.net/cgi-bin/webhook.py
+    on_success: always
+    on_failure: always
