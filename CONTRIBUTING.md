@@ -14,7 +14,7 @@ Please refrain from using GitHub to report Issues, as we have since moved our ma
 
 ## Feature branches
 
-Make a feature branch off of develop using `git checkout develop` followed by 
+Make a feature branch based on develop using `git checkout develop` followed by 
 `git checkout -b feature/my-awesome-feature`. Instead of 'feature' you can also put 'fix' in front of the branch name if it's a bugfix or 'doc' if you only add documentation.
 
 ## Hygiene
