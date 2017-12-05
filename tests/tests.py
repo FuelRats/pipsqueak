@@ -1,7 +1,8 @@
 # core import
 import unittest
 # import mocked classes
-import tests.mock as mock
+# import tests.mock as mock
+import mock
 # import classes to be tested
 import ratlib.api.names as name
 
