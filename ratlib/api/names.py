@@ -15,6 +15,7 @@ import functools
 from sopel.module import NOLIMIT
 from enum import Enum
 
+
 class Permissions(Enum):
     recruit = (0, None)
     rat = (1, "Sorry, but you need to be a registered and drilled Rat with an identified IRC nickname to use "
@@ -24,6 +25,7 @@ class Permissions(Enum):
     op = (4, "This command is restricted for Ops and above only.")
     techrat = (5,'I am sorry, but this command is restricted for TechRats and above only.')
     netadmin = (6, "Hey Buddy, you know you need to be an identified NetAdmin to use this command, right?")
+    admin = (6, "Hey Buddy, you know you need to be an identified Admin to use this command, right?")
 
 
 urljoin = ratlib.api.http.urljoin

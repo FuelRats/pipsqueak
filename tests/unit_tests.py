@@ -48,6 +48,17 @@ class RatlibNamesTests(unittest.TestCase):
                         # the function call should suceed, and output the expected value
                         self.assertEqual(foo(mock.Bot(), mock.Trigger(host=host)), 42)  # ensure func is callable
 
+    def test_get_priv_level(self):
+        """
+        Test getPrivLevel for consistency
+        :return:
+        """
+        i = 0
+        for level in name.privlevels:
+            with self.subTest(level=level, levelValue=name.privlevels[level]):
+                self.assertEqual(name.getPrivLevel(mock.Trigger(host=level)), i)
+                # netadmin and admin are both level 6, and there is nothing above that (currently)
+                i += 1 if i != 6 else 0  # so truncate as not to break the test
 
 # class RatBoardTests(unittest.TestCase):
 #     """
