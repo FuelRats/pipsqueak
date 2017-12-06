@@ -89,7 +89,8 @@ class Api(threading.Thread):
     is_shutdown = False
     my_instance = None  # class field - NOT instance bound!
 
-    def __init__(self, connection_string: str, connection_port: int, token=None):
+    def __init__(self, connection_string: str, connection_port: int=None, token=None, bot=None):
+        print("[websocket]API: Init called")
         super().__init__()
         Api.my_instance = self
         if connection_string.startswith("ws:"):
@@ -98,6 +99,7 @@ class Api(threading.Thread):
         self.url = connection_string
         self.port = connection_port
         self.__token = token
+        self.bot = bot
 
     def on_recv(self, socket, message)->None:
         """
@@ -129,7 +131,8 @@ class Api(threading.Thread):
         :param error: Error that occurred
         :return:
         """
-        print("some error occured!\n{}".format(error))
+        print("[API]: some error occured!\n{}".format(error))
+        raise error
 
     def OnConnectionClose(self, socket):
         """
@@ -179,27 +182,30 @@ class Api(threading.Thread):
         Fetch and maintain a websocket connection to the API
         :return:
         """
+        print("[Websockets]:Api run called.")
         # unless we want to shut down, keep the API up.
-        while not Api.is_shutdown:
-            print("[Websockets]Establishing WSS connection to API...")
-            #let the games begin
-            # Do init
-            # ws = websocket.create_connection(Config.api_url.format(token=bearer_token), )
-            # spawn a websocket client instance
-            url = self.url.format(token=self.__token)
-            # create the websocket client object
-            ws_client = websocket.WebSocketApp(url=url,  # url to connect to
-                                               on_close=Api.OnConnectionClose,  # on close callback
-                                               on_error=Api.OnConnectionError,  # on error callback
-                                               on_message=Api.on_recv)  # onMessage callback
-            ws_client.on_open = Api.OnConnectionOpen  # OnConnectionOpen callback
-            # loop = asyncio.get_event_loop()
-            print("[Websockets] Running connection...")
-            ws_client.run_forever()  # run forever, duh. (set Api.is_shutdown to True to shut down.)
+        # while not Api.is_shutdown:
+        print("[Websockets]Establishing WSS connection to API...")
+        # let the games begin
+        # Do init
+        # ws = websocket.create_connection(Config.api_url.format(token=bearer_token), )
+        # spawn a websocket client instance
+        url = self.url.format(token=self.__token)
+        print("[Websockets]:API connecting to {}".format(url))
+        # create the websocket client object
+        ws_client = websocket.WebSocketApp(url=url,  # url to connect to
+                                           on_close=self.OnConnectionClose,  # on close callback
+                                           on_error=self.OnConnectionError,  # on error callback
+                                           on_message=self.on_recv)  # onMessage callback
+        ws_client.on_open = Api.OnConnectionOpen  # OnConnectionOpen callback
+        # loop = asyncio.get_event_loop()
+        print("[Websockets] Running connection...")
+        ws_client.run_forever()  # run forever, duh. (set Api.is_shutdown to True to shut down.)
 
 
 def setup(bot):
     ratlib.sopel.setup(bot)
+    print("[websockets] setup called.")
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['socket'] = Socket()
 
@@ -211,7 +217,7 @@ def setup(bot):
         websocketport = bot.config.socket.websocketport
     debug_channel = bot.config.ratbot.debug_channel or '#mechadeploy'
     # init a new instance of the API and store it in memory
-    bot.memory['ratbot']['api'] = Api(websocketurl, websocketport, token=bot.config.ratbot.apitoken)
+    bot.memory['ratbot']['api'] = Api(websocketurl, token=bot.config.ratbot.apitoken, bot=bot)
     # NOTE: this does not actually create an API connection, just the Api handler instance
 
 
