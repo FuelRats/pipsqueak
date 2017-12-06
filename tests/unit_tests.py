@@ -71,6 +71,10 @@ class RatlibNamesTests(unittest.TestCase):
             with self.subTest(raw=word, expected=words[word]):
                 self.assertEqual(words[word], name.removeTags(word))
 
+
+class RatSocketTests(unittest.TestCase):
+    pass
+
 # class RatBoardTests(unittest.TestCase):
 #     """
 #     tests for the rat-board module

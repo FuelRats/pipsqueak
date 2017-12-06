@@ -89,19 +89,32 @@ class Api(threading.Thread):
     is_shutdown = False
     my_instance = None  # class field - NOT instance bound!
 
+    def log(self, task: str, message: str)->None:
+        """
+        Websockets logger, for getting the bot to stay stuff
+        :param task: name to display
+        :param message: message to display
+        :return:
+        """
+        try:
+            self.bot.say("[API|{}]: {}".format(task, message), "#popcorn")
+        except Exception:
+            print("[API|{}]: {}".format(task, message))
+
     def __init__(self, connection_string: str, connection_port: int=None, token=None, bot=None):
         print("[websocket]API: Init called")
+
         super().__init__()
         Api.my_instance = self
         if connection_string.startswith("ws:"):
-            connection_string.replace("ws:", "wss:")  # enforce wss, at least in tne URI
+            connection_string.replace("ws:", "wss:")  # enforce wss, at least in the URI
         self._connected = False
         self.url = connection_string
         self.port = connection_port
         self.__token = token
         self.bot = bot
 
-    def on_recv(self, socket, message)->None:
+    def onMessageReceived(self, socket, message)->None:
         """
         OnMessageReceived event handler
         :param socket: socket Instance
@@ -118,6 +131,7 @@ class Api(threading.Thread):
         :param socket:
         :return:
         """
+        self.log("OnConnectionOpen", "Connection to API opened.")
         print("[API] connection to API opened")
         self._connected = True
         print("[Websocket] onOpen received, sending rattracker sub")
@@ -141,6 +155,7 @@ class Api(threading.Thread):
         :return:
         """
         self._connected = False
+        self.log("OnConnectionClose","Connection to API closed.")
         print("[API]####\tsocket closed\t####")
 
     async def parse_json(self, data: dict)->dict:
@@ -196,7 +211,7 @@ class Api(threading.Thread):
         ws_client = websocket.WebSocketApp(url=url,  # url to connect to
                                            on_close=self.OnConnectionClose,  # on close callback
                                            on_error=self.OnConnectionError,  # on error callback
-                                           on_message=self.on_recv)  # onMessage callback
+                                           on_message=self.onMessageReceived)  # onMessage callback
         ws_client.on_open = self.OnConnectionOpen  # OnConnectionOpen callback
         # loop = asyncio.get_event_loop()
         print("[Websockets] Running connection...")
