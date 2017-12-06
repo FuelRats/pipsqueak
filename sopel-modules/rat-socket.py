@@ -197,7 +197,7 @@ class Api(threading.Thread):
                                            on_close=self.OnConnectionClose,  # on close callback
                                            on_error=self.OnConnectionError,  # on error callback
                                            on_message=self.on_recv)  # onMessage callback
-        ws_client.on_open = Api.OnConnectionOpen  # OnConnectionOpen callback
+        ws_client.on_open = self.OnConnectionOpen  # OnConnectionOpen callback
         # loop = asyncio.get_event_loop()
         print("[Websockets] Running connection...")
         ws_client.run_forever()  # run forever, duh. (set Api.is_shutdown to True to shut down.)
