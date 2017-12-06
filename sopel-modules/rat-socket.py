@@ -87,14 +87,14 @@ def configure(config):
 
 class Api(threading.Thread):
     is_shutdown = False
-    my_websocket = None  # class field - NOT instance bound!
+    my_instance = None  # class field - NOT instance bound!
 
     def __init__(self, connection_string: str, connection_port: int, token=None):
         super().__init__()
-        Api.my_websocket = self
+        Api.my_instance = self
         if connection_string.startswith("ws:"):
             connection_string.replace("ws:", "wss:")  # enforce wss, at least in tne URI
-        self.connected = False
+        self._connected = False
         self.url = connection_string
         self.port = connection_port
         self.__token = token
@@ -110,16 +110,19 @@ class Api(threading.Thread):
         # socket:websocket.WebSocketApp
         # TODO: do something with this data
 
-    def on_open(self, socket)->None:
+    def OnConnectionOpen(self, socket)->None:
         """
         OnConnectionOpened event handler
         :param socket:
         :return:
         """
         print("[API] connection to API opened")
-        self.connected = True
+        self._connected = True
+        print("[Websocket] onOpen received, sending rattracker sub")
+        # self.sendMessage(str('{ "action":["stream","subscribe"], "id":"0xDEADBEEF" }').encode('utf-8'))
+        socket.send('{ "action":["stream","subscribe"], "id":"0xDEADBEEF" }')
 
-    def on_error(self, socket, error)->None:
+    def OnConnectionError(self, socket, error)->None:
         """
         OnConnectionError handler
         :param socket: WS socket instance
@@ -128,14 +131,15 @@ class Api(threading.Thread):
         """
         print("some error occured!\n{}".format(error))
 
-    def on_close(self, socket):
+    def OnConnectionClose(self, socket):
         """
         OnConnectionClosed handler
         :param socket:
         :return:
         """
-        self.connected = False
+        self._connected = False
         print("[API]####\tsocket closed\t####")
+
     async def parse_json(self, data: dict)->dict:
         """
         parse incoming client data from API
@@ -175,7 +179,9 @@ class Api(threading.Thread):
         Fetch and maintain a websocket connection to the API
         :return:
         """
+        # unless we want to shut down, keep the API up.
         while not Api.is_shutdown:
+            print("[Websockets]Establishing WSS connection to API...")
             #let the games begin
             # Do init
             # ws = websocket.create_connection(Config.api_url.format(token=bearer_token), )
@@ -183,12 +189,13 @@ class Api(threading.Thread):
             url = self.url.format(token=self.__token)
             # create the websocket client object
             ws_client = websocket.WebSocketApp(url=url,  # url to connect to
-                                               on_close=Api.on_close,  # on close callback
-                                               on_error=Api.on_error,  # on error callback
+                                               on_close=Api.OnConnectionClose,  # on close callback
+                                               on_error=Api.OnConnectionError,  # on error callback
                                                on_message=Api.on_recv)  # onMessage callback
-            ws_client.on_open = Api.on_open  # on_open callback
+            ws_client.on_open = Api.OnConnectionOpen  # OnConnectionOpen callback
             # loop = asyncio.get_event_loop()
-            ws_client.run_forever()  # run forever, duh. (set socket.is_shutdown to True to shut down.)
+            print("[Websockets] Running connection...")
+            ws_client.run_forever()  # run forever, duh. (set Api.is_shutdown to True to shut down.)
 
 
 def setup(bot):
@@ -203,38 +210,17 @@ def setup(bot):
         websocketurl = bot.config.socket.websocketurl
         websocketport = bot.config.socket.websocketport
     debug_channel = bot.config.ratbot.debug_channel or '#mechadeploy'
-
-        # ---> Does not work as te board is not nessesarily set up yet! func_connect(bot)
+    # init a new instance of the API and store it in memory
+    bot.memory['ratbot']['api'] = Api(websocketurl, websocketport, token=bot.config.ratbot.apitoken)
+    # NOTE: this does not actually create an API connection, just the Api handler instance
 
 
 def func_connect(bot):
-    if reactor._started:
-        bot.say('[RatTracker] Reactor already running!')
+    if Api.my_instance is not None and Api.my_instance._connected:
+        bot.say('[RatTracker] API instance already running!')
         return
     bot.say('[RatTracker] Gotcha, connecting to RatTracker!')
-    MyClientProtocol.bot = bot
-    MyClientProtocol.debug_channel = bot.config.ratbot.debug_channel
-    MyClientProtocol.board = bot.memory['ratbot']['board']
-    factory = MyClientFactory(str(bot.config.socket.websocketurl) + ':' + bot.config.socket.websocketport + '?bearer=' + str(MyClientProtocol.bot.config.ratbot.apitoken))
-
-    factory.protocol = MyClientProtocol
-    # print('in connect')
-    hostname = str(bot.config.socket.websocketurl).replace("ws://", '').replace("wss://", '')
-    print('[Websocket] Hostname: ' + hostname)
-    if (bot.config.socket.websocketurl.startswith('wss://')):
-
-        reactor.connectSSL(hostname,
-                           int(bot.config.socket.websocketport),
-                           factory, contextFactory=optionsForClientTLS(hostname=hostname))
-    else:
-
-        reactor.connectTCP(hostname,
-                           int(bot.config.socket.websocketport),
-                           factory)
-
-    # print('pls')
-    thread = Thread(target=reactor.run, kwargs={'installSignalHandlers': 0})
-
+    thread = Thread(target=Api.my_instance.run)
     thread.start()
 
 

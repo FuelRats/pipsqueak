@@ -1739,7 +1739,6 @@ def cmd_host(bot, trigger):
 
 
 @commands('refreshboard', 'resetboard', 'forceresetboard', 'forcerefreshboard', 'frb', 'fbr', 'boardrefresh')
-# @require_overseer()
 @require_permission(Permissions.overseer)
 def cmd_forceRefreshBoard(bot, trigger):
     """
