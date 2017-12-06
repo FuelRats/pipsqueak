@@ -813,7 +813,7 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
     if rescue.unidentifiedRats:
         bot.say("Assigned unidentifiedRats: " + ", ".join(rescue.unidentifiedRats))
     for ix, quote in enumerate(rescue.quotes):
-        pdate = "unknown" if quote["updatedAt"] is None else pretty_date(dateutil.parser.parse(quote['updatedAt']))
+        pdate = "unknown" if quote["updatedAt"] is None else timeutil.friendly_timedelta(dateutil.parser.parse(quote['updatedAt']))
         if quote['lastAuthor'] is None:
             bot.say(
                 '[{ix}][{quote[author]} {ago}] {quote[message]}'.format(ix=ix, quote=quote, ago=pdate))
