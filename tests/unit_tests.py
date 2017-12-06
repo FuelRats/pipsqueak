@@ -4,6 +4,7 @@ import unittest
 import tests.mock as mock
 # import classes to be tested
 import ratlib.api.names as name
+from sopelModules import rat_board
 
 """
 This is the Unit Test file for PipSqeak.
@@ -75,15 +76,25 @@ class RatlibNamesTests(unittest.TestCase):
 class RatSocketTests(unittest.TestCase):
     pass
 
-# class RatBoardTests(unittest.TestCase):
-#     """
-#     tests for the rat-board module
-#     """
-#     def setUp(self):
-#         pass
-#
-#     def tearDown(self):
-#         pass
+class RatBoardTests(unittest.TestCase):
+    """
+    tests for the rat-board module
+    """
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+    def test_pretty_date(self):
+        """
+        Tests ratBoard.prety_date for consistency
+        :return:
+        """
+        from datetime import datetime
+        import time
+        v = datetime.fromtimestamp(time.time())
+        self.assertEqual(rat_board.pretty_date(), 'just now')
+
 
 
 if __name__ == '__main__':  # this prevents script code from being executed on import. (bad!)

@@ -1,6 +1,6 @@
 # coding: utf8
 """
-rat-board.py - Fuel Rats Cases module.
+rat_board.py - Fuel Rats Cases module.
 
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.
@@ -81,6 +81,7 @@ def configure(config):
 
 
 def setup(bot):
+    print("[ratBoard] Sopel setup called!")
     ratlib.sopel.setup(bot)
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['board'] = RescueBoard()
@@ -813,6 +814,7 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
     if rescue.unidentifiedRats:
         bot.say("Assigned unidentifiedRats: " + ", ".join(rescue.unidentifiedRats))
     for ix, quote in enumerate(rescue.quotes):
+        print("[func_quote] quote['updatedAt'] = {}".format(quote['updatedAt']))
         pdate = "unknown" if quote["updatedAt"] is None else pretty_date(dateutil.parser.parse(quote['updatedAt']))
         if quote['lastAuthor'] is None:
             bot.say(
@@ -910,6 +912,7 @@ def cmd_list(bot, trigger, params=''):
         -@: Show full case IDs.  (LONG)
 
     """
+    print("[ratBoard] list called")
     if not params or params[0] != '-':
         params = '-'
 
@@ -1864,7 +1867,7 @@ def cmd_quiet(bot, trigger):
 
 
 
-def pretty_date(time=False):
+def pretty_date(time:int=False)->str:
     """
     Get a datetime object or a int() Epoch timestamp and return a
     pretty string like 'an hour ago', 'Yesterday', '3 months ago',
@@ -1872,6 +1875,7 @@ def pretty_date(time=False):
     SOURCE: https://stackoverflow.com/questions/1551382/user-friendly-time-format-in-python
     """
     from datetime import datetime
+
     now = datetime.utcnow()
     if type(time) is int:
         diff = now - datetime.fromtimestamp(time)

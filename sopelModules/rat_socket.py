@@ -1,6 +1,6 @@
 # coding: utf8
 """
-rat-socket.py - Fuel Rats Rat Tracker module.
+rat_socket.py - Fuel Rats Rat Tracker module.
 
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.
