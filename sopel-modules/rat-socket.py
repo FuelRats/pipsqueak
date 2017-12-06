@@ -99,25 +99,44 @@ class Api(threading.Thread):
         self.port = connection_port
         self.__token = token
 
-    def on_recv(self, socket, message):
+    def on_recv(self, socket, message)->None:
+        """
+        OnMessageReceived event handler
+        :param socket: socket Instance
+        :param message: socket message
+        :return:
+        """
         print("[API] got message: data is {}".format(message))
         # socket:websocket.WebSocketApp
         # TODO: do something with this data
 
-    def on_open(self, socket):
+    def on_open(self, socket)->None:
+        """
+        OnConnectionOpened event handler
+        :param socket:
+        :return:
+        """
         print("[API] connection to API opened")
         self.connected = True
 
-    @staticmethod
-    def on_error(socket, error):
+    def on_error(self, socket, error)->None:
+        """
+        OnConnectionError handler
+        :param socket: WS socket instance
+        :param error: Error that occurred
+        :return:
+        """
         print("some error occured!\n{}".format(error))
 
     def on_close(self, socket):
+        """
+        OnConnectionClosed handler
+        :param socket:
+        :return:
+        """
         self.connected = False
         print("[API]####\tsocket closed\t####")
-
-    @staticmethod
-    async def parse_json(data: dict):
+    async def parse_json(self, data: dict)->dict:
         """
         parse incoming client data from API
         :param data: dict, raw JSON dict to parse
@@ -139,17 +158,16 @@ class Api(threading.Thread):
             pass
         return output_data
 
-    @staticmethod
-    async def retrieve_cases(socket):
+    async def retrieve_cases(self, socket)->dict:
         """
 
-        :param socket: open websocket to tx/rx over
+        :param socket: websocket instance for tx,rx
         :return:
         """
         # socket: websocket.WebSocket
         await socket.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}))
         response = await socket.recv()  # as this may take a while
-        return Api.parse_json(response)
+        return await self.parse_json(response)
         # return response
 
     def run(self):
