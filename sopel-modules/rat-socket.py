@@ -85,9 +85,6 @@ def configure(config):
     )
 
 
-
-
-
 class Api(threading.Thread):
     is_shutdown = False
     my_websocket = None  # class field - NOT instance bound!
@@ -95,6 +92,9 @@ class Api(threading.Thread):
     def __init__(self, connection_string: str, connection_port: int, token=None):
         super().__init__()
         Api.my_websocket = self
+        if connection_string.startswith("ws:"):
+            connection_string.replace("ws:", "wss:")  # enforce wss, at least in tne URI
+        self.connected = False
         self.url = connection_string
         self.port = connection_port
         self.__token = token
@@ -106,14 +106,14 @@ class Api(threading.Thread):
 
     def on_open(self, socket):
         print("[API] connection to API opened")
-        Api.my_websocket = socket
+        self.connected = True
 
     @staticmethod
     def on_error(socket, error):
         print("some error occured!\n{}".format(error))
 
-    @staticmethod
-    def on_close(socket):
+    def on_close(self, socket):
+        self.connected = False
         print("[API]####\tsocket closed\t####")
 
     @staticmethod
@@ -171,6 +171,7 @@ class Api(threading.Thread):
             ws_client.on_open = Api.on_open  # on_open callback
             # loop = asyncio.get_event_loop()
             ws_client.run_forever()  # run forever, duh. (set socket.is_shutdown to True to shut down.)
+
 
 def setup(bot):
     ratlib.sopel.setup(bot)
