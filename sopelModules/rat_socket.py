@@ -88,7 +88,7 @@ def configure(config):
 class Api(threading.Thread):
     is_shutdown = False
     my_instance = None  # class field - NOT instance bound!
-
+    is_error = False
     def log(self, task: str, message: str)->None:
         """
         Websockets logger, for getting the bot to stay stuff
@@ -113,6 +113,7 @@ class Api(threading.Thread):
         self.port = connection_port
         self.__token = token
         self.bot = bot
+        self.ws_client = None
 
     def onMessageReceived(self, socket, message)->None:
         """
@@ -145,6 +146,7 @@ class Api(threading.Thread):
         :param error: Error that occurred
         :return:
         """
+        Api.is_error = True
         print("[API]: some error occured!\n{}".format(error))
         raise error
 
@@ -189,6 +191,7 @@ class Api(threading.Thread):
         # socket: websocket.WebSocket
         await socket.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}))
         response = await socket.recv()  # as this may take a while
+        self.bot.say("Done.", "#popcorn")
         return await self.parse_json(response)
         # return response
 
@@ -199,23 +202,24 @@ class Api(threading.Thread):
         """
         print("[Websockets]:Api run called.")
         # unless we want to shut down, keep the API up.
-        # while not Api.is_shutdown:
-        print("[Websockets]Establishing WSS connection to API...")
-        # let the games begin
-        # Do init
-        # ws = websocket.create_connection(Config.api_url.format(token=bearer_token), )
-        # spawn a websocket client instance
-        url = self.url.format(token=self.__token)
-        print("[Websockets]:API connecting to {}".format(url))
-        # create the websocket client object
-        ws_client = websocket.WebSocketApp(url=url,  # url to connect to
-                                           on_close=self.OnConnectionClose,  # on close callback
-                                           on_error=self.OnConnectionError,  # on error callback
-                                           on_message=self.onMessageReceived)  # onMessage callback
-        ws_client.on_open = self.OnConnectionOpen  # OnConnectionOpen callback
-        # loop = asyncio.get_event_loop()
-        print("[Websockets] Running connection...")
-        ws_client.run_forever()  # run forever, duh. (set Api.is_shutdown to True to shut down.)
+        while not Api.is_shutdown and not Api.is_error:
+            print("[Websockets]Establishing WSS connection to API...")
+            # let the games begin
+            # Do init
+            # ws = websocket.create_connection(Config.api_url.format(token=bearer_token), )
+            # spawn a websocket client instance
+            url = self.url.format(token=self.__token)
+            print("[Websockets]:API connecting to {}".format(url))
+            # create the websocket client object
+            ws_client = websocket.WebSocketApp(url=url,  # url to connect to
+                                               on_close=self.OnConnectionClose,  # on close callback
+                                               on_error=self.OnConnectionError,  # on error callback
+                                               on_message=self.onMessageReceived)  # onMessage callback
+            ws_client.on_open = self.OnConnectionOpen  # OnConnectionOpen callback
+            self.ws_client = ws_client
+            # loop = asyncio.get_event_loop()
+            print("[Websockets] Running connection...")
+            ws_client.run_forever()  # run forever, duh. (set Api.is_shutdown to True to shut down.)
 
 
 def setup(bot):
@@ -264,7 +268,6 @@ def sockettest(bot, trigger):
     Just try it.
     """
     bot.say('Sorry Pal, but you need to restart the bot to attempt a Manual Reconnect! (Stupid, i know -_-)')
-
 
 @commands('connectsocket', 'connect')
 @require_permission(Permissions.techrat)

@@ -106,10 +106,11 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
         uri = urljoin(uri)
 
     #dump data as a String if it is a dict element to allow for both json objects and Json-formatted strings
-    if type(data) == type({}):
+    if isinstance(data, dict):
+    # if type(data) == type({}):
         data = json.dumps(data)
 
-    data = json.loads(data or '{}')
+    data = json.loads(data or '{}')  # ??!
     # print('statuses: '+str(statuses))
     # print('will send '+str(data))
     if log:

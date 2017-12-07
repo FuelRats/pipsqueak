@@ -95,13 +95,13 @@ class RatBoardTests(unittest.TestCase):
         """
         from datetime import datetime
         import time
-        scenarios = [(datetime.now(), 'now'),
+        scenarios = [(datetime.now().toordinal(), 'now'),
                      ("2017-11-29T22:17:14.502836Z", "some time")]
 
         v = datetime.fromtimestamp(time.time())
         for rt, es in scenarios:
             with self.subTest(rawTime=rt, expected_str = es):
-                self.assertEqual(timeutil.friendly_timedelta(rt), es)
+                self.assertEqual(timeutil.friendly_timedelta(datetime.fromordinal(rt)), es)
 
 
 
