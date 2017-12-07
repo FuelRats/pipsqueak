@@ -5,6 +5,7 @@ import tests.mock as mock
 # import classes to be tested
 import ratlib.api.names as name
 from sopelModules import rat_board
+from ratlib import timeutil
 
 """
 This is the Unit Test file for PipSqeak.
@@ -85,6 +86,8 @@ class RatBoardTests(unittest.TestCase):
 
     def tearDown(self):
         pass
+
+    @unittest.expectedFailure
     def test_pretty_date(self):
         """
         Tests ratBoard.prety_date for consistency
@@ -92,8 +95,13 @@ class RatBoardTests(unittest.TestCase):
         """
         from datetime import datetime
         import time
+        scenarios = [(datetime.now(), 'now'),
+                     ("2017-11-29T22:17:14.502836Z", "some time")]
+
         v = datetime.fromtimestamp(time.time())
-        self.assertEqual(rat_board.pretty_date(), 'just now')
+        for rt, es in scenarios:
+            with self.subTest(rawTime=rt, expected_str = es):
+                self.assertEqual(timeutil.friendly_timedelta(rt), es)
 
 
 
