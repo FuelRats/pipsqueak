@@ -1,14 +1,12 @@
 # coding: utf8
 """
-rat_socket.py - Fuel Rats Rat Tracker module.
+rat_socket.py - Fuel Rats Rat Tracker and API websockets module.
 
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
 
-Copyright originally by  Peter "Marenthyu" Fredebold <marenthyu@marenthyu.de> (2016),
-under the Eiffel Forum License, version 2
 
 This module is built on top of the Sopel system.
 http://sopel.chat/
@@ -60,6 +58,57 @@ class Request:
             'meta': self.meta
         }
         return json.dumps(obj)
+
+class Actions(Enum):
+    """
+    Enum for valid API actions
+    """
+    class Get(Enum):
+        """
+        API getter methods
+        """
+        rescue = 0
+        rescues = 1
+    class Set(Enum):
+        """
+        API setter methods
+        """
+        rescue = 3
+
+    class APIError(Exception):
+        """Generic API error"""
+        def __init__(self, code=None, details=None, json=None):
+            """
+            Creates a new APIError.
+            :param code: Error code, if any
+            :param details: Details, if any
+            :param json: JSON response, if available.
+            :return:
+            """
+            self.code = code
+            self.details = details
+            self.json = json
+
+        def __repr__(self):
+            return "<{0.__class__.__name__}({0.code}, {0.details!r})>".format(self)
+
+        __str__ = __repr__
+
+
+
+    class BadResponseError(APIError):
+        """Indicates a generic error with the API response."""
+        pass
+
+
+    class BadJSONError(BadResponseError):
+        """Indicates an error parsing JSON data."""
+        def __init__(self, code='2608', details="API didn\'t return valid JSON."):
+            super().__init__(code, details)
+
+    class UnsupportedMethodError(APIError):
+        def __init__(self, code='9999', details="Invalid request method."):
+            super().__init__(code, details)
 
 
 ## Start Config Section ##
@@ -181,6 +230,17 @@ class Api(threading.Thread):
             # )})
             pass
         return output_data
+
+    def call(self, action:Actions, log=None, payload:dict=None)->dict:
+        """
+        Make an API call
+        :param action: Actions object to exectue
+        :param log: optional log fileobject to write to, if None writes to STDOUT
+        :param payload: optional data to add to the API call
+        :return: dict response from API
+        """
+        if action is not None and action not in Actions:
+            pass
 
     async def retrieve_cases(self, socket)->dict:
         """
