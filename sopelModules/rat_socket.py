@@ -59,6 +59,44 @@ class Request:
         }
         return json.dumps(obj)
 
+class APIError(Exception):
+    """Generic API error"""
+
+    def __init__(self, code=None, details=None, json=None):
+        """
+        Creates a new APIError.
+        :param code: Error code, if any
+        :param details: Details, if any
+        :param json: JSON response, if available.
+        :return:
+        """
+        self.code = code
+        self.details = details
+        self.json = json
+
+    def __repr__(self):
+        return "<{0.__class__.__name__}({0.code}, {0.details!r})>".format(self)
+
+    __str__ = __repr__
+
+
+class BadResponseError(APIError):
+    """Indicates a generic error with the API response."""
+    pass
+
+
+class BadJSONError(BadResponseError):
+    """Indicates an error parsing JSON data."""
+
+    def __init__(self, code='2608', details="API didn\'t return valid JSON."):
+        super().__init__(code, details)
+
+
+class UnsupportedMethodError(APIError):
+    def __init__(self, code='9999', details="Invalid request method."):
+        super().__init__(code, details)
+
+
 class Actions(Enum):
     """
     Enum for valid API actions
@@ -75,40 +113,6 @@ class Actions(Enum):
         """
         rescue = 3
 
-    class APIError(Exception):
-        """Generic API error"""
-        def __init__(self, code=None, details=None, json=None):
-            """
-            Creates a new APIError.
-            :param code: Error code, if any
-            :param details: Details, if any
-            :param json: JSON response, if available.
-            :return:
-            """
-            self.code = code
-            self.details = details
-            self.json = json
-
-        def __repr__(self):
-            return "<{0.__class__.__name__}({0.code}, {0.details!r})>".format(self)
-
-        __str__ = __repr__
-
-
-
-    class BadResponseError(APIError):
-        """Indicates a generic error with the API response."""
-        pass
-
-
-    class BadJSONError(BadResponseError):
-        """Indicates an error parsing JSON data."""
-        def __init__(self, code='2608', details="API didn\'t return valid JSON."):
-            super().__init__(code, details)
-
-    class UnsupportedMethodError(APIError):
-        def __init__(self, code='9999', details="Invalid request method."):
-            super().__init__(code, details)
 
 
 ## Start Config Section ##
@@ -132,7 +136,6 @@ def configure(config):
             "Web Socket Port"
         )
     )
-
 
 class Api(threading.Thread):
     is_shutdown = False
@@ -242,17 +245,19 @@ class Api(threading.Thread):
         if action is not None and action not in Actions:
             pass
 
-    async def retrieve_cases(self, socket)->dict:
+    async def retrieve_cases(self)->dict:
         """
 
         :param socket: websocket instance for tx,rx
         :return:
         """
         # socket: websocket.WebSocket
-        await socket.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}))
-        response = await socket.recv()  # as this may take a while
-        self.bot.say("Done.", "#popcorn")
-        return await self.parse_json(response)
+        await self.ws_client.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}))
+        response = await self.ws_client.recv()  # as this may take a while
+        self.bot.say("Done.", "#unkn0wndev")
+        print("[API::retrieve_cases] done fetching cases")
+        return {}
+        # return await self.parse_json(response)
         # return response
 
     def run(self):
