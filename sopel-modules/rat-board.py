@@ -1227,13 +1227,17 @@ def cmd_assign(bot, trigger, rescue, *rats):
 @ratlib.sopel.filter_output
 @parameterize('w', usage='<ratname>')
 @require_permission(Permissions.rat)
-def cmd_ratid(bot, trigger, rat):
+def cmd_ratid(bot, trigger, rat, platform=None):
     """
     Get a rats' id from the api
     required parameters: rat name
     aliases: ratid, id
     """
-    id = getRatId(bot=bot, ratname=rat)
+    if platform:
+        bot.say("searching for rat '{}' on {}".format(rat,platform))
+    else:
+        bot.say("searching for rat {}".format(rat))
+    id = getRatId(bot=bot, ratname=rat, platform=platform)
     bot.say('Rat id for ' + str(id['name']) + ' is ' + str(id['id']))
 
 
