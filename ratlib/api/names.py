@@ -61,9 +61,8 @@ def getRatId(bot, ratname, platform=None):
             tempnam = 'unknown name'
             tempplat = 'unknown platform'
             nicknames = firstmatch['nicknames']
-            tempAlias = []
-            for alias in nicknames:
-                tempAlias.append(alias.lower())
+            tempAlias = [name.lower() for name in nicknames]
+
             # print("looping over firstmatch['rats']...")
 
             for ratobject in firstmatch['rats']:
