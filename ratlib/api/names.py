@@ -36,10 +36,10 @@ def getRatId(bot, ratname, platform=None):
         element = savedratids.get(ratname)
         strippedname = removeTags(ratname)
         if (platform is None) and ((str(element['name']).lower()==str(ratname).lower()) or str(element['name']).lower()==str(strippedname).lower() or str(element['name']).lower()==str(strippedname.replace('_',' ')).lower()):
-            print('platform was None and '+ratname+' was in keys and the name matched. returning '+str(element))
+            # print('platform was None and '+ratname+' was in keys and the name matched. returning '+str(element))
             return element
         elif (platform == element['platform']) and ((str(element['name']).lower()==str(ratname).lower()) or str(element['name']).lower()==str(strippedname).lower() or str(element['name']).lower()==str(strippedname.replace('_',' ')).lower()):
-            print('platform was on the gotten name and names matched. Returning '+str(element))
+            # print('platform was on the gotten name and names matched. Returning '+str(element))
             return element
 
 
@@ -71,7 +71,7 @@ def getRatId(bot, ratname, platform=None):
                 tempnam = ratobject['name']
                 tempplat = ratobject['platform']
 
-                print("tempnam = {}\ntempplat={}\n--------\nid={}".format(tempnam,tempplat, id))
+                # print("tempnam = {}\ntempplat={}\n--------\nid={}".format(tempnam,tempplat, id))
                 if (str(tempnam).lower()==str(ratname).lower()
                     or str(tempnam).lower()==str(strippedname).lower()
                     or str(tempnam).lower()==str(strippedname.replace('_', ' ')).lower()
@@ -81,7 +81,7 @@ def getRatId(bot, ratname, platform=None):
             if len(retlist) == 0:
                 ratnam = tempnam
                 ratplat = tempplat
-                print("======\n setting ID to zero... because FIRETRUCK this")
+                # print("======\n setting ID to zero... because FIRETRUCK this")
                 id = 0
             else:
                 id = retlist[0]['id']
@@ -95,7 +95,7 @@ def getRatId(bot, ratname, platform=None):
             id = None
             ratnam = None
             if len(data) == 0:
-                print('data length 0')
+                # print('data length 0')
                 raise Exception
             for user in data:
                 for ratobject in user['rats']:
