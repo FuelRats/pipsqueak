@@ -47,6 +47,8 @@ from ratlib.api.props import *
 from ratlib.api.names import *
 from ratlib.sopel import UsageError
 import ratlib.api.http
+import ratlib.api.websocket as ws_api
+from ratlib.api.websocket import Actions
 import ratlib.db
 from ratlib.db import with_session, Starsystem
 from ratlib.api.v2compatibility import convertV2DataToV1, convertV1RescueToV2
@@ -409,6 +411,14 @@ class Rescue(TrackedBase):
         self.updatedAt = when
         return when
 
+@require_permission(Permissions.techrat, message="You don't want to use this command. Its a techrat only command!")
+@commands('fetch')
+def fetch_ws_board(bot, trigger):
+    bot.reply("Got it! fetching API board via ws!")
+    print("bot.memory['ratbot']['api'] = {}".format( bot.memory['ratbot']['api']))
+    print( "----------\ncalling...")
+    ret = bot.memory['ratbot']['api'].call(Actions.getRescues)
+    print("returned data is {}\n==========".format(ret))
 
 def refresh_cases(bot, rescue=None, force=False):
     """

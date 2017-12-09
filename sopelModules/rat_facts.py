@@ -176,8 +176,12 @@ def format_fact(fact):
 @commands(r'[^\s]+')
 def cmd_recite_fact(bot, trigger):
     """Recite facts"""
-    fact = find_fact(bot, trigger.group(1))
-    if not fact:
+    try:
+        fact = find_fact(bot, trigger.group(1))
+        if not fact:
+            return NOLIMIT
+    except Exception as ex:
+        print("[rat_facts::cmd_recite_fact]: unable to find facts, something wrong with the dB?")
         return NOLIMIT
 
     multiple = False

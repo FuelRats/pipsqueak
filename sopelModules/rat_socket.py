@@ -101,17 +101,9 @@ class Actions(Enum):
     """
     Enum for valid API actions
     """
-    class Get(Enum):
-        """
-        API getter methods
-        """
-        rescue = 0
-        rescues = 1
-    class Set(Enum):
-        """
-        API setter methods
-        """
-        rescue = 3
+    getRescue  = 1
+    setRescue  = 2
+    getRescues = 3
 
 
 
@@ -154,10 +146,18 @@ class Api(threading.Thread):
             print("[API|{}]: {}".format(task, message))
 
     def __init__(self, connection_string: str, connection_port: int=None, token=None, bot=None):
+        """
+        Init for API container
+        :param connection_string: string to connect to, be WSS
+        :param connection_port:  port to connect to (currently ignored)
+        :param token:  API token
+        :param bot:  SOPEL bot instance
+        """
         print("[websocket]API: Init called")
 
         super().__init__()
         Api.my_instance = self
+        print("api_myinstance = {}".format(self))
         if connection_string.startswith("ws:"):
             connection_string.replace("ws:", "wss:")  # enforce wss, at least in the URI
         self._connected = False
@@ -166,6 +166,7 @@ class Api(threading.Thread):
         self.__token = token
         self.bot = bot
         self.ws_client = None
+        print("done with init.")
 
     def onMessageReceived(self, socket, message)->None:
         """
@@ -234,16 +235,6 @@ class Api(threading.Thread):
             pass
         return output_data
 
-    def call(self, action:Actions, log=None, payload:dict=None)->dict:
-        """
-        Make an API call
-        :param action: Actions object to exectue
-        :param log: optional log fileobject to write to, if None writes to STDOUT
-        :param payload: optional data to add to the API call
-        :return: dict response from API
-        """
-        if action is not None and action not in Actions:
-            pass
 
     async def retrieve_cases(self)->dict:
         """
@@ -259,6 +250,19 @@ class Api(threading.Thread):
         return {}
         # return await self.parse_json(response)
         # return response
+
+    async def call(self, action:Actions, log=None, payload:dict=None)->dict:
+        """
+        Make an API call
+        :param action: Actions object to exectue
+        :param log: optional log fileobject to write to, if None writes to STDOUT
+        :param payload: optional data to add to the API call
+        :return: dict response from API
+        """
+        if action is not None and action not in Actions:
+            return False
+        if action is Actions.getRescues:
+            return await self.retrieve_cases()
 
     def run(self):
         """
@@ -301,17 +305,32 @@ def setup(bot):
         websocketport = bot.config.socket.websocketport
     debug_channel = bot.config.ratbot.debug_channel or '#mechadeploy'
     # init a new instance of the API and store it in memory
-    bot.memory['ratbot']['api'] = Api(websocketurl, token=bot.config.ratbot.apitoken, bot=bot)
+    print("===========\ncreating new API instance")
+    api_instance = Api(websocketurl, token=bot.config.ratbot.apitoken, bot=bot)
+    print("1. api instance created: {}".format(api_instance))
+
+    print('2. run thread.')
+    thread = Thread(target=api_instance)
+    # api_instance.run()
+    print('done. thread= {}'.format(thread))
+    print('3. profit??')
+
+    # bot.say('[RatTracker] Gotcha, connecting to RatTracker!', "#unkn0wndev")
+    # # thread = Thread(target=api_instance.run)
+    # bot.memory['ratbot']['api'] = api_instance
+    # print("in ratbot memory:"+bot.memory['ratbot']['api'])
+    # print("thread: {}".format(thread))
+    print("-------------------")
     # NOTE: this does not actually create an API connection, just the Api handler instance
-
-
-def func_connect(bot):
-    if Api.my_instance is not None and Api.my_instance._connected:
-        bot.say('[RatTracker] API instance already running!')
-        return
-    bot.say('[RatTracker] Gotcha, connecting to RatTracker!')
-    thread = Thread(target=Api.my_instance.run)
-    thread.start()
+#
+# @commands('connect')
+# def func_connect(bot, trigger=None):
+#     if Api.my_instance is not None and Api.my_instance._connected:
+#         bot.say('[RatTracker] API instance already running!', "#unkn0wnDev")
+#         return
+#     bot.say('[RatTracker] Gotcha, connecting to RatTracker!', "#unkn0wndev")
+#     thread = Thread(target=Api.my_instance.run)
+#     thread.start()
 
 
 class Socket:
@@ -333,15 +352,6 @@ def sockettest(bot, trigger):
     Just try it.
     """
     bot.say('Sorry Pal, but you need to restart the bot to attempt a Manual Reconnect! (Stupid, i know -_-)')
-
-@commands('connectsocket', 'connect')
-@require_permission(Permissions.techrat)
-@ratlib.sopel.filter_output
-def connectSocket(bot, trigger):
-    """
-    Connects the Bot to the API's websocket. This command may be removed Without notice and executed on bot startup.
-    """
-    func_connect(bot)
 
 #
 # class MyClientProtocol(WebSocketClientProtocol):
