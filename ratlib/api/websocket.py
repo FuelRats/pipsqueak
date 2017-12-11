@@ -10,12 +10,6 @@ See LICENSE.md
 """
 
 # import stuff from rat_socket (why am i doing it like this again?)
-from sopelModules.rat_socket import Actions
-from sopelModules.rat_socket import UnsupportedMethodError
-from sopelModules.rat_socket import APIError
-from sopelModules.rat_socket import BadJSONError
-from sopelModules.rat_socket import Api as API
-
 
 def call(action:Actions, bot=None, data=None, log=None, **kwargs):
     """
@@ -27,6 +21,8 @@ def call(action:Actions, bot=None, data=None, log=None, **kwargs):
     :param kwargs:
     :return:
     """
+    raise NotImplementedError("start over.")
+
     def logger(message)->None:
         """
         Log helper method
