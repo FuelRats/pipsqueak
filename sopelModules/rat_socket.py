@@ -18,6 +18,7 @@ from threading import Thread
 import json
 import time
 import traceback
+import logging
 
 # Sopel imports
 from sopel.formatting import bold, color, colors
@@ -133,6 +134,12 @@ class Api(threading.Thread):
     is_shutdown = False
     my_instance = None  # class field - NOT instance bound!
     is_error = False
+    @classmethod
+    def get_instance(cls):
+        return Api.my_instance
+    @classmethod
+    def myInit(cls, inst):
+        cls.my_instance = inst
     def log(self, task: str, message: str)->None:
         """
         Websockets logger, for getting the bot to stay stuff
@@ -140,6 +147,7 @@ class Api(threading.Thread):
         :param message: message to display
         :return:
         """
+        self.logger.debug("{task}: {message}".format(task=task,message=message))
         try:
             self.bot.say("[API|{}]: {}".format(task, message), "#popcorn")
         except Exception:
@@ -154,10 +162,10 @@ class Api(threading.Thread):
         :param bot:  SOPEL bot instance
         """
         print("[websocket]API: Init called")
-
+        self.logger = logging.getLogger("api")
         super().__init__()
-        Api.my_instance = self
-        print("api_myinstance = {}".format(self))
+        Api.myInit(self)
+        self.logger.info("api_myinstance = {}".format(self))
         if connection_string.startswith("ws:"):
             connection_string.replace("ws:", "wss:")  # enforce wss, at least in the URI
         self._connected = False
@@ -166,6 +174,7 @@ class Api(threading.Thread):
         self.__token = token
         self.bot = bot
         self.ws_client = None
+
         print("done with init.")
 
     def onMessageReceived(self, socket, message)->None:
@@ -243,10 +252,11 @@ class Api(threading.Thread):
         :return:
         """
         # socket: websocket.WebSocket
+        self.logger.info("Fetching cases via WS..")
         await self.ws_client.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}))
         response = await self.ws_client.recv()  # as this may take a while
         self.bot.say("Done.", "#unkn0wndev")
-        print("[API::retrieve_cases] done fetching cases")
+        self.logger.info("done fetching cases")
         return {}
         # return await self.parse_json(response)
         # return response
@@ -293,6 +303,8 @@ class Api(threading.Thread):
 
 def setup(bot):
     ratlib.sopel.setup(bot)
+    logging.basicConfig(level=logging.DEBUG)  # write all the things
+
     print("[websockets] setup called.")
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['socket'] = Socket()
@@ -311,6 +323,7 @@ def setup(bot):
 
     print('2. run thread.')
     thread = Thread(target=api_instance)
+
     # api_instance.run()
     print('done. thread= {}'.format(thread))
     print('3. profit??')
@@ -691,28 +704,6 @@ def save_case(bot, rescue, forceFull=False):
         return rescue
 
     return bot.memory['ratbot']['executor'].submit(task)
-
-#
-# class MyClientFactory(ReconnectingClientFactory, WebSocketClientFactory):
-#     protocol = MyClientProtocol
-#
-#     def startedConnecting(self, connector):
-#         print('[Websocket] Started to connect.')
-#         ReconnectingClientFactory.startedConnecting(self, connector)
-#
-#     def clientConnectionLost(self, connector, reason):
-#         print('[Websocket]  Lost connection. Reason: {}'.format(reason))
-#         ReconnectingClientFactory.clientConnectionLost(self, connector, reason)
-#
-#     def clientConnectionFailed(self, connector, reason):
-#         print('[Websocket]  Connection failed. Reason: {}'.format(reason))
-#         MyClientProtocol.bot.say('Connection to Websocket refused. reason:' + str(reason))
-#         ReconnectingClientFactory.clientConnectionFailed(self, connector, reason)
-#
-#     def retry(self, connector=None):
-#         MyClientProtocol.bot.say('[Websocket] Reconnecting to API Websocket in ' + str(int(self.delay)) + ' seconds...')
-#         ReconnectingClientFactory.retry(self)
-#
 
 def shutdown(bot=None):
     # Ignored by sopel?!?!?! - Sometimes.

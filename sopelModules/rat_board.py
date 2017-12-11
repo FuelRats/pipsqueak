@@ -414,11 +414,13 @@ class Rescue(TrackedBase):
 @require_permission(Permissions.techrat, message="You don't want to use this command. Its a techrat only command!")
 @commands('fetch')
 def fetch_ws_board(bot, trigger):
+    import logging
     bot.reply("Got it! fetching API board via ws!")
-    print("bot.memory['ratbot']['api'] = {}".format( bot.memory['ratbot']['api']))
-    print( "----------\ncalling...")
-    ret = bot.memory['ratbot']['api'].call(Actions.getRescues)
-    print("returned data is {}\n==========".format(ret))
+    logging.debug("api={}".format(ws_api.API))
+    logging.debug("calling...")
+    # ret = bot.memory['ratbot']['api'].call(Actions.getRescues)
+    ret = ws_api.call(Actions.getRescues)
+    logging.debug("returned data is {}\n==========".format(ret))
 
 def refresh_cases(bot, rescue=None, force=False):
     """
