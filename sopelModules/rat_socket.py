@@ -132,26 +132,20 @@ def configure(config):
 
 class Api(threading.Thread):
     is_shutdown = False
-    my_instance = None  # class field - NOT instance bound!
     is_error = False
     @classmethod
-    def get_instance(cls):
-        return Api.my_instance
-    @classmethod
-    def myInit(cls, inst):
-        cls.my_instance = inst
-    def log(self, task: str, message: str)->None:
+    def get_instance(cls)->threading.Thread:
         """
-        Websockets logger, for getting the bot to stay stuff
-        :param task: name to display
-        :param message: message to display
-        :return:
+        Find and return the running API thread
+        :return: running Api thread
         """
-        self.logger.debug("{task}: {message}".format(task=task,message=message))
-        try:
-            self.bot.say("[API|{}]: {}".format(task, message), "#popcorn")
-        except Exception:
-            print("[API|{}]: {}".format(task, message))
+        # loop through all the threads
+        for thread in threading.enumerate():
+            # find the thread with a specific name
+            if thread.name == "ApiRunner":
+                logging.getLogger("api").info("Found ApiRunner task, returning {}".format(thread))
+                return thread
+
 
     def __init__(self, connection_string: str, connection_port: int=None, token=None, bot=None):
         """
@@ -161,13 +155,17 @@ class Api(threading.Thread):
         :param token:  API token
         :param bot:  SOPEL bot instance
         """
+        # write to stdio since the logger isn't loaded yet (this way we know init gets called)
         print("[websocket]API: Init called")
+        # fetch the logger
         self.logger = logging.getLogger("api")
         super().__init__()
-        Api.myInit(self)
-        self.logger.info("api_myinstance = {}".format(self))
+
+        # sanity check
         if connection_string.startswith("ws:"):
             connection_string.replace("ws:", "wss:")  # enforce wss, at least in the URI
+
+        # init instance members
         self._connected = False
         self.url = connection_string
         self.port = connection_port
@@ -175,7 +173,7 @@ class Api(threading.Thread):
         self.bot = bot
         self.ws_client = None
 
-        print("done with init.")
+        self.logger.debug("done with init.")
 
     def onMessageReceived(self, socket, message)->None:
         """
@@ -194,14 +192,14 @@ class Api(threading.Thread):
         :param socket:
         :return:
         """
-        self.log("OnConnectionOpen", "Connection to API opened.")
+        self.logger.info("OnConnectionOpen", "Connection to API opened.")
         print("[API] connection to API opened")
         self._connected = True
         print("[Websocket] onOpen received, sending rattracker sub")
         # self.sendMessage(str('{ "action":["stream","subscribe"], "id":"0xDEADBEEF" }').encode('utf-8'))
         socket.send('{ "action":["stream","subscribe"], "id":"0xDEADBEEF" }')
 
-    def OnConnectionError(self, socket, error)->None:
+    def OnConnectionError(self, socket:websocket.WebSocketApp, error)->None:
         """
         OnConnectionError handler
         :param socket: WS socket instance
@@ -209,7 +207,9 @@ class Api(threading.Thread):
         :return:
         """
         Api.is_error = True
-        print("[API]: some error occured!\n{}".format(error))
+        self.logger.error(error)
+        # print("[API]: some error occured!\n{}".format(error))
+        socket.close()
         raise error
 
     def OnConnectionClose(self, socket):
@@ -219,7 +219,7 @@ class Api(threading.Thread):
         :return:
         """
         self._connected = False
-        self.log("OnConnectionClose","Connection to API closed.")
+        self.logger.info("OnConnectionClose: Connection to API closed.")
         print("[API]####\tsocket closed\t####")
 
     async def parse_json(self, data: dict)->dict:
@@ -270,7 +270,7 @@ class Api(threading.Thread):
         :return: dict response from API
         """
         if action is not None and action not in Actions:
-            return False
+            return None
         if action is Actions.getRescues:
             return await self.retrieve_cases()
 
@@ -318,15 +318,15 @@ def setup(bot):
     debug_channel = bot.config.ratbot.debug_channel or '#mechadeploy'
     # init a new instance of the API and store it in memory
     print("===========\ncreating new API instance")
-    api_instance = Api(websocketurl, token=bot.config.ratbot.apitoken, bot=bot)
-    print("1. api instance created: {}".format(api_instance))
-
-    print('2. run thread.')
-    thread = Thread(target=api_instance)
-
+    thread = Api(websocketurl, token=bot.config.ratbot.apitoken, bot=bot)
+    print("1. api instance created: {}".format(thread))
+    print("2. name thread.")
+    thread.name = "ApiRunner"
+    print('3. run thread.')
+    thread.start()
     # api_instance.run()
     print('done. thread= {}'.format(thread))
-    print('3. profit??')
+    print('4. profit??')
 
     # bot.say('[RatTracker] Gotcha, connecting to RatTracker!', "#unkn0wndev")
     # # thread = Thread(target=api_instance.run)
