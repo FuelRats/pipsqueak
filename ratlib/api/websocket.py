@@ -41,11 +41,9 @@ def call(action:Actions, bot=None, data=None, log=None, **kwargs):
     if action is Actions.getRescues:
         if not api:
             raise APIError("API not initialized")
-        ret = api.retrieve_cases()
-        if ret == {}:
-            bot.say("API returned empty data!", "#unkn0wndev")
-            raise BadJSONError()
-        else:
-            print('[websocket::callapi]: got data from API:\n-------\t{}'.format(ret))
+        if api.retrieve_cases() is None:
+            # all is well.
+            logger.info("API call made OK.")
+
     else:
         raise UnsupportedMethodError()

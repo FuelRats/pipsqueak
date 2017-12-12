@@ -60,6 +60,7 @@ class Request:
         }
         return json.dumps(obj)
 
+
 class APIError(Exception):
     """Generic API error"""
 
@@ -107,29 +108,6 @@ class Actions(Enum):
     getRescues = 3
 
 
-
-## Start Config Section ##
-class SocketSection(StaticSection):
-    websocketurl = ValidatedAttribute('websocketurl', str, default='1234')
-    websocketport = ValidatedAttribute('websocketport', str, default='9000')
-
-
-def configure(config):
-    ratlib.sopel.configure(config)
-    config.define_section('socket', SocketSection)
-    config.socket.configure_setting(
-        'websocketurl',
-        (
-            "Websocket url"
-        )
-    )
-    config.socket.configure_setting(
-        'websocketport',
-        (
-            "Web Socket Port"
-        )
-    )
-
 class Api(threading.Thread):
     is_shutdown = False
     is_error = False
@@ -172,6 +150,8 @@ class Api(threading.Thread):
         self.__token = token
         self.bot = bot
         self.ws_client = None
+        self.socket = self.bot.memory['ratbot']['socket'] = Socket()  # to prevent multiple calls getting jumbled up
+
 
         self.logger.debug("done with init.")
 
@@ -245,23 +225,25 @@ class Api(threading.Thread):
         return output_data
 
 
-    def retrieve_cases(self)->dict:
+    def retrieve_cases(self)-> None:
         """
-
+        Requests open cases from API
+        This simply sends the request, to be handled by onMessageReceived
         :param socket: websocket instance for tx,rx
-        :return:
+        :return: None
         """
-        # socket: websocket.WebSocket
-        self.logger.info("Fetching cases via WS..")
-        self.ws_client.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}))
-        response = self.ws_client.recv()  # as this may take a while
-        self.bot.say("Done.", "#unkn0wndev")
-        self.logger.info("done fetching cases")
-        return {}
+        with self.socket:
+            # socket: websocket.WebSocket
+            self.logger.info("Fetching cases via WS..")
+            try:
+                self.ws_client.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}).request())
+            except Exception as ex:
+                raise APIError("Unable to transmit.")
+
         # return await self.parse_json(response)
         # return response
 
-    async def call(self, action:Actions, log=None, payload:dict=None)->dict:
+    def call(self, action:Actions, log=None, payload:dict=None)->dict:
         """
         Make an API call
         :param action: Actions object to exectue
@@ -272,7 +254,7 @@ class Api(threading.Thread):
         if action is not None and action not in Actions:
             return None
         if action is Actions.getRescues:
-            return await self.retrieve_cases()
+            return self.retrieve_cases()
 
     def run(self):
         """
@@ -290,15 +272,13 @@ class Api(threading.Thread):
             url = self.url.format(token=self.__token)
             print("[Websockets]:API connecting to {}".format(url))
             # create the websocket client object
-            ws_client = websocket.WebSocketApp(url=url,  # url to connect to
+            self.ws_client = websocket.WebSocketApp(url=url.format(token=self.__token),  # url to connect to
                                                on_close=self.OnConnectionClose,  # on close callback
                                                on_error=self.OnConnectionError,  # on error callback
                                                on_message=self.onMessageReceived)  # onMessage callback
-            ws_client.on_open = self.OnConnectionOpen  # OnConnectionOpen callback
-            self.ws_client = ws_client
-            # loop = asyncio.get_event_loop()
+            self.ws_client.on_open = self.OnConnectionOpen  # OnConnectionOpen callback
             print("[Websockets] Running connection...")
-            ws_client.run_forever()  # run forever, duh. (set Api.is_shutdown to True to shut down.)
+            self.ws_client.run_forever()  # run forever, duh. (set Api.is_shutdown to True to shut down.)
 
 
 def setup(bot):
@@ -347,6 +327,9 @@ def setup(bot):
 
 
 class Socket:
+    """
+    Read/write lock (i presume)
+    """
     def __enter__(self):
         return self._lock.__enter__()
 
