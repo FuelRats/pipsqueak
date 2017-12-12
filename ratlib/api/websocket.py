@@ -8,6 +8,9 @@ Licensed under the BSD 3-Clause License.
 
 See LICENSE.md
 """
+# core python imports
+import logging
+
 
 # import stuff from rat_socket (why am i doing it like this again?)
 from sopelModules.rat_socket import Actions
@@ -27,27 +30,18 @@ def call(action:Actions, bot=None, data=None, log=None, **kwargs):
     :param kwargs:
     :return:
     """
-    def logger(message)->None:
-        """
-        Log helper method
-        :param message: messsage to write
-        :return:
-        """
-        if not log:
-            print("[api.Websocket::call] {}".format(message))
-        else:
-            with log:
-                log.write("[api.Websocket::call]: {}".format(message))
+    logger = logging.getLogger("api")
+    api = API.get_instance()
     if action not in Actions:
-        logger("Unrecognized action {}".format(action))
+        logger.error("Unrecognized action {}".format(action))
         raise UnsupportedMethodError
-    if not data:
-        logger("No data given, using default...")
+    elif not data:
+        logger.warning("No data given, using default...")
         data = {}
     if action is Actions.getRescues:
-        if not API.my_instance:
+        if not api:
             raise APIError("API not initialized")
-        ret = API.my_instance.retrieve_cases()
+        ret = api.retrieve_cases()
         if ret == {}:
             bot.say("API returned empty data!", "#unkn0wndev")
             raise BadJSONError()

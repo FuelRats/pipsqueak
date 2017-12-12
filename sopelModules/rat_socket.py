@@ -134,7 +134,7 @@ class Api(threading.Thread):
     is_shutdown = False
     is_error = False
     @classmethod
-    def get_instance(cls)->threading.Thread:
+    def get_instance(cls):
         """
         Find and return the running API thread
         :return: running Api thread
@@ -245,7 +245,7 @@ class Api(threading.Thread):
         return output_data
 
 
-    async def retrieve_cases(self)->dict:
+    def retrieve_cases(self)->dict:
         """
 
         :param socket: websocket instance for tx,rx
@@ -253,8 +253,8 @@ class Api(threading.Thread):
         """
         # socket: websocket.WebSocket
         self.logger.info("Fetching cases via WS..")
-        await self.ws_client.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}))
-        response = await self.ws_client.recv()  # as this may take a while
+        self.ws_client.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}))
+        response = self.ws_client.recv()  # as this may take a while
         self.bot.say("Done.", "#unkn0wndev")
         self.logger.info("done fetching cases")
         return {}
@@ -302,10 +302,10 @@ class Api(threading.Thread):
 
 
 def setup(bot):
-    ratlib.sopel.setup(bot)
+    print("[websockets] setup called.")
     logging.basicConfig(level=logging.DEBUG)  # write all the things
 
-    print("[websockets] setup called.")
+    ratlib.sopel.setup(bot)
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
     bot.memory['ratbot']['socket'] = Socket()
 

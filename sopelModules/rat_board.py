@@ -414,8 +414,9 @@ class Rescue(TrackedBase):
 @require_permission(Permissions.techrat, message="You don't want to use this command. Its a techrat only command!")
 @commands('fetch')
 def fetch_ws_board(bot, trigger):
-    import logging
+    print("fetch_ws_board called.")
     bot.reply("Got it! fetching API board via ws!")
+    import logging
     logging.debug("api={}".format(ws_api.API))
     logging.debug("calling...")
     # ret = bot.memory['ratbot']['api'].call(Actions.getRescues)
