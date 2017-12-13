@@ -19,6 +19,7 @@ import json
 import time
 import traceback
 import logging
+import asyncio
 
 # Sopel imports
 from sopel.formatting import bold, color, colors
@@ -27,7 +28,7 @@ from sopel.tools import Identifier, SopelMemory
 import ratlib.sopel
 from sopel.config.types import StaticSection, ValidatedAttribute
 
-import websocket
+import websockets.client
 from ratlib.api.v2compatibility import convertV1RescueToV2, convertV2DataToV1
 
 
@@ -39,6 +40,29 @@ urljoin = ratlib.api.http.urljoin
 
 import threading
 import collections
+
+
+## Start Config Section ##
+class SocketSection(StaticSection):
+    websocketurl = ValidatedAttribute('websocketurl', str, default='wss://')
+    websockettoken = ValidatedAttribute('websockettoken', str, default='sekret')
+
+
+def configure(config):
+    ratlib.sopel.configure(config)
+    config.define_section('socket', SocketSection)
+    config.socket.configure_setting(
+            'websocketurl',
+            (
+                "Websocket url"
+            )
+    )
+    config.socket.configure_setting(
+            'websockettoken',
+            (
+                "Web Socket token"
+            )
+    )
 
 
 class Request:
@@ -111,36 +135,6 @@ class Actions(Enum):
 class Api(threading.Thread):
     is_shutdown = False
     is_error = False
-    # class lastMessage(object):
-    #     """
-    #     Stores the last message received from the API
-    #     On update calls its observers
-    #     """
-    #     def __init__(self):
-    #         self._message = ""
-    #         self._observers = []
-    #
-    #     @property
-    #     def message(self):
-    #         """
-    #         Stored message
-    #         :return: stored message
-    #         """
-    #         return self._message
-    #
-    #     @message.setter
-    #     def message(self, value):
-    #         """
-    #         Set new value for message, alert subscribers
-    #         :param value:
-    #         :return:
-    #         """
-    #         # update the value
-    #         self._message = value
-    #         #loop through each observer and call em
-    #         for callback in self._observers:
-    #             print('announcing change')
-    #             callback(self._message)
 
     @classmethod
     def get_instance(cls):
@@ -156,9 +150,10 @@ class Api(threading.Thread):
                 return thread
 
 
-    def __init__(self, connection_string: str, connection_port: int=None, token=None, bot=None):
+    def __init__(self, connection_string: str, connection_port: int = None, token=None, bot=None, logger=None):
         """
         Init for API container
+        :param logger:
         :param connection_string: string to connect to, be WSS
         :param connection_port:  port to connect to (currently ignored)
         :param token:  API token
@@ -167,7 +162,7 @@ class Api(threading.Thread):
         # write to stdio since the logger isn't loaded yet (this way we know init gets called)
         print("[websocket]API: Init called")
         # fetch the logger
-        self.logger = logging.getLogger("api")
+        self.logger = logger if logger is not None else logging.getLogger('api')
         super().__init__()
 
         # sanity check
@@ -181,99 +176,9 @@ class Api(threading.Thread):
         self.__token = token
         self.bot = bot
         self.ws_client = None
-        self.socket = self.bot.memory['ratbot']['socket'] = Socket()  # to prevent multiple calls getting jumbled up
-        self._app = None # this is soo hackk but might just work
+        self.lock = self.bot.memory['ratbot']['lock'] = Socket()  # to prevent multiple calls getting jumbled up
 
         self.logger.debug("done with init.")
-
-    def onMessageReceived(self, socket, message)->None:
-        """
-        OnMessageReceived event handler
-        :param socket: socket Instance
-        :param message: socket message
-        :return:
-        """
-        # print("socket type is {} and equals {}".format(type(socket), socket))
-        print("[API] got message: data is {}".format(message))
-        # socket:websocket.WebSocketApp
-        # TODO: do something with this data
-
-    def OnConnectionOpen(self, socket)->None:
-        """
-        OnConnectionOpened event handler
-        :param socket:
-        :return:
-        """
-        self.logger.info("OnConnectionOpen", "Connection to API opened.")
-        print("[API] connection to API opened")
-        self._connected = True
-        print("[Websocket] onOpen received, sending rattracker sub")
-        # self.sendMessage(str('{ "action":["stream","subscribe"], "id":"0xDEADBEEF" }').encode('utf-8'))
-        socket.send('{ "action":["stream","subscribe"], "id":"0xDEADBEEF" }')
-        self._app = socket  # this feels dirty, but is pretty much the only way this is going to work.
-    def OnConnectionError(self, socket:websocket.WebSocketApp, error)->None:
-        """
-        OnConnectionError handler
-        :param socket: WS socket instance
-        :param error: Error that occurred
-        :return:
-        """
-        Api.is_error = True
-        self.logger.error(error)
-        # print("[API]: some error occured!\n{}".format(error))
-        socket.close()
-        raise error
-
-    def OnConnectionClose(self, socket):
-        """
-        OnConnectionClosed handler
-        :param socket:
-        :return:
-        """
-        self._connected = False
-        self.logger.info("OnConnectionClose: Connection to API closed.")
-        print("[API]####\tsocket closed\t####")
-
-    async def parse_json(self, data: dict)->dict:
-        """
-        parse incoming client data from API
-        :param data: dict, raw JSON dict to parse
-        :return output_data: array of Case instances
-        """
-        output_data = {}  # since we are going to be parsing multiple cases at once
-        for entry in data['data']:
-            # FIXME use mecha's Case data structure
-            # await output_data.update({entry['attributes']['data']['boardIndex']: Case(
-            #     client=entry['attributes']['data']['IRCNick'],
-            #     language=entry["attributes"]['data']['langID'],
-            #     cr=entry['attributes']['codeRed'],
-            #     system=entry['attributes']['set_system'],
-            #     index=entry['attributes']['data']['boardIndex'],
-            #     platform=entry['attributes']['platform'],
-            #     raw=entry
-            #
-            # )})
-            pass
-        return output_data
-
-
-    def retrieve_cases(self)-> None:
-        """
-        Requests open cases from API
-        This simply sends the request, to be handled by onMessageReceived
-        :param socket: websocket instance for tx,rx
-        :return: None
-        """
-        with self.socket:
-            # socket: websocket.WebSocket
-            self.logger.info("Fetching cases via WS..")
-            try:
-                self.ws_client.send(Request(['rescues', 'read'], {}, {}, status={'$not': 'open'}).request())
-            except Exception as ex:
-                raise APIError("Unable to transmit.")
-
-        # return await self.parse_json(response)
-        # return response
 
     def call(self, action:Actions, log=None, payload:dict=None)->dict:
         """
@@ -287,6 +192,25 @@ class Api(threading.Thread):
             return None
         if action is Actions.getRescues:
             return self.retrieve_cases()
+    async def runner(self):
+        """
+        opens and maintains the socket connection
+        :return:
+        """
+        # open the connection
+        print(self.url)
+        connection_string = self.url.format(token=self.__token)
+        self.logger.info("connection string is {}".format(connection_string))
+        async with websockets.connect('wss://dev.api.fuelrats.com')as socket:
+            # get the on connect message
+            msg = await socket.recv()
+            self.ws_client = socket
+            self.logger.warning("connection message is: {}".format(msg))
+            while not self.is_error and not self.is_shutdown:
+                # keep the connection alive
+                asyncio.sleep(1)  # otherwise CPU usage gets crazy.
+            self.ws_client = None
+            self.logger.info("Connection closed.")
 
     def run(self):
         """
@@ -295,57 +219,60 @@ class Api(threading.Thread):
         """
         print("[Websockets]:Api run called.")
         # unless we want to shut down, keep the API up.
-        while not Api.is_shutdown and not Api.is_error:
+        while not self.is_shutdown and not self.is_error:
             print("[Websockets]Establishing WSS connection to API...")
             # let the games begin
-            # Do init
-            # ws = websocket.create_connection(Config.api_url.format(token=bearer_token), )
-            # spawn a websocket client instance
-            url = self.url.format(token=self.__token)
-            print("[Websockets]:API connecting to {}".format(url))
+
             # create the websocket client object
-            self.ws_client = websocket.WebSocketApp(url=url.format(token=self.__token),  # url to connect to
-                                               on_close=self.OnConnectionClose,  # on close callback
-                                               on_error=self.OnConnectionError,  # on error callback
-                                               on_message=self.onMessageReceived)  # onMessage callback
-            self.ws_client.on_open = self.OnConnectionOpen  # OnConnectionOpen callback
+            #
+            # create the event loop for the thread
+            asyncio.set_event_loop(asyncio.new_event_loop())
+            loop = asyncio.get_event_loop()
+            # open a websockets connection to the API
             print("[Websockets] Running connection...")
-            self.ws_client.run_forever()  # run forever, duh. (set Api.is_shutdown to True to shut down.)
+            loop.run_until_complete(self.runner())
 
 
 def setup(bot):
-    print("[websockets] setup called.")
+    # setup logging stuff
+    logging.basicConfig(format="%(levelname)s :%(message)s")
+    logger = logging.getLogger('api')
+    logger.addHandler(logging.FileHandler("logs/api.log", 'w'))
+    logger.addHandler(logging.StreamHandler())
+    logger.setLevel(logging.DEBUG)
+
+    logging.info("[websockets] setup called.")
     logging.basicConfig(level=logging.DEBUG)  # write all the things
 
     ratlib.sopel.setup(bot)
     bot.memory['ratbot']['log'] = (threading.Lock(), collections.OrderedDict())
-    bot.memory['ratbot']['socket'] = Socket()
+    bot.memory['ratbot']['lock'] = Socket()
 
-    if not hasattr(bot.config, 'socket') or not bot.config.socket.websocketurl:
-        websocketurl = '123'
-        websocketport = '9000'
+    if not hasattr(bot.config, 'lock') or not bot.config.socket.websocketurl:
+        websocketurl = 'dev.api.fuelrats.com/?bearer={token}'
+        __token = '9000'
     else:
         websocketurl = bot.config.socket.websocketurl
-        websocketport = bot.config.socket.websocketport
+        __token= bot.config.socket.websockettoken
     debug_channel = bot.config.ratbot.debug_channel or '#mechadeploy'
     # init a new instance of the API and store it in memory
-    print("===========\ncreating new API instance")
-    thread = Api(websocketurl, token=bot.config.ratbot.apitoken, bot=bot)
-    print("1. api instance created: {}".format(thread))
-    print("2. name thread.")
+    logger.info("===========\ncreating new API instance")
+    thread = Api(websocketurl, token=__token, bot=bot, logger=logger)
+    logger.info("1. api instance created: {}".format(thread))
+    logger.info("2. name thread.")
     thread.name = "ApiRunner"
-    print('3. run thread.')
+    logger.info('3. run thread.')
     thread.start()
     # api_instance.run()
-    print('done. thread= {}'.format(thread))
-    print('4. profit??')
+    logger.info('done. thread= {}'.format(thread))
+    logger.info('4. profit??')
 
     # bot.say('[RatTracker] Gotcha, connecting to RatTracker!', "#unkn0wndev")
     # # thread = Thread(target=api_instance.run)
     # bot.memory['ratbot']['api'] = api_instance
     # print("in ratbot memory:"+bot.memory['ratbot']['api'])
     # print("thread: {}".format(thread))
-    print("-------------------")
+    logger.info("-------------------")
     # NOTE: this does not actually create an API connection, just the Api handler instance
 #
 # @commands('connect')
@@ -370,7 +297,7 @@ class Socket:
 
     def __init__(self):
         self._lock = threading.RLock()
-        # print("Init for socket called!")
+        # print("Init for lock called!")
 
 
 @commands('reconnect')
@@ -722,5 +649,5 @@ def save_case(bot, rescue, forceFull=False):
 
 def shutdown(bot=None):
     # Ignored by sopel?!?!?! - Sometimes.
-    print('[Websocket] shutdown for socket called.')
+    print('[Websocket] shutdown for lock called.')
     Api.is_shutdown = True
