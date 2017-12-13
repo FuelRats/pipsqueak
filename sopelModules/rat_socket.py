@@ -111,6 +111,37 @@ class Actions(Enum):
 class Api(threading.Thread):
     is_shutdown = False
     is_error = False
+    # class lastMessage(object):
+    #     """
+    #     Stores the last message received from the API
+    #     On update calls its observers
+    #     """
+    #     def __init__(self):
+    #         self._message = ""
+    #         self._observers = []
+    #
+    #     @property
+    #     def message(self):
+    #         """
+    #         Stored message
+    #         :return: stored message
+    #         """
+    #         return self._message
+    #
+    #     @message.setter
+    #     def message(self, value):
+    #         """
+    #         Set new value for message, alert subscribers
+    #         :param value:
+    #         :return:
+    #         """
+    #         # update the value
+    #         self._message = value
+    #         #loop through each observer and call em
+    #         for callback in self._observers:
+    #             print('announcing change')
+    #             callback(self._message)
+
     @classmethod
     def get_instance(cls):
         """
@@ -151,7 +182,7 @@ class Api(threading.Thread):
         self.bot = bot
         self.ws_client = None
         self.socket = self.bot.memory['ratbot']['socket'] = Socket()  # to prevent multiple calls getting jumbled up
-
+        self._app = None # this is soo hackk but might just work
 
         self.logger.debug("done with init.")
 
@@ -162,6 +193,7 @@ class Api(threading.Thread):
         :param message: socket message
         :return:
         """
+        # print("socket type is {} and equals {}".format(type(socket), socket))
         print("[API] got message: data is {}".format(message))
         # socket:websocket.WebSocketApp
         # TODO: do something with this data
@@ -178,7 +210,7 @@ class Api(threading.Thread):
         print("[Websocket] onOpen received, sending rattracker sub")
         # self.sendMessage(str('{ "action":["stream","subscribe"], "id":"0xDEADBEEF" }').encode('utf-8'))
         socket.send('{ "action":["stream","subscribe"], "id":"0xDEADBEEF" }')
-
+        self._app = socket  # this feels dirty, but is pretty much the only way this is going to work.
     def OnConnectionError(self, socket:websocket.WebSocketApp, error)->None:
         """
         OnConnectionError handler
