@@ -914,30 +914,37 @@ def cmd_list(bot, trigger, *remainder):
     plats = []
     params = ['']
     tmp = ''
-    for x in remainder:
-        if ['@', 'i', 'r', 'u'] in list(x):
-            params[0] = '-'
-            params.append(x)
-        elif '-' in list(x): None #ignore '-'
-        else:
-            plats.append(x)
+
+    for word in remainder:
+        for char in list(word):
+            if char in ['@', 'i', 'r', 'u']:
+                params[0] = '-'
+                params.append(char)
+            elif char == '-': None #ignore '-'
+            else:
+                plats.append(char)
+
+    for i in range(1, len(list(params[0]))):
+        if list(params[0])[i] == '-':
+            list(params[0]).pop(i)
+            i -= 1
 
     tmpStr = ''
-    for x in plats:
-        tmpStr += x
+    for element in plats:
+        tmpStr += element
 
     offset = 0
     tmp = list(tmpStr)
-    for x in range(0, len(tmpStr)):
-        if (x + offset) % 3 != 0 or x == 0: continue
-        if tmp[x + offset] != ' ':
-            tmp.insert(x + offset - 1, ' ')
+    for position in range(0, len(tmpStr)):
+        if (position + offset) % 3 != 0 or position == 0: continue
+        if tmp[position + offset] != ' ':
+            tmp.insert(position + offset - 1, ' ')
             offset += 1
     tmpStr = ''.join(tmp)
     plats = tmpStr.split(' ')
     
-    for x in plats:
-        if x not in ['pc', 'ps', 'xb', '',  '-']:
+    for plat in plats:
+        if plat not in ['pc', 'ps', 'xb', '',  '-']:
             raise UsageError()
     
     showpc = 'pc' in plats
@@ -1001,7 +1008,9 @@ def cmd_list(bot, trigger, *remainder):
             tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
         else:
             tempcount = 0
-            tempcount +=  (1 if (showAllPlats or rescue.platform in showPlats) else 0 for rescue in cases)
+            for rescue in cases:
+                if showAllPlats or rescue.platform in showPlats:
+                    tempcount += 1
             num = tempcount if tempcount != 0 else "No"
             s = 's' if num != 1 else ''
             tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
