@@ -934,6 +934,11 @@ def cmd_list(bot, trigger, *remainder):
             offset += 1
     tmpStr = ''.join(tmp)
     plats = tmpStr.split(' ')
+    
+    for x in plats:
+        if x not in ['pc', 'ps', 'xb']:
+            raise UsageError()
+    
     showpc = 'pc' in plats
     showps = 'ps' in plats
     showxb = 'xb' in plats
