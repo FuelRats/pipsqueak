@@ -983,7 +983,7 @@ def cmd_list(bot, trigger, *remainder):
             templist = \
                 (format_rescue(bot, rescue, attr, showassigned, showids, hideboardindexes=False, showmarkedfordeletionreason=False)
                  if (not unassigned or len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)
-                    and (showAllPlats or showPlats.__contains__(rescue.platform)) else 'IGNOREME'
+                    and (showAllPlats or rescue.platform in showPlats) else 'IGNOREME'
                  for rescue in cases)
             formatlist = []
             for formatted in templist:
