@@ -897,9 +897,9 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
 
 @commands('list')
 @ratlib.sopel.filter_output
-@parameterize('w', usage="[-iru@]")
+@parameterize('w*', usage="[-iru@] ['pc', 'ps', 'xb']")
 @require_permission(Permissions.rat)
-def cmd_list(bot, trigger, params=''):
+def cmd_list(bot, trigger, *remainder):
     """
     List the currently active, open cases.
 
@@ -910,6 +910,40 @@ def cmd_list(bot, trigger, params=''):
         -@: Show full case IDs.  (LONG)
 
     """
+    count = 0
+    plats = []
+    params = ['']
+    tmp = ''
+    for x in remainder:
+        if x in ['@', 'i', 'r', 'u']:
+            params[0] = '-'
+            params.append(x)
+        else:
+            plats.append(x)
+
+    tmpStr = ''
+    for x in plats:
+        tmpStr += x
+
+    offset = 0
+    tmp = list(tmpStr)
+    for x in range(0, len(tmpStr)):
+        if (x + offset) % 3 != 0 or x == 0: continue
+        if tmp[x + offset] != ' ':
+            tmp.insert(x + offset - 1, ' ')
+            offset += 1
+    tmpStr = ''.join(tmp)
+    plats = tmpStr.split(' ')
+    showpc = 'pc' in plats
+    showps = 'ps' in plats
+    showxb = 'xb' in plats
+    showAllPlats = True if not (showpc or showps or showxb) else False
+
+    showPlats = []
+    showPlats.append("pc") if showpc else None
+    showPlats.append("ps") if showps else None
+    showPlats.append("xb") if showxb else None
+
     if not params or params[0] != '-':
         params = '-'
 
@@ -943,17 +977,28 @@ def cmd_list(bot, trigger, params=''):
         if expand:
             # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the
             # rescues have more than 0 assigned rats
+            # will also replace every rescue that shouldnt not be shown based on the supplied platform
             # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was
             # implemented.
-            templist = (format_rescue(bot, rescue, attr, showassigned, showids, hideboardindexes=False,
-                                      showmarkedfordeletionreason=False) if (
-                (not unassigned) or (len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)) else 'IGNOREME' for
-                        rescue in cases)
+            templist = \
+                (format_rescue(bot, rescue, attr, showassigned, showids, hideboardindexes=False, showmarkedfordeletionreason=False)
+                 if (not unassigned or len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)
+                    and (showAllPlats or showPlats.__contains__(rescue.platform)) else 'IGNOREME'
+                 for rescue in cases)
             formatlist = []
             for formatted in templist:
                 if formatted != 'IGNOREME':
                     formatlist.append(formatted)
                     t.append(formatted)
+            num = len(formatlist) if len(formatlist) != 0 else "No"
+            s = 's' if num != 1 else ''
+            t[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
+        else:
+            tempcount = 0
+            tempcount +=  (1 if (showAllPlats or showPlats.__contains__(rescue.platform)) else 0 for rescue in cases)
+            num = tempcount if tempcount != 0 else "No"
+            s = 's' if num != 1 else ''
+            t[0] = t[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
         output.append(t)
     for part in output:
         totalCount = 0
