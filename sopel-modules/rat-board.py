@@ -915,9 +915,10 @@ def cmd_list(bot, trigger, *remainder):
     params = ['']
     tmp = ''
     for x in remainder:
-        if x in ['@', 'i', 'r', 'u']:
+        if ['@', 'i', 'r', 'u'] in list(x):
             params[0] = '-'
             params.append(x)
+        elif '-' in list(x): None #ignore '-'
         else:
             plats.append(x)
 
@@ -936,7 +937,7 @@ def cmd_list(bot, trigger, *remainder):
     plats = tmpStr.split(' ')
     
     for x in plats:
-        if x not in ['pc', 'ps', 'xb']:
+        if x not in ['pc', 'ps', 'xb', '',  '-']:
             raise UsageError()
     
     showpc = 'pc' in plats
