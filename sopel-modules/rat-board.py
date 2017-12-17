@@ -972,8 +972,8 @@ def cmd_list(bot, trigger, *remainder):
             continue
         num = len(cases)
         s = 's' if num != 1 else ''
-        t = []
-        t.append("{num} {name} case{s}".format(num=num, name=name, s=s))
+        tmpOutput = []
+        tmpOutput.append("{num} {name} case{s}".format(num=num, name=name, s=s))
         if expand:
             # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the
             # rescues have more than 0 assigned rats
@@ -989,16 +989,16 @@ def cmd_list(bot, trigger, *remainder):
             for formatted in templist:
                 if formatted != 'IGNOREME':
                     formatlist.append(formatted)
-                    t.append(formatted)
+                    tmpOutput.append(formatted)
             num = len(formatlist) if len(formatlist) != 0 else "No"
             s = 's' if num != 1 else ''
-            t[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
+            tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
         else:
             tempcount = 0
-            tempcount +=  (1 if (showAllPlats or showPlats.__contains__(rescue.platform)) else 0 for rescue in cases)
+            tempcount +=  (1 if (showAllPlats or rescue.platform in showPlats) else 0 for rescue in cases)
             num = tempcount if tempcount != 0 else "No"
             s = 's' if num != 1 else ''
-            t[0] = t[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
+            tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
         output.append(t)
     for part in output:
         totalCount = 0
