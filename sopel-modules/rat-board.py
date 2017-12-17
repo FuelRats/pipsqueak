@@ -940,9 +940,9 @@ def cmd_list(bot, trigger, *remainder):
     showAllPlats = True if not (showpc or showps or showxb) else False
 
     showPlats = []
-    showPlats.append("pc") if showpc else None
-    showPlats.append("ps") if showps else None
-    showPlats.append("xb") if showxb else None
+    if showpc: showPlats.append("pc")
+    if showps: showPlats.append("ps")
+    if showxb: showPlats.append("xb")
 
     if not params or params[0] != '-':
         params = '-'
@@ -999,7 +999,7 @@ def cmd_list(bot, trigger, *remainder):
             num = tempcount if tempcount != 0 else "No"
             s = 's' if num != 1 else ''
             tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
-        output.append(t)
+        output.append(tmpOutput)
     for part in output:
         totalCount = 0
         length = len(part)
