@@ -990,7 +990,7 @@ def cmd_list(bot, trigger, *remainder):
         if expand:
             # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the
             # rescues have more than 0 assigned rats
-            # will also replace every rescue that shouldnt not be shown based on the supplied platform
+            # will also replace every rescue that should not be shown based on the supplied platform
             # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was
             # implemented.
             templist = \
