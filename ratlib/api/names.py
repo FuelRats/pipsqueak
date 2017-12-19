@@ -48,8 +48,8 @@ def getRatId(bot, ratname, platform=None):
         # print('looking for name '+ratname)
         # print('uri: '+str(uri))
         result = callapi(bot=bot, method='GET', uri=uri)
-        # print(result)
         data = result['data']['attributes']['rows']
+        # print(result)
         # print(data)
         returnlist = []
         if platform is None:
@@ -60,16 +60,27 @@ def getRatId(bot, ratname, platform=None):
             retlist = []
             tempnam = 'unknown name'
             tempplat = 'unknown platform'
+            nicknames = firstmatch['nicknames']
+            tempAlias = [name.lower() for name in nicknames]
+
+            # print("looping over firstmatch['rats']...")
 
             for ratobject in firstmatch['rats']:
                 id = ratobject['id']
                 tempnam = ratobject['name']
                 tempplat = ratobject['platform']
-                if (str(tempnam).lower()==str(ratname).lower() or str(tempnam).lower()==str(strippedname).lower() or str(tempnam).lower()==str(strippedname.replace('_', ' ')).lower()):
-                    retlist.append({'id': id, 'name':tempnam , 'platform':tempplat})
+
+                # print("tempnam = {}\ntempplat={}\n--------\nid={}".format(tempnam,tempplat, id))
+                if (str(tempnam).lower()==str(ratname).lower()
+                    or str(tempnam).lower()==str(strippedname).lower()
+                    or str(tempnam).lower()==str(strippedname.replace('_', ' ')).lower()
+                    or strippedname.lower() in tempAlias):
+                        # print("appending rat!")
+                        retlist.append({'id': id, 'name':tempnam , 'platform':tempplat})
             if len(retlist) == 0:
                 ratnam = tempnam
                 ratplat = tempplat
+                # print("======\n setting ID to zero... because FIRETRUCK this")
                 id = 0
             else:
                 id = retlist[0]['id']
@@ -108,8 +119,10 @@ def getRatId(bot, ratname, platform=None):
             savedratnames.update({id: {'name': ratnam, 'platform': ret['platform'], 'id':ret['id']}})
         # print("returning " + str(ret))
         return ret
-    except:
-            # print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
+    except Exception as ex:
+            # raise ex  # burn baby burn
+            print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
+
             return idFallback(bot, ratname, platform=platform)
 
 
@@ -127,7 +140,9 @@ def idFallback(bot, ratname, platform=None):
 
     """
     strippedname = removeTags(ratname)
-    print('[NamesAPI] Had to call idFallback for '+str(ratname))
+    # print('[NamesAPI] Had to call idFallback for '+str(ratname))
+    print('[NamesAPI] had to call idFallback for {ratname} (strippedName = {strippedName}'.format(
+            ratname=ratname, strippedName=strippedname))
     try:
         uri = '/rats?name=' + strippedname + (('&platform='+platform) if platform is not None else '')
         result = callapi(bot=bot, method='GET', uri=uri)
