@@ -52,11 +52,11 @@ def getRatId(bot, ratname, platform=None):
         # print(result)
         # print(data)
         returnlist = []
+        strippedname = removeTags(ratname)
         if platform is None:
             if len(data) == 0:
                 raise Exception
             firstmatch = data[0]
-            strippedname = removeTags(ratname)
             retlist = []
             tempnam = 'unknown name'
             tempplat = 'unknown platform'
