@@ -24,7 +24,10 @@ def friendly_timedelta(delta):
     Assumes negative values are in the past, positive values in the future.
     """
     if isinstance(delta, datetime.datetime):
-        return friendly_timedelta(delta - datetime.datetime.now(tz=delta.tzinfo))
+        if delta.tzinfo:
+            return friendly_timedelta(delta - datetime.datetime.now(tz=delta.tzinfo))
+        else:
+            return friendly_timedelta(delta-datetime.datetime.utcnow())
     if isinstance(delta, datetime.date):
         return friendly_timedelta(delta - datetime.date.today())
 

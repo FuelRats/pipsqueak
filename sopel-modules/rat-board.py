@@ -813,7 +813,7 @@ def func_quote(bot, trigger, rescue, showboardindex=True):
     if rescue.unidentifiedRats:
         bot.say("Assigned unidentifiedRats: " + ", ".join(rescue.unidentifiedRats))
     for ix, quote in enumerate(rescue.quotes):
-        pdate = "unknown" if quote["updatedAt"] is None else pretty_date(dateutil.parser.parse(quote['updatedAt']))
+        pdate = "unknown" if quote["updatedAt"] is None else timeutil.friendly_timedelta(dateutil.parser.parse(quote['updatedAt']))
         if quote['lastAuthor'] is None:
             bot.say(
                 '[{ix}][{quote[author]} {ago}] {quote[message]}'.format(ix=ix, quote=quote, ago=pdate))
@@ -897,9 +897,9 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
 
 @commands('list')
 @ratlib.sopel.filter_output
-@parameterize('w', usage="[-iru@]")
+@parameterize('w*', usage="[-iru@] ['pc', 'ps', 'xb']")
 @require_permission(Permissions.rat)
-def cmd_list(bot, trigger, params=''):
+def cmd_list(bot, trigger, *remainder):
     """
     List the currently active, open cases.
 
@@ -910,6 +910,53 @@ def cmd_list(bot, trigger, params=''):
         -@: Show full case IDs.  (LONG)
 
     """
+    count = 0
+    plats = []
+    params = ['']
+    tmp = ''
+
+    for word in remainder:
+        for char in list(word):
+            if char in ['@', 'i', 'r', 'u']:
+                params[0] = '-'
+                params.append(char)
+            elif char == '-': None #ignore '-'
+            else:
+                plats.append(char)
+
+    for i in range(1, len(list(params[0]))):
+        if list(params[0])[i] == '-':
+            list(params[0]).pop(i)
+            i -= 1
+
+    tmpStr = ''
+    for element in plats:
+        tmpStr += element
+
+    offset = 0
+    tmp = list(tmpStr)
+    for x in range(0, len(tmpStr)):
+        if (x + offset) % 3 != 0 or x == 0: continue
+        if tmp[x + offset] != ' ':
+            tmp.insert(x + offset - 1, ' ')
+            offset += 1
+    tmpStr = ''.join(tmp)
+    plats = tmpStr.split(' ')
+    
+    for x in plats:
+        if x not in ['pc', 'ps', 'xb', '',  '-']:
+            raise UsageError()
+    
+    showpc = 'pc' in plats
+    showps = 'ps' in plats
+    showxb = 'xb' in plats
+    showAllPlats = True if not (showpc or showps or showxb) else False
+
+    showPlats = []
+    if showpc: showPlats.append("pc")
+    if showps: showPlats.append("ps")
+    if showxb: showPlats.append("xb")
+
     if not params or params[0] != '-':
         params = '-'
 
@@ -938,23 +985,34 @@ def cmd_list(bot, trigger, params=''):
             continue
         num = len(cases)
         s = 's' if num != 1 else ''
-        t = []
-        t.append("{num} {name} case{s}".format(num=num, name=name, s=s))
+        tmpOutput = []
+        tmpOutput.append("{num} {name} case{s}".format(num=num, name=name, s=s))
         if expand:
             # list all rescues and replace rescues with IGNOREME if only unassigned rescues should be shown and the
             # rescues have more than 0 assigned rats
+            # will also replace every rescue that should not be shown based on the supplied platform
             # FIXME: should be done easier to read, but it should work. I wanted to stick to the old way it was
             # implemented.
-            templist = (format_rescue(bot, rescue, attr, showassigned, showids, hideboardindexes=False,
-                                      showmarkedfordeletionreason=False) if (
-                (not unassigned) or (len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)) else 'IGNOREME' for
-                        rescue in cases)
+            templist = \
+                (format_rescue(bot, rescue, attr, showassigned, showids, hideboardindexes=False, showmarkedfordeletionreason=False)
+                 if (not unassigned or len(rescue.rats) == 0 and len(rescue.unidentifiedRats) == 0)
+                    and (showAllPlats or rescue.platform in showPlats) else 'IGNOREME'
+                 for rescue in cases)
             formatlist = []
             for formatted in templist:
                 if formatted != 'IGNOREME':
                     formatlist.append(formatted)
-                    t.append(formatted)
-        output.append(t)
+                    tmpOutput.append(formatted)
+            num = len(formatlist) if len(formatlist) != 0 else "No"
+            s = 's' if num != 1 else ''
+            tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
+        else:
+            tempcount = 0
+            tempcount +=  (1 if (showAllPlats or rescue.platform in showPlats) else 0 for rescue in cases)
+            num = tempcount if tempcount != 0 else "No"
+            s = 's' if num != 1 else ''
+            tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
+        output.append(tmpOutput)
     for part in output:
         totalCount = 0
         length = len(part)
@@ -1227,13 +1285,17 @@ def cmd_assign(bot, trigger, rescue, *rats):
 @ratlib.sopel.filter_output
 @parameterize('w', usage='<ratname>')
 @require_permission(Permissions.rat)
-def cmd_ratid(bot, trigger, rat):
+def cmd_ratid(bot, trigger, rat, platform=None):
     """
     Get a rats' id from the api
     required parameters: rat name
     aliases: ratid, id
     """
-    id = getRatId(bot=bot, ratname=rat)
+    if platform:
+        bot.say("searching for rat '{}' on {}".format(rat,platform))
+    else:
+        bot.say("searching for rat {}".format(rat))
+    id = getRatId(bot=bot, ratname=rat, platform=platform)
     bot.say('Rat id for ' + str(id['name']) + ' is ' + str(id['id']))
 
 
