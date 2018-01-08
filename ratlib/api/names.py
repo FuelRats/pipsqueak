@@ -121,7 +121,7 @@ def getRatId(bot, ratname, platform=None):
         return ret
     except Exception as ex:
             # raise ex  # burn baby burn
-            print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
+            # print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
 
             return idFallback(bot, ratname, platform=platform)
 
@@ -141,7 +141,7 @@ def idFallback(bot, ratname, platform=None):
     """
     strippedname = removeTags(ratname)
     # print('[NamesAPI] Had to call idFallback for '+str(ratname))
-    print('[NamesAPI] had to call idFallback for {ratname} (strippedName = {strippedName}'.format(
+    print('[NamesAPI] had to call idFallback for {ratname} (strippedName = {strippedName})'.format(
             ratname=ratname, strippedName=strippedname))
     try:
         uri = '/rats?name=' + strippedname + (('&platform='+platform) if platform is not None else '')
