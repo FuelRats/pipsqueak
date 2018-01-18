@@ -690,8 +690,8 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
 
     json_lines = []
     for line in rv.added_lines:
-        json_lines.append({"message":line, "updatedAt":datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'),
-                           "createdAt":datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'), "author":author, "lastAuthor":author})
+        json_lines.append({"message":line, "updatedAt":timeutil.utc_now_tz(),
+                           "createdAt":timeutil.utc_now_tz(), "author":author, "lastAuthor":author})
     rv.rescue.quotes.extend(json_lines)
     return rv
 
@@ -1186,7 +1186,7 @@ def cmd_sub(bot, trigger, rescue, lineno, line=None):
         rescue.quotes.pop(lineno)
         bot.say("Deleted line {}".format(lineno))
     else:
-        rescue.quotes[lineno] = {"message":line, "updatedAt":datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'),
+        rescue.quotes[lineno] = {"message":line, "updatedAt":timeutil.utc_now_tz(),
                                  "createdAt":rescue.quotes[lineno]["createdAt"],
                                  "author":rescue.quotes[lineno]["author"], "lastAuthor":trigger.nick}
         bot.say("Updated line {}".format(lineno))
