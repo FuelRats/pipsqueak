@@ -1,6 +1,6 @@
 #coding: utf8
 """
-rat-search.py - Elite Dangerous System Search module.
+rat_search.py - Elite Dangerous System Search module.
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.
 

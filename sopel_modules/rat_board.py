@@ -1,6 +1,6 @@
 # coding: utf8
 """
-rat-board.py - Fuel Rats Cases module.
+rat_board.py - Fuel Rats Cases module.
 
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.
