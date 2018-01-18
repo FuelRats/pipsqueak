@@ -149,6 +149,34 @@ class Api(threading.Thread):
                 logging.getLogger("api").info("Found ApiRunner task, returning {}".format(thread))
                 return thread
 
+    def handleWSMessage(self, payload, socket_instance)->None:
+        """
+        Handles incoming websocket message
+        :param payload: string data from the socket
+        :param socket_instance: Websocket instance the message came from
+        :return: None
+        """
+        response = json.loads(payload)
+        say = self.bot.say
+        bot = self.bot
+        # board = MyClientProtocol.board
+        # debug_channel = MyClientProtocol.debug_channel
+
+        try:
+            self.logger.debug("[Websocket] Response: " + str(response))
+            data = response['data']
+            if 'action' in response.keys():
+                action = response['action'][0]
+                self.logger.info("action is {action} and the data is {data}".format(action=action, data=data))
+            elif 'meta' in response.keys():
+                action = response['meta']['event']
+            else:
+                data = data['attributes']
+                action = data['event']
+        except:
+            self.logger.debug("[Websocket] Message: " + str(response))
+            self.logger.error("[Websocket] Couldn't get data or action - Ignoring Websocket Event.")
+            return
 
     def __init__(self, connection_string: str, connection_port: int = None, token=None, bot=None, logger=None):
         """
@@ -203,7 +231,9 @@ class Api(threading.Thread):
         self.logger.info("connection string is {}".format(connection_string))
         async with websockets.connect('wss://dev.api.fuelrats.com')as socket:
             # get the on connect message
+            print(type(socket))
             msg = await socket.recv()
+            self._connected = True
             self.ws_client = socket
             self.logger.warning("connection message is: {}".format(msg))
             while not self.is_error and not self.is_shutdown:
@@ -214,6 +244,7 @@ class Api(threading.Thread):
 
     def run(self):
         """
+        Main worker thread.
         Fetch and maintain a websocket connection to the API
         :return:
         """
@@ -341,27 +372,7 @@ def sockettest(bot, trigger):
 #         WebSocketClientProtocol.onClose(self, wasClean, code, reason)
 #
 #
-# def handleWSMessage(payload, senderinstance):
-#     response = json.loads(payload.decode('utf8'))
-#     say = MyClientProtocol.bot.say
-#     bot = MyClientProtocol.bot
-#     board = MyClientProtocol.board
-#     debug_channel = MyClientProtocol.debug_channel
-#
-#     try:
-#         # print("[Websocket] Response: " + str(response))
-#         data = response['data']
-#         if 'action' in response.keys():
-#             action = response['action'][0]
-#         elif 'meta' in response.keys():
-#             action = response['meta']['event']
-#         else:
-#             data = data['attributes']
-#             action = data['event']
-#     except:
-#         print("[Websocket] Message: " + str(response))
-#         print("[Websocket] Couldn't get data or action - Ignoring Websocket Event.")
-#         return
+
 #
 #
 #     def filterClient(bot, data):

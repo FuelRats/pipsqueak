@@ -41,6 +41,8 @@ def call(action:Actions, bot=None, data=None, log=None, **kwargs):
     if action is Actions.getRescues:
         if not api:
             raise APIError("API not initialized")
+        socket = api.ws_client
+
         if api.retrieve_cases() is None:
             # all is well.
             logger.info("API call made OK.")

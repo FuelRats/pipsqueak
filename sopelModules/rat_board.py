@@ -50,6 +50,7 @@ import ratlib.api.http
 import ratlib.api.websocket as ws_api
 from ratlib.api.websocket import Actions
 import ratlib.db
+
 from ratlib.db import with_session, Starsystem
 from ratlib.api.v2compatibility import convertV2DataToV1, convertV1RescueToV2
 
