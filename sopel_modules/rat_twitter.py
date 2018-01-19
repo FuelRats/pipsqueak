@@ -1,6 +1,6 @@
 #coding: utf8
 """
-rat-twitter.py - Fuel Rats Twitter module
+rat_twitter.py - Fuel Rats Twitter module
 
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.

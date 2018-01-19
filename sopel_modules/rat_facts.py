@@ -1,6 +1,6 @@
 # coding: utf8
 """
-rat-facts.py - Fact reciting module
+rat_facts.py - Fact reciting module
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.
 
