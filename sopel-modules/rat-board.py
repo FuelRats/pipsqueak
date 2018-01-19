@@ -1007,10 +1007,8 @@ def cmd_list(bot, trigger, *remainder):
             s = 's' if num != 1 else ''
             tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
         else:
-            platform_list= []
             # list comprehension, adding platforms in cases if they exist in showplats
             platform_list = [platform for platform in cases if platform in showPlats]
-
             num = len(platform_list) if (len(platform_list)>0 or showAllPlats) else "No"
             s = 's' if num != 1 else ''
             tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
