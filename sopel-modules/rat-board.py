@@ -1008,7 +1008,6 @@ def cmd_list(bot, trigger, *remainder):
             tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
         else:
             platform_list= []
-            # tempcount +=  (1 if (showAllPlats or rescue.platform in showPlats) else 0 for rescue in cases)
             # list comprehension, adding platforms in cases if they exist in showplats
             platform_list = [platform for platform in cases if platform in showPlats]
 
