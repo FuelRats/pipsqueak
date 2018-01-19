@@ -1007,9 +1007,12 @@ def cmd_list(bot, trigger, *remainder):
             s = 's' if num != 1 else ''
             tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
         else:
-            tempcount = 0
-            tempcount +=  (1 if (showAllPlats or rescue.platform in showPlats) else 0 for rescue in cases)
-            num = tempcount if tempcount != 0 else "No"
+            platform_list= []
+            # tempcount +=  (1 if (showAllPlats or rescue.platform in showPlats) else 0 for rescue in cases)
+            # list comprehension, adding platforms in cases if they exist in showplats
+            platform_list = [platform for platform in cases if platform in showPlats]
+
+            num = len(platform_list) if (len(platform_list)>0 or showAllPlats) else "No"
             s = 's' if num != 1 else ''
             tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
         output.append(tmpOutput)
