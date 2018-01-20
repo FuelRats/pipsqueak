@@ -89,7 +89,7 @@ def urljoin(*parts):
     return "".join(part for part in _gen(parts))
 
 
-def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs):
+def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs)->dict:
     """
     Wrapper function to contact the web API.
 
