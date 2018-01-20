@@ -1246,21 +1246,21 @@ def cmd_assign(bot, trigger, rescue, *rats):
     ratids = []
     for rat in rats:
         if rescue.platform == None:
-            i = getRatId(bot, rat)
+            ratid = getRatId(bot, rat)
         else:
-            i = getRatId(bot, rat, platform=rescue.platform)
+            ratid = getRatId(bot, rat, platform=rescue.platform)
         # Check if id returned is an id, decide for unidentified rats or rats.
-        # print("i is " + str(i))
-        idstr = str(i['id'])
+        # print("ratid is " + str(ratid))
+        idstr = str(ratid['id'])
         # IRCNick may (but shouldn't be) be None - convert to string so it does not error out
         if rat.lower() == str(rescue.data['IRCNick']).lower():  # sanity check
             bot.reply("Unable to assign a client to their own case.")
             return
         elif idstr != '0' and idstr != 'None':
             # print('[RatBoard] id was not 0.')
-            rescue.rats.update([i['id']])
-            ratlist.append(i['name'])
-            ratids.append(i['id'])
+            rescue.rats.update([ratid['id']])
+            ratlist.append(ratid['name'])
+            ratids.append(ratid['id'])
         else:
             # print('[RatBoard] id was 0')
             bot.reply('Be advised: ' + rat + ' does not have a registered Rat for the case\'s platform!')

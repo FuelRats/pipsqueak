@@ -30,7 +30,7 @@ urljoin = ratlib.api.http.urljoin
 savedratids = {}
 savedratnames = {}
 savedclientnames = {}
-def getRatId(bot, ratname, platform=None):
+def getRatId(bot, ratname, platform=None)->dict:
 
     if ratname in savedratids.keys():
         element = savedratids.get(ratname)
@@ -44,7 +44,7 @@ def getRatId(bot, ratname, platform=None):
 
 
     try:
-        uri = '/nicknames/' + ratname
+        uri = '/nicknames/{ratname}'.format(ratname=ratname)
         # print('looking for name '+ratname)
         # print('uri: '+str(uri))
         result = callapi(bot=bot, method='GET', uri=uri)
@@ -55,7 +55,7 @@ def getRatId(bot, ratname, platform=None):
         strippedname = removeTags(ratname)
         if platform is None:
             if len(data) == 0:
-                raise Exception
+                raise Exception  # what kind of exception?
             firstmatch = data[0]
             retlist = []
             tempnam = 'unknown name'
@@ -205,12 +205,13 @@ def removeTags(string):
 
     return string[0:i]
 
-def callapi(bot, method, uri, triggernick=None, data=None, _fn=ratlib.api.http.call):
+def callapi(bot, method, uri, triggernick:str=None, trigger_id:str=None, data=None, _fn=ratlib.api.http.call):
     '''
     Calls the API with the gived method endpoint and data.
     :param bot: bot to pull config from and log error messages to irc
     :param method: GET PUT POST etc.
     :param uri: the endpoint to use, ex /rats
+    :param trigger_id: UUID of invoking user
     :param data: body for request
     :param _fn: http call function to use
     :return: the data dict the api call returned.
@@ -219,6 +220,8 @@ def callapi(bot, method, uri, triggernick=None, data=None, _fn=ratlib.api.http.c
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
     if triggernick is not None:
         headers.update({"X-Command-By":str(triggernick)})
+    elif trigger_id:
+        headers.update({"X-Command-By":str(trigger_id)})
     with bot.memory['ratbot']['apilock']:
         return _fn(method, uri, data, log=bot.memory['ratbot']['apilog'], headers=headers)
 
