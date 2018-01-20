@@ -1277,7 +1277,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
                 .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.data["IRCNick"])
         )
     if len(ratids) > 0:
-        callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':ratids}, trigger_nick=str(trigger.nick))
+        callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
     save_case_later(bot, rescue)
 
 
@@ -1318,7 +1318,7 @@ def cmd_unassign(bot, trigger, rescue, *rats):
             ratids.append(rat)
             rescue.rats -= {rat}
 
-    callapi(bot, 'PUT', '/rescues/unassign/' + str(rescue.id), data={'data':ratids}, trigger_nick=str(trigger.nick))
+    callapi(bot, 'PUT', '/rescues/unassign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
 
     bot.say(
         "Removed from {name}'s case: {rats}"
@@ -1602,7 +1602,7 @@ def cmd_closed(bot, trigger):
     '''
     try:
         result = callapi(bot=bot, uri='/rescues?status=closed&limit=5&order=-updatedAt', method='GET',
-                         trigger_nick=str(trigger.nick))
+                         triggernick=str(trigger.nick))
         try:
             addNamesFromV2Response(result['included'])
         except:
@@ -1647,7 +1647,7 @@ def cmd_reopen(bot, trigger, id):
     Reopens a case by its full database ID
     """
     try:
-        result = callapi(bot, 'PUT', data={'status': 'open'}, uri='/rescues/' + str(id), trigger_nick=str(trigger.nick))
+        result = callapi(bot, 'PUT', data={'status': 'open'}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
         refresh_cases(bot, force=True)
         updateBoardIndexes(bot)
         bot.say('Reopened case. Cases refreshed, care for your case numbers!')
@@ -1671,7 +1671,7 @@ def cmd_delete(bot, trigger, id):
 def func_delete(bot, trigger, id):
     if 'list' != id:
         try:
-            result = callapi(bot, 'DELETE', uri='/rescues/' + str(id), trigger_nick=str(trigger.nick))
+            result = callapi(bot, 'DELETE', uri='/rescues/' + str(id), triggernick=str(trigger.nick))
             # print('[RatBoard] ' + str(result))
         except ratlib.api.http.APIError as ex:
             bot.reply('Case with id ' + str(id) + ' does not exist or other APIError.')
@@ -1680,7 +1680,7 @@ def func_delete(bot, trigger, id):
         bot.say('Deleted case with id ' + str(id) + ' - THIS IS NOT REVERTIBLE!')
     else:
         result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}',
-                         trigger_nick=str(trigger.nick))
+                         triggernick=str(trigger.nick))
         caselist = []
         try:
             addNamesFromV2Response(result['included'])
@@ -1716,7 +1716,7 @@ def cmd_quoteid(bot, trigger, id):
     Quotes a case by its database id
     """
     try:
-        result = callapi(bot, method='GET', uri='/rescues/' + str(id), trigger_nick=str(trigger.nick))
+        result = callapi(bot, method='GET', uri='/rescues/' + str(id), triggernick=str(trigger.nick))
         try:
             addNamesFromV2Response(result['included'])
         except:
@@ -1870,7 +1870,7 @@ def cmd_mdremove(bot, trigger, caseid):
     aliases: mdremove, mdr, mdd, mddeny
     """
     try:
-        result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), trigger_nick=str(trigger.nick))
+        result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick))
         try:
             addNamesFromV2Response(result['included'])
         except:
@@ -1984,7 +1984,7 @@ def cmd_pwn(bot, trigger):
     '''
     try:
         result = callapi(bot=bot, uri='/rescues?outcome=null&order=-updatedAt', method='GET',
-                         trigger_nick=str(trigger.nick))
+                         triggernick=str(trigger.nick))
         try:
             addNamesFromV2Response(result['included'])
         except:
@@ -2019,7 +2019,7 @@ def cmd_invalid(bot, trigger, caseid):
     aliases: mdremove, mdr, mdd, mddeny
     """
     try:
-        result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), trigger_nick=str(trigger.nick))
+        result = callapi(bot, method='GET', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick))
         try:
             addNamesFromV2Response(result['included'])
         except:
@@ -2032,7 +2032,7 @@ def cmd_invalid(bot, trigger, caseid):
 
         case["attributes"]["data"]["markedForDeletion"]["marked"] = False
         case["attributes"]["outcome"] = "invalid"
-        result = callapi(bot, method='PUT', uri='/rescues/' + str(caseid), trigger_nick=str(trigger.nick), data=case["attributes"])
+        result = callapi(bot, method='PUT', uri='/rescues/' + str(caseid), triggernick=str(trigger.nick), data=case["attributes"])
         bot.reply("Set Case to invalid outcome and removed it from the Marked For Deletion List™")
 
     except:
