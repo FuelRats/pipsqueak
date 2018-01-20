@@ -31,7 +31,15 @@ savedratids = {}
 savedratnames = {}
 savedclientnames = {}
 def getRatId(bot, ratname, platform=None)->dict:
-
+    """
+    Retrieves the ratid for the given rat name
+    :param bot: Sopel bot instance
+    :param ratname: name to retrieve ID for
+    :param platform: (optional) platform to return ID for (for multi-platform rats)
+    :return:
+    """
+    if ratname is None:
+        raise ValueError("ratname cannot be None.")
     if ratname in savedratids.keys():
         element = savedratids.get(ratname)
         strippedname = removeTags(ratname)
@@ -139,8 +147,8 @@ def idFallback(bot, ratname, platform=None):
         ['description'] a description of the error.
 
     """
+    print('[NamesAPI] Had to call idFallback for '+str(ratname))
     strippedname = removeTags(ratname)
-    # print('[NamesAPI] Had to call idFallback for '+str(ratname))
     print('[NamesAPI] had to call idFallback for {ratname} (strippedName = {strippedName})'.format(
             ratname=ratname, strippedName=strippedname))
     try:
@@ -218,8 +226,19 @@ def callapi(bot, method, uri, triggernick:str=None, trigger_id:str=None, data=No
     '''
     uri = urljoin(bot.config.ratbot.apiurl, uri)
     headers = {"Authorization": "Bearer " + bot.config.ratbot.apitoken}
-    if triggernick is not None:
-        headers.update({"X-Command-By":str(triggernick)})
+
+    if not trigger_id and triggernick is not None:
+        try:
+            trigger_id = getRatId(bot, triggernick)
+        except AttributeError as ex:
+            # startup rutine...
+            import traceback
+            traceback.print_exc()
+            print("rip")
+
+    if triggernick:
+        if not trigger_id:
+            headers.update({"X-Command-By":str(triggernick)})
     elif trigger_id:
         headers.update({"X-Command-By":str(trigger_id)})
     with bot.memory['ratbot']['apilock']:
