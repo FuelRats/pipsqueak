@@ -1976,7 +1976,7 @@ def prepexpired(bot):
 
 @commands('paperworkneeded', 'needspaperwork', 'npw', 'pwn')
 # @require_permission(Permissions.rat)
-@require_permission(Permissions.rat)
+@require_permission(Permissions.overseer)
 def cmd_pwn(bot, trigger):
     '''
     Lists all cases with incomplete paperwork
