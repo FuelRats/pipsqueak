@@ -2059,3 +2059,21 @@ def cmd_invalid(bot, trigger, caseid):
 
     except:
         bot.reply('Couldn\'t find a case with id ' + str(caseid) + ' or other APIError')
+
+
+@commands('lang', 'language')
+@parameterize('rw', usage='<case number or name> <language code>')
+@require_permission(Permissions.Rat)
+def cmd_lang(bot, trigger, case, lang):
+    """
+    Sets a case's language
+    """
+    lang = lang.lower()
+    if lang in ["en", "cs", "nl", "fr", "de", "no", "pt", "ru", "es", "sv"]:
+        with bot.memory['ratbot']['board'].change(case):
+            case.data.update({'langID': lang})
+
+        save_case_later(bot, case, forceFull=True)
+        bot.say('Language on case %s changed to %s.' % (case.client_name, lang))
+    else:
+        bot.say('Unrecognized language code: %s' % lang)
