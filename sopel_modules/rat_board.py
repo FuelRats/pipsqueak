@@ -2074,6 +2074,6 @@ def cmd_lang(bot, trigger, case, lang):
             case.data.update({'langID': lang})
 
         save_case_later(bot, case, forceFull=True)
-        bot.say('Language on case %s changed to %s.' % (case.client_name, lang))
+        bot.say('Language on case {case.client_name} changed to {lang}.'.format(case=case, lang=lang))
     else:
-        bot.say('Unrecognized language code: %s' % lang)
+        bot.say('Unrecognized language code: ' + lang)
