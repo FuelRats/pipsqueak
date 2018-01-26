@@ -1,6 +1,14 @@
 class Language:
+    """Static class to hold some functions for handling languages"""
     @staticmethod
     def name(code: str, raise_error: bool=True, return_all: bool=False) -> str or tuple or None:
+        """
+        Get language name corresponding to provided ISO 639-1 code
+        :param code: ISO 639-1 code
+        :param raise_error: Raise error if language not found (rather than return None)
+        :param return_all: If False, and the language has multiple names, only return the first
+        :return: Language name
+        """
         try:
             result = languages[code]
             if isinstance(result, str):
@@ -16,6 +24,9 @@ class Language:
 
     @staticmethod
     def code(name: str or tuple, raise_error: bool=True) -> str or None:
+        """
+        Get ISO 639-1 code corresponding to language name
+        """
         try:
             if isinstance(name, str):
                 return [key for key, value in languages.items()
@@ -32,10 +43,18 @@ class Language:
 
 
 class Country:
+    """Static class to hold some functions for handling countries"""
     @staticmethod
-    def name(code: str, raise_error: bool=True) -> str or None:
+    def name(code: str, raise_error: bool=True, return_all: bool=False) -> str or tuple or None:
+        """
+        Get country name corresponding to provided ISO 3166-1 alpha-2 code
+        """
         try:
-            return countries[code]
+            result = countries[code]
+            if isinstance(result, str):
+                return result
+            else:
+                return result if return_all else result[0]
         except KeyError as e:
             if raise_error:
                 raise e
@@ -44,6 +63,9 @@ class Country:
 
     @staticmethod
     def code(name: str, raise_error: bool=True) -> str or None:
+        """
+        Get ISO 3166-1 alpha-2 code corresponding to country name
+        """
         try:
             if isinstance(name, str):
                 return [key for key, value in countries.items()
