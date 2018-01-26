@@ -16,9 +16,9 @@ class Language:
             else:
                 return result if return_all else result[0]
 
-        except KeyError as e:
+        except KeyError as error:
             if raise_error:
-                raise e
+                raise error
             else:
                 return None
 
@@ -55,9 +55,9 @@ class Country:
                 return result
             else:
                 return result if return_all else result[0]
-        except KeyError as e:
+        except KeyError as error:
             if raise_error:
-                raise e
+                raise error
             else:
                 return None
 
