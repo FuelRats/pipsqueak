@@ -2064,7 +2064,7 @@ def cmd_invalid(bot, trigger, caseid):
 
 @commands('lang', 'language')
 @parameterize('rw', usage='<case number or name> <language code>')
-@require_permission(Permissions.Rat)
+@require_permission(Permissions.rat)
 def cmd_lang(bot, trigger, case, lang):
     """
     Sets a case's language
