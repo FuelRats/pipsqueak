@@ -50,7 +50,7 @@ import ratlib.api.http
 import ratlib.db
 from ratlib.db import with_session, Starsystem
 from ratlib.api.v2compatibility import convertV2DataToV1, convertV1RescueToV2
-from ratlib.languages import get_language_name
+from ratlib.languages import Language
 
 urljoin = ratlib.api.http.urljoin
 
@@ -2070,13 +2070,12 @@ def cmd_lang(bot, trigger, case, lang):
     Sets a case's language
     """
     lang = lang.lower()
-    lang_name = get_language_name(lang)
-
-    if lang_name:
+    try:
+        lang_name = Language.name(lang)
         with bot.memory['ratbot']['board'].change(case):
             case.data.update({'langID': lang})
 
         save_case_later(bot, case, forceFull=True)
         bot.say('Language on case {case.client_name} changed to {lang}.'.format(case=case, lang=lang_name))
-    else:
+    except KeyError:
         bot.say('Unrecognized language code: ' + lang)
