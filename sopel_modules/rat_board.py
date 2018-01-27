@@ -653,7 +653,7 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
             rv.detected_system = systems.pop()
             rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
             rv.rescue.system = rv.detected_system
-    if detect_platform and rv.rescue.platform == None:
+    if detect_platform and rv.rescue.platform is None:  # FIXME: we can use a falsy statement here
         platforms = set()
         for line in rv.added_lines:
             if re.search(
@@ -1042,7 +1042,7 @@ def format_rescue(bot, rescue, attr='client_name', showassigned=False, showids=T
     cl = (('Operation ' + rescue.title) if rescue.title else (getattr(rescue, attr)))
     platform = rescue.platform
     assignedratsstring = ''
-    if platform == None:
+    if platform is None:
         platform = ''
     if platform == 'xb':
         platform = color(' XB', colors.GREEN)
@@ -1245,7 +1245,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
     ratlist = []
     ratids = []
     for rat in rats:
-        if rescue.platform == None:
+        if rescue.platform is None:
             i = getRatId(bot, rat)
         else:
             i = getRatId(bot, rat, platform=rescue.platform)
