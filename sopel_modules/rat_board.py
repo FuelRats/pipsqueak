@@ -263,7 +263,7 @@ class RescueBoard:
         searches.
         :return: A FindRescueResult tuple of (rescue, created), both of which will be None if no case was found.
 
-        If `int(search)` does not raise, `search` is treated as a boardindex.  This will never create a case.
+        If `int(search)` does not raise, `search` is treated as a `boardindex`.  This will never create a case.
 
         Otherwise, if `search` begins with `"@"`, it is treated as an ID from the API.  This will never create a case.
 
@@ -1549,8 +1549,6 @@ def ratmama_parse(bot, trigger, db):
                 "boardIndex": int(case.boardindex)
             })
 
-
-
         save_case_later(bot, case, forceFull=True)
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
@@ -1562,8 +1560,12 @@ def ratmama_parse(bot, trigger, db):
 
             if case.platform == 'xb':
                 fields["platform"] = color(fields["platform"], colors.GREEN)
+                fields["platform_signal"] = "XSIGNAL"
             elif case.platform == 'ps':
                 fields["platform"] = color("PS4", colors.LIGHT_BLUE)
+                fields["platform_signal"] = "PS_SIGNAL"
+            elif case.platform == 'pc':
+                fields["platform_signal"] = "PC_SIGNAL"
             fields["platform"] = bold(fields["platform"])
             fields["system"] = bold(fields["system"])
             fields["cmdr"] = bold(fields["cmdr"])
@@ -1575,7 +1577,7 @@ def ratmama_parse(bot, trigger, db):
             else:
                 fields["system"] += " (not in EDDB)"
 
-            bot.say((fmt + " (Case #{boardindex})").format(boardindex=case.boardindex, **fields))
+            bot.say((fmt + " (Case #{boardindex}) ({platform_signal})").format(boardindex=case.boardindex, **fields))
             if case.codeRed:
                 prepcrstring = getFact(bot, factname='prepcr', lang=fields["language_code"])
                 bot.say(
