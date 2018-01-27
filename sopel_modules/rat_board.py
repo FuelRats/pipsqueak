@@ -1503,7 +1503,7 @@ def ratmama_parse(bot, trigger, db):
     # print('[RatBoard] triggered ratmama_parse')
     # print('[RatBoard] line: ' + line)
 
-    if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin'):
+    if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin','unknown'):
         match = _ratmama_regex.fullmatch(trigger.group())
         if not match:
             return
