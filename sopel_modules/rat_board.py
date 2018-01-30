@@ -286,7 +286,7 @@ class RescueBoard:
             return FindRescueResult(None, None)
 
         if search[0] == '@':
-            rescue = self.indexes['id'].get(search[1:], None),
+            rescue = self.indexes['id'].get(search[1:], None)
             return FindRescueResult(rescue, False if rescue else None)
 
         # print('Indexes: '+str(self.indexes))
