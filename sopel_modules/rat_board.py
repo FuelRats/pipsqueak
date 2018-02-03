@@ -41,6 +41,7 @@ from sopel.module import require_privmsg, rate
 
 import ratlib.sopel
 from ratlib import timeutil
+from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
@@ -330,7 +331,7 @@ class Rescue(TrackedBase):
     epic = TypeCoercedProperty(default=False, coerce=bool)
     codeRed = TypeCoercedProperty(default=False, coerce=bool)
     client = TrackedProperty(default='<unknown client>')
-    system = TrackedProperty(default=None)
+    system = SystemNameProperty(default=None)
     successful = TypeCoercedProperty(default=True, coerce=bool)
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
@@ -1503,7 +1504,7 @@ def ratmama_parse(bot, trigger, db):
     # print('[RatBoard] triggered ratmama_parse')
     # print('[RatBoard] line: ' + line)
 
-    if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin','unknown'):
+    if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin', 'unknown'):
         match = _ratmama_regex.fullmatch(trigger.group())
         if not match:
             return
