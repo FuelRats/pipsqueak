@@ -1561,7 +1561,7 @@ def ratmama_parse(bot, trigger, db):
 
             if case.platform == 'xb':
                 fields["platform"] = color(fields["platform"], colors.GREEN)
-                fields["platform_signal"] = "XSIGNAL"
+                fields["platform_signal"] = "XB_SIGNAL"
             elif case.platform == 'ps':
                 fields["platform"] = color("PS4", colors.LIGHT_BLUE)
                 fields["platform_signal"] = "PS_SIGNAL"
