@@ -1306,17 +1306,38 @@ def cmd_ratid(bot, trigger, rat, platform=None):
 def cmd_unassign(bot, trigger, rescue, *rats):
     """
     Remove rats from a client's case.
-    required parameters: client name or board index and the rats to unassign
+    required parameters:
+
     aliases: unassign, deassign, rm, remove, standdown
+
+    Args:
+        bot (): Sopel instance
+        trigger (): Trigger object associated with command invocation
+        rescue (Rescue): client name or board index and the rats to unassign
+        *rats (set): set of rats to remove.
     """
+
+    # copy originals to memory for later comparison
+    original_unidentified = rescue.unidentifiedRats
+    original_rats = rescue.rats
+
+    # decrement the unidentified
     rescue.unidentifiedRats -= set(rats)
     ratids = []
+    # decrement the identified
     for rat in rats:
         rat = str(getRatId(bot, rat)['id'])
 
         if rat != '0':
             ratids.append(rat)
             rescue.rats -= {rat}
+
+    # if both sets remain unchanged that means nobody got unassigned.
+    if rescue.unidentifiedRats == original_unidentified and rescue.rats == original_rats:
+        bot.reply("Unable to unassign {rat}. (please check your spelling)".format(
+            rat=[rat for rat in rats]))
+        # break out, the API write is pointless.
+        return
 
     callapi(bot, 'PUT', '/rescues/unassign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
 
