@@ -1250,7 +1250,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
         else:
             i = getRatId(bot, rat, platform=rescue.platform)
         # Check if id returned is an id, decide for unidentified rats or rats.
-        # print("i is " + str(i))
+        # print("found ratid is {i}".format(i=i))
         idstr = str(i['id'])
         # IRCNick may (but shouldn't be) be None - convert to string so it does not error out
         if rat.lower() == str(rescue.data['IRCNick']).lower():  # sanity check
@@ -1326,7 +1326,8 @@ def cmd_unassign(bot, trigger, rescue, *rats):
     ratids = []
     # decrement the identified
     for rat in rats:
-        rat = str(getRatId(bot, rat)['id'])
+        rat = str(getRatId(bot, rat, platform=rescue.platform)['id'])
+        # print("found ratid is {rat}".format(rat=rat))
 
         if rat != '0':
             ratids.append(rat)
