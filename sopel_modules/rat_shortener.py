@@ -64,6 +64,9 @@ def shorten_cmd(bot, trigger, url, keyword=None):
         return
 
     try:
+        if not str(url).startswith('https'):
+            bot.reply("Please only try to shorten https links. Make sure your Link starts with 'https'!")
+            return
         result = shortener.shorten(url, keyword)
     except ShortenerError as ex:
         if ex.status == 'error:keyword':
