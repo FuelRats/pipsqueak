@@ -1,6 +1,6 @@
 #coding: utf8
 """
-rat-autocorrect.py - System name autocorrection.
+rat_autocorrect.py - System name autocorrection.
 
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.

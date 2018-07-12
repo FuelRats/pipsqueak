@@ -108,3 +108,10 @@ def format_timestamp(ts):
     if isinstance(ts, datetime.date):
         return ts.strftime("%b %d, %Y")
     return ts.strftime("%H:%M:%S")
+
+def utc_now_tz()->str:
+    """
+
+    :return: current UTC time in a timezone-aware string.
+    """
+    return datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z')

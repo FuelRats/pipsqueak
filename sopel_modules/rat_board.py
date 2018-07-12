@@ -1,6 +1,6 @@
 # coding: utf8
 """
-rat-board.py - Fuel Rats Cases module.
+rat_board.py - Fuel Rats Cases module.
 
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.
@@ -41,6 +41,7 @@ from sopel.module import require_privmsg, rate
 
 import ratlib.sopel
 from ratlib import timeutil
+from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
@@ -50,6 +51,7 @@ import ratlib.api.http
 import ratlib.db
 from ratlib.db import with_session, Starsystem
 from ratlib.api.v2compatibility import convertV2DataToV1, convertV1RescueToV2
+from ratlib.languages import Language
 
 urljoin = ratlib.api.http.urljoin
 
@@ -263,7 +265,7 @@ class RescueBoard:
         searches.
         :return: A FindRescueResult tuple of (rescue, created), both of which will be None if no case was found.
 
-        If `int(search)` does not raise, `search` is treated as a boardindex.  This will never create a case.
+        If `int(search)` does not raise, `search` is treated as a `boardindex`.  This will never create a case.
 
         Otherwise, if `search` begins with `"@"`, it is treated as an ID from the API.  This will never create a case.
 
@@ -286,7 +288,7 @@ class RescueBoard:
             return FindRescueResult(None, None)
 
         if search[0] == '@':
-            rescue = self.indexes['id'].get(search[1:], None),
+            rescue = self.indexes['id'].get(search[1:], None)
             return FindRescueResult(rescue, False if rescue else None)
 
         # print('Indexes: '+str(self.indexes))
@@ -330,7 +332,7 @@ class Rescue(TrackedBase):
     epic = TypeCoercedProperty(default=False, coerce=bool)
     codeRed = TypeCoercedProperty(default=False, coerce=bool)
     client = TrackedProperty(default='<unknown client>')
-    system = TrackedProperty(default=None)
+    system = SystemNameProperty(default=None)
     successful = TypeCoercedProperty(default=True, coerce=bool)
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
@@ -690,8 +692,8 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
 
     json_lines = []
     for line in rv.added_lines:
-        json_lines.append({"message":line, "updatedAt":datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'),
-                           "createdAt":datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'), "author":author, "lastAuthor":author})
+        json_lines.append({"message":line, "updatedAt":timeutil.utc_now_tz(),
+                           "createdAt":timeutil.utc_now_tz(), "author":author, "lastAuthor":author})
     rv.rescue.quotes.extend(json_lines)
     return rv
 
@@ -1007,9 +1009,9 @@ def cmd_list(bot, trigger, *remainder):
             s = 's' if num != 1 else ''
             tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
         else:
-            tempcount = 0
-            tempcount +=  (1 if (showAllPlats or rescue.platform in showPlats) else 0 for rescue in cases)
-            num = tempcount if tempcount != 0 else "No"
+            # list comprehension, adding platforms in cases if they exist in showplats
+            platform_list = [platform for platform in cases if platform in showPlats]
+            num = len(platform_list) if (len(platform_list)>0 or showAllPlats) else "No"
             s = 's' if num != 1 else ''
             tmpOutput[0] = "{num} {name} case{s}".format(num=num, name=name, s=s)
         output.append(tmpOutput)
@@ -1186,7 +1188,7 @@ def cmd_sub(bot, trigger, rescue, lineno, line=None):
         rescue.quotes.pop(lineno)
         bot.say("Deleted line {}".format(lineno))
     else:
-        rescue.quotes[lineno] = {"message":line, "updatedAt":datetime.datetime.now(datetime.timezone.utc).isoformat().replace('+00:00', 'Z'),
+        rescue.quotes[lineno] = {"message":line, "updatedAt":timeutil.utc_now_tz(),
                                  "createdAt":rescue.quotes[lineno]["createdAt"],
                                  "author":rescue.quotes[lineno]["author"], "lastAuthor":trigger.nick}
         bot.say("Updated line {}".format(lineno))
@@ -1250,7 +1252,7 @@ def cmd_assign(bot, trigger, rescue, *rats):
         else:
             i = getRatId(bot, rat, platform=rescue.platform)
         # Check if id returned is an id, decide for unidentified rats or rats.
-        # print("i is " + str(i))
+        # print("found ratid is {i}".format(i=i))
         idstr = str(i['id'])
         # IRCNick may (but shouldn't be) be None - convert to string so it does not error out
         if rat.lower() == str(rescue.data['IRCNick']).lower():  # sanity check
@@ -1306,17 +1308,39 @@ def cmd_ratid(bot, trigger, rat, platform=None):
 def cmd_unassign(bot, trigger, rescue, *rats):
     """
     Remove rats from a client's case.
-    required parameters: client name or board index and the rats to unassign
+    required parameters:
+
     aliases: unassign, deassign, rm, remove, standdown
+
+    Args:
+        bot (): Sopel instance
+        trigger (): Trigger object associated with command invocation
+        rescue (Rescue): client name or board index and the rats to unassign
+        *rats (set): set of rats to remove.
     """
+
+    # copy originals to memory for later comparison
+    original_unidentified = rescue.unidentifiedRats
+    original_rats = rescue.rats
+
+    # decrement the unidentified
     rescue.unidentifiedRats -= set(rats)
     ratids = []
+    # decrement the identified
     for rat in rats:
-        rat = str(getRatId(bot, rat)['id'])
+        rat = str(getRatId(bot, rat, platform=rescue.platform)['id'])
+        # print("found ratid is {rat}".format(rat=rat))
 
         if rat != '0':
             ratids.append(rat)
             rescue.rats -= {rat}
+
+    # if both sets remain unchanged that means nobody got unassigned.
+    if rescue.unidentifiedRats == original_unidentified and rescue.rats == original_rats:
+        bot.reply("Unable to unassign {rat}. (please check your spelling)".format(
+            rat=[rat for rat in rats]))
+        # break out, the API write is pointless.
+        return
 
     callapi(bot, 'PUT', '/rescues/unassign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
 
@@ -1503,7 +1527,7 @@ def ratmama_parse(bot, trigger, db):
     # print('[RatBoard] triggered ratmama_parse')
     # print('[RatBoard] line: ' + line)
 
-    if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin'):
+    if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin', 'unknown'):
         match = _ratmama_regex.fullmatch(trigger.group())
         if not match:
             return
@@ -1549,8 +1573,6 @@ def ratmama_parse(bot, trigger, db):
                 "boardIndex": int(case.boardindex)
             })
 
-
-
         save_case_later(bot, case, forceFull=True)
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
@@ -1562,8 +1584,12 @@ def ratmama_parse(bot, trigger, db):
 
             if case.platform == 'xb':
                 fields["platform"] = color(fields["platform"], colors.GREEN)
+                fields["platform_signal"] = "XB_SIGNAL"
             elif case.platform == 'ps':
                 fields["platform"] = color("PS4", colors.LIGHT_BLUE)
+                fields["platform_signal"] = "PS_SIGNAL"
+            elif case.platform == 'pc':
+                fields["platform_signal"] = "PC_SIGNAL"
             fields["platform"] = bold(fields["platform"])
             fields["system"] = bold(fields["system"])
             fields["cmdr"] = bold(fields["cmdr"])
@@ -1575,7 +1601,7 @@ def ratmama_parse(bot, trigger, db):
             else:
                 fields["system"] += " (not in EDDB)"
 
-            bot.say((fmt + " (Case #{boardindex})").format(boardindex=case.boardindex, **fields))
+            bot.say((fmt + " (Case #{boardindex}) ({platform_signal})").format(boardindex=case.boardindex, **fields))
             if case.codeRed:
                 prepcrstring = getFact(bot, factname='prepcr', lang=fields["language_code"])
                 bot.say(
@@ -1976,7 +2002,7 @@ def prepexpired(bot):
 
 @commands('paperworkneeded', 'needspaperwork', 'npw', 'pwn')
 # @require_permission(Permissions.rat)
-@require_permission(Permissions.rat)
+@require_permission(Permissions.overseer)
 def cmd_pwn(bot, trigger):
     '''
     Lists all cases with incomplete paperwork
@@ -2037,3 +2063,22 @@ def cmd_invalid(bot, trigger, caseid):
 
     except:
         bot.reply('Couldn\'t find a case with id ' + str(caseid) + ' or other APIError')
+
+
+@commands('lang', 'language')
+@parameterize('rw', usage='<case number or name> <language code>')
+@require_permission(Permissions.rat)
+def cmd_lang(bot, trigger, case, lang):
+    """
+    Sets a case's language
+    """
+    lang = lang.lower()
+    try:
+        lang_name = Language.name(lang)
+        with bot.memory['ratbot']['board'].change(case):
+            case.data.update({'langID': lang})
+
+        save_case_later(bot, case, forceFull=True)
+        bot.say('Language on case {case.client_name} changed to {lang}.'.format(case=case, lang=lang_name))
+    except KeyError:
+        bot.say('Unrecognized language code: ' + lang)
