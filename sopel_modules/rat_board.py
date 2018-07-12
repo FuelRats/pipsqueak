@@ -41,6 +41,7 @@ from sopel.module import require_privmsg, rate
 
 import ratlib.sopel
 from ratlib import timeutil
+from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
 from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
@@ -264,7 +265,7 @@ class RescueBoard:
         searches.
         :return: A FindRescueResult tuple of (rescue, created), both of which will be None if no case was found.
 
-        If `int(search)` does not raise, `search` is treated as a boardindex.  This will never create a case.
+        If `int(search)` does not raise, `search` is treated as a `boardindex`.  This will never create a case.
 
         Otherwise, if `search` begins with `"@"`, it is treated as an ID from the API.  This will never create a case.
 
@@ -331,7 +332,7 @@ class Rescue(TrackedBase):
     epic = TypeCoercedProperty(default=False, coerce=bool)
     codeRed = TypeCoercedProperty(default=False, coerce=bool)
     client = TrackedProperty(default='<unknown client>')
-    system = TrackedProperty(default=None)
+    system = SystemNameProperty(default=None)
     successful = TypeCoercedProperty(default=True, coerce=bool)
     title = TrackedProperty(default=None)
     firstLimpet = TrackedProperty(default='')
@@ -1526,7 +1527,7 @@ def ratmama_parse(bot, trigger, db):
     # print('[RatBoard] triggered ratmama_parse')
     # print('[RatBoard] line: ' + line)
 
-    if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin'):
+    if Identifier(trigger.nick) in ('Ratmama[BOT]', 'Dewin', 'unknown'):
         match = _ratmama_regex.fullmatch(trigger.group())
         if not match:
             return
@@ -1572,8 +1573,6 @@ def ratmama_parse(bot, trigger, db):
                 "boardIndex": int(case.boardindex)
             })
 
-
-
         save_case_later(bot, case, forceFull=True)
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
@@ -1585,8 +1584,12 @@ def ratmama_parse(bot, trigger, db):
 
             if case.platform == 'xb':
                 fields["platform"] = color(fields["platform"], colors.GREEN)
+                fields["platform_signal"] = "XB_SIGNAL"
             elif case.platform == 'ps':
                 fields["platform"] = color("PS4", colors.LIGHT_BLUE)
+                fields["platform_signal"] = "PS_SIGNAL"
+            elif case.platform == 'pc':
+                fields["platform_signal"] = "PC_SIGNAL"
             fields["platform"] = bold(fields["platform"])
             fields["system"] = bold(fields["system"])
             fields["cmdr"] = bold(fields["cmdr"])
@@ -1598,7 +1601,7 @@ def ratmama_parse(bot, trigger, db):
             else:
                 fields["system"] += " (not in EDDB)"
 
-            bot.say((fmt + " (Case #{boardindex})").format(boardindex=case.boardindex, **fields))
+            bot.say((fmt + " (Case #{boardindex}) ({platform_signal})").format(boardindex=case.boardindex, **fields))
             if case.codeRed:
                 prepcrstring = getFact(bot, factname='prepcr', lang=fields["language_code"])
                 bot.say(
