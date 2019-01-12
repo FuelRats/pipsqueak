@@ -1,6 +1,6 @@
 #coding: utf8
 """
-rat-twitter.py - Fuel Rats Twitter module
+rat_twitter.py - Fuel Rats Twitter module
 
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.
@@ -23,7 +23,7 @@ from sopel.module import commands
 from twitter import TwitterError
 
 import ratlib.sopel
-from ratlib.api.names import require_rat, require_techrat
+from ratlib.api.names import Permissions, require_permission
 from ratlib.db import with_session, Starsystem
 from ratlib.sopel import parameterize
 
@@ -89,7 +89,7 @@ def requires_case(fn):
     return parameterize('r', "<client or case number>")(fn)
 
 @commands('tweetdebug')
-@require_techrat
+@require_permission(Permissions.techrat, None)
 def cmd_tweetdebug(bot, trigger):
     """
     Toggles debug mode on and off. Does not save when the bot is reloaded.
@@ -103,7 +103,7 @@ def cmd_tweetdebug(bot, trigger):
 
 @commands('tweet')
 @parameterize("t", usage="<text to tweet>")
-@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+@require_permission(Permissions.rat)
 def cmd_tweet(bot, trigger, line):
     """ 
     Tweet your heart out! (Serious messages though!) 
@@ -200,7 +200,7 @@ def get_tweet_for_case(rescue, db):
 @commands('tweetcase','tweetc')
 @parameterize('r', usage='<client or case number>')
 @with_session
-@require_rat('Sorry, you need to be a registered and drilled Rat to use this command.')
+@require_permission(Permissions.rat)
 def cmd_tweetc(bot, trigger, rescue, db = None):
     """
     Send a tweet based on a case, using generic terms (in bubble, near landmark).

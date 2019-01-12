@@ -13,12 +13,23 @@ import ratlib.api
 import ratlib.api.http
 import functools
 from sopel.module import NOLIMIT
+from enum import Enum
+
+class Permissions(Enum):
+    recruit = (0, None)
+    rat = (1, "Sorry, but you need to be a registered and drilled Rat with an identified IRC nickname to use "
+                        "this command.")
+    dispatch = (2,"Sorry, but you need to be a dispatch or higher to use this command")
+    overseer = (3, 'Sorry pal, you\'re not an overseer or higher!')
+    op = (4, "This command is restricted for Ops and above only.")
+    techrat = (5,'I am sorry, but this command is restricted for TechRats and above only.')
+    netadmin = (6, "Hey Buddy, you know you need to be an identified NetAdmin to use this command, right?")
+
 
 urljoin = ratlib.api.http.urljoin
 savedratids = {}
 savedratnames = {}
 savedclientnames = {}
-
 def getRatId(bot, ratname, platform=None):
 
     if ratname in savedratids.keys():
@@ -37,28 +48,39 @@ def getRatId(bot, ratname, platform=None):
         # print('looking for name '+ratname)
         # print('uri: '+str(uri))
         result = callapi(bot=bot, method='GET', uri=uri)
-        # print(result)
         data = result['data']['attributes']['rows']
+        # print(result)
         # print(data)
         returnlist = []
+        strippedname = removeTags(ratname)
         if platform is None:
             if len(data) == 0:
                 raise Exception
             firstmatch = data[0]
-            strippedname = removeTags(ratname)
             retlist = []
             tempnam = 'unknown name'
             tempplat = 'unknown platform'
+            nicknames = firstmatch['nicknames']
+            tempAlias = [name.lower() for name in nicknames]
+
+            # print("looping over firstmatch['rats']...")
 
             for ratobject in firstmatch['rats']:
                 id = ratobject['id']
                 tempnam = ratobject['name']
                 tempplat = ratobject['platform']
-                if (str(tempnam).lower()==str(ratname).lower() or str(tempnam).lower()==str(strippedname).lower() or str(tempnam).lower()==str(strippedname.replace('_', ' ')).lower()):
-                    retlist.append({'id': id, 'name':tempnam , 'platform':tempplat})
+
+                # print("tempnam = {}\ntempplat={}\n--------\nid={}".format(tempnam,tempplat, id))
+                if (str(tempnam).lower()==str(ratname).lower()
+                    or str(tempnam).lower()==str(strippedname).lower()
+                    or str(tempnam).lower()==str(strippedname.replace('_', ' ')).lower()
+                    or strippedname.lower() in tempAlias):
+                        # print("appending rat!")
+                        retlist.append({'id': id, 'name':tempnam , 'platform':tempplat})
             if len(retlist) == 0:
                 ratnam = tempnam
                 ratplat = tempplat
+                # print("======\n setting ID to zero... because FIRETRUCK this")
                 id = 0
             else:
                 id = retlist[0]['id']
@@ -97,8 +119,10 @@ def getRatId(bot, ratname, platform=None):
             savedratnames.update({id: {'name': ratnam, 'platform': ret['platform'], 'id':ret['id']}})
         # print("returning " + str(ret))
         return ret
-    except:
+    except Exception as ex:
+            # raise ex  # burn baby burn
             # print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
+
             return idFallback(bot, ratname, platform=platform)
 
 
@@ -116,7 +140,9 @@ def idFallback(bot, ratname, platform=None):
 
     """
     strippedname = removeTags(ratname)
-    print('[NamesAPI] Had to call idFallback for '+str(ratname))
+    # print('[NamesAPI] Had to call idFallback for '+str(ratname))
+    print('[NamesAPI] had to call idFallback for {ratname} (strippedName = {strippedName})'.format(
+            ratname=ratname, strippedName=strippedname))
     try:
         uri = '/rats?name=' + strippedname + (('&platform='+platform) if platform is not None else '')
         result = callapi(bot=bot, method='GET', uri=uri)
@@ -221,13 +247,20 @@ def flushNames():
     savedratnames.clear()
     savedclientnames.clear()
 
-def require_netadmin(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats netadmin (as in, a highly ranked admin.).
-    If they are not, `message` will be said if given."""
+
+def require_permission(privilage:Permissions, message =''):
+    """
+    Requires the invoking user to have a specified privilege level
+    :param privilage: Permission level
+    :param msg: (optional) overwrite message
+    :return:
+    """
+    if message == '': message = privilage.value[1]
     def actual_decorator(function):
         @functools.wraps(function)
         def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<6:
+
+            if getPrivLevel(trigger)<privilage.value[0]:
                 if message and not callable(message):
                     bot.say(message)
                     return NOLIMIT
@@ -239,113 +272,6 @@ def require_netadmin(message=None):
         return actual_decorator(message)
     return actual_decorator
 
-def require_techrat(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats TechRat (as in, a rat that's part of the RatTech team.).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<5:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
-
-def require_op(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats op (as in, an operator.).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<4:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
-
-def require_overseer(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats overseer (as in, a highly experienced and trustworthy person).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<3:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
-
-def require_dispatch(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats dispatch (as in, the currently active dispatch).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<2:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
-
-def require_rat(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats rat (as in, registered with the API and drilled).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<1:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
-
-def require_recruit(message=None):
-    """Decorate a function to require the triggering user to be a FuelRats recruit (as in, a user registered with the API but undrilled).
-    If they are not, `message` will be said if given."""
-    def actual_decorator(function):
-        @functools.wraps(function)
-        def guarded(bot, trigger, *args, **kwargs):
-            if getPrivLevel(trigger)<0:
-                if message and not callable(message):
-                    bot.say(message)
-                    return NOLIMIT
-            else:
-                return function(bot, trigger, *args, **kwargs)
-        return guarded
-    # Hack to allow decorator without parens
-    if callable(message):
-        return actual_decorator(message)
-    return actual_decorator
 
 privlevels = {'recruit.fuelrats.com':0, 'rat.fuelrats.com':1, 'dispatch.fuelrats.com':2, 'overseer.fuelrats.com':3, 'op.fuelrats.com':4, 'techrat.fuelrats.com':5, 'netadmin.fuelrats.com':6, 'admin.fuelrats.com':6}
 

@@ -1,6 +1,6 @@
 # coding: utf8
 """
-rat-facts.py - Fact reciting module
+rat_facts.py - Fact reciting module
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.
 
@@ -242,7 +242,7 @@ def cmd_fact(bot, trigger, db=None):
             return
         return bot.say(line)
 
-    @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
+    @require_permission(Permissions.overseer)
     def cmd_fact_import(bot, trigger):
         import_facts(bot, merge=(option == '-f'))
         return bot.say("Facts imported.")
@@ -251,7 +251,7 @@ def cmd_fact(bot, trigger, db=None):
         return cmd_fact_import(bot, trigger)
 
 
-    @require_overseer('Sorry, but you need to be an overseer or higher to execute this command.')
+    @require_permission(Permissions.overseer)
     def cmd_fact_edit(bot, trigger):
         if not option:
             bot.reply("Missing fact.")

@@ -198,4 +198,4 @@ websocketport | The Port of the WebSocket to connect to | 80
              
 ## Detailed module information
 Used to Connect to the WebSocket Part of the API to listen for Updates from RatTracker. Currently only Dumping gotten messages into Chat only though.
-Will Attempt to reconnect to the WebSocket if the initial connection fails or the connection gets lost at any point. If a reconnect fails, it will retry indefinitely with an always increasing delay which grows exponentiollay. 
+Will Attempt to reconnect to the WebSocket if the initial connection fails or the connection gets lost at any point. If a reconnect fails, it will retry indefinitely with an always increasing delay which grows exponentially. 

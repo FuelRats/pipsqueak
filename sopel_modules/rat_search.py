@@ -1,6 +1,6 @@
 #coding: utf8
 """
-rat-search.py - Elite Dangerous System Search module.
+rat_search.py - Elite Dangerous System Search module.
 Copyright (c) 2017 The Fuel Rats Mischief, 
 All rights reserved.
 
@@ -36,7 +36,7 @@ from ratlib.db import with_session, Starsystem, StarsystemPrefix, Landmark, get_
 from ratlib.starsystem import refresh_database, scan_for_systems, ConcurrentOperationError
 from ratlib.autocorrect import correct
 import re
-from ratlib.api.names import require_rat, require_overseer
+from ratlib.api.names import require_permission, Permissions
 from ratlib.hastebin import post_to_hastebin
 from ratlib.util import timed
 
@@ -241,7 +241,7 @@ def cmd_scan(bot, trigger):
 
 
 @commands('plot')
-@require_rat('You need to be a registered and drilled Rat to use this Command!')
+@require_permission(Permissions.rat)
 # @rate(60 * 30)
 @with_session
 def cmd_plot(bot, trigger, db=None):
@@ -379,7 +379,7 @@ def cmd_plot(bot, trigger, db=None):
 
 
 @commands('landmark')
-@require_rat('You need to be a registered and drilled Rat to use this Command!')
+@require_permission(Permissions.rat)
 @with_session
 def cmd_landmark(bot, trigger, db=None):
     """
@@ -442,7 +442,8 @@ def cmd_landmark(bot, trigger, db=None):
             .format(starsystem=starsystem, landmark=landmark, distance=distance)
         )
 
-    @require_overseer
+    # @require_overseer(None)
+    @require_permission(Permissions.overseer)
     def subcommand_add(*unused_args, **unused_kwargs):
         starsystem = get_system_or_none(system_name)
         if not starsystem:
@@ -457,7 +458,8 @@ def cmd_landmark(bot, trigger, db=None):
         else:
             bot.reply("Added system '{}' as a landmark.".format(starsystem.name))
 
-    @require_overseer
+    # @require_overseer(None)
+    @require_permission(Permissions.overseer, message=None)
     def subcommand_del(*unused_args, **unused_kwargs):
         landmark = lookup_system(system_name, Landmark)
         if landmark is None:
@@ -468,7 +470,7 @@ def cmd_landmark(bot, trigger, db=None):
         bot.reply("Removed system '{}' from the list of landmarks.".format(landmark.name))
         pass
 
-    @require_overseer
+    @require_permission(Permissions.overseer, message=None)
     def subcommand_refresh(*unused_args, **unused_kwargs):
         ct = (
             db.query(Landmark)
