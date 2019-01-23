@@ -124,9 +124,7 @@ class SystemNameProperty(TrackedProperty):
         :param dirty: If True, adds this to the list of changed properties on the instance.
         :return: None
         """
-        # As of Fuelrats API Version 2.1, system names are only valid if cast to all upper case.
-        # because the API expects upper case system names.
-        super().set(instance, value.upper() if value else None, dirty)
+        super().set(instance, value if value else None, dirty)
 
 
 class DateTimeProperty(TrackedProperty):
