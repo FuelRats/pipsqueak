@@ -1439,7 +1439,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     if result:
         system = result.name
     else:
-        fmt += "  (not in EDDB)"
+        fmt += "  (not in Fuelrats System Databse)"
     rescue.system = system
     bot.say(fmt.format(rescue=rescue, name=rescue.data["IRCNick"]))
     save_case_later(
@@ -1599,7 +1599,7 @@ def ratmama_parse(bot, trigger, db):
                 if nearest and nearest.name_lower != system.name_lower:
                     fields["system"] += " ({:.2f} LY from {})".format(distance, nearest.name)
             else:
-                fields["system"] += " (not in EDDB)"
+                fields["system"] += " (not in Fuelrats System Database)"
 
             bot.say((fmt + " (Case #{boardindex}) ({platform_signal})").format(boardindex=case.boardindex, **fields))
             if case.codeRed:
