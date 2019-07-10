@@ -1331,7 +1331,7 @@ def cmd_unassign(bot, trigger, rescue, *rats):
         rat = str(getRatId(bot, rat, platform=rescue.platform)['id'])
         # print("found ratid is {rat}".format(rat=rat))
 
-        if rat != '0':
+        if rat != '0' and rat != 'None':
             ratids.append(rat)
             rescue.rats -= {rat}
 
