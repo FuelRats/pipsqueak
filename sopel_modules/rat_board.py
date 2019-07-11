@@ -1439,7 +1439,7 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     if result:
         system = result.name
     else:
-        fmt += "  (not in Fuelrats System Databse)"
+        fmt += "  (not in Fuelrats System Database)"
     rescue.system = system
     bot.say(fmt.format(rescue=rescue, name=rescue.data["IRCNick"]))
     save_case_later(
