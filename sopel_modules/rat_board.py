@@ -51,6 +51,7 @@ import ratlib.api.http
 import ratlib.db
 from ratlib.db import with_session, Starsystem
 from ratlib.api.v2compatibility import convertV2DataToV1, convertV1RescueToV2
+from ratlib.api.v3compatibility import convertv3DataTov2, convertv2RescueTov3
 from ratlib.languages import Language
 
 urljoin = ratlib.api.http.urljoin
@@ -425,10 +426,10 @@ def refresh_cases(bot, rescue=None, force=False):
     if rescue is not None:
         if rescue.id is None:
             raise ValueError('Cannot refresh a non-persistent case.')
-        uri += "/" + rescue.id
+        uri += "/" + rescue.id + "?include=rats"
 
     else:
-        uri += "?status.not=closed"
+        uri += "?status.not=closed&include=rats"
 
     # Exceptions here are the responsibility of the caller.
     result = callapi(bot, 'GET', uri)
@@ -436,7 +437,7 @@ def refresh_cases(bot, rescue=None, force=False):
         addNamesFromV2Response(result['included'])
     except:
         pass
-    result['data'] = convertV2DataToV1(result['data'])
+    result['data'] = convertV2DataToV1(convertv3DataTov2(result['data']))
     # print('[RatBoard] refreshing returned '+str(result))
     if force:
         bot.memory['ratbot']['board'] = RescueBoard()
@@ -509,19 +510,20 @@ def save_case(bot, rescue, forceFull=False):
 
     uri = '/rescues'
     if rescue.id:
-        method = "PUT"
+        method = "PATCH"
         uri += "/" + rescue.id
+        data['id'] = rescue.id
     else:
         method = "POST"
 
     def task():
-        result = callapi(bot, method, uri, data=convertV1RescueToV2(data))
+        result = callapi(bot, method, uri, data=convertv2RescueTov3(convertV1RescueToV2(data)))
         rescue.commit()
         try:
             addNamesFromV2Response(result['included'])
         except:
             pass
-        result['data'] = convertV2DataToV1(result['data'], single=(method=="POST"))
+        result['data'] = convertV2DataToV1(convertv3DataTov2(result['data'], single=(method=="POST")))
         if 'data' not in result or not result['data']:
             raise RuntimeError("API response returned unusable data.")
         with rescue.change():
@@ -1633,7 +1635,7 @@ def cmd_closed(bot, trigger):
             addNamesFromV2Response(result['included'])
         except:
             pass
-        result['data'] = convertV2DataToV1(result['data'])
+        result['data'] = convertV2DataToV1(convertv3DataTov2(result['data']))
         data = result['data']
         rescue0 = getDummyRescue()
         rescue1 = getDummyRescue()
@@ -1673,7 +1675,7 @@ def cmd_reopen(bot, trigger, id):
     Reopens a case by its full database ID
     """
     try:
-        result = callapi(bot, 'PUT', data={'status': 'open'}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
+        result = callapi(bot, 'PATCH', data={'id': str(id), 'type':'rescues', 'data': {'status': 'open'}}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
         refresh_cases(bot, force=True)
         updateBoardIndexes(bot)
         bot.say('Reopened case. Cases refreshed, care for your case numbers!')
@@ -1712,7 +1714,7 @@ def func_delete(bot, trigger, id):
             addNamesFromV2Response(result['included'])
         except:
             pass
-        result['data'] = convertV2DataToV1(result['data'])
+        result['data'] = convertV2DataToV1(convertv3DataTov2(result['data']))
         for case in result['data']:
             rescue = Rescue.load(case)
             caselist.append(format_rescue(bot, rescue))
@@ -1747,7 +1749,7 @@ def cmd_quoteid(bot, trigger, id):
             addNamesFromV2Response(result['included'])
         except:
             pass
-        result['data'] = convertV2DataToV1(result['data'])
+        result['data'] = convertV2DataToV1(convertv3DataTov2(result['data']))
         rescue = Rescue.load(result['data'][0])
         func_quote(bot, trigger, rescue, showboardindex=False)
     except:
@@ -1901,7 +1903,7 @@ def cmd_mdremove(bot, trigger, caseid):
             addNamesFromV2Response(result['included'])
         except:
             pass
-        result['data'] = convertV2DataToV1(result['data'])
+        result['data'] = convertV2DataToV1(convertv3DataTov2(result['data']))
         rescue = Rescue.load(result['data'][0])
         setRescueMarkedForDeletion(bot, rescue, marked=False)
         bot.say('Successfully removed ' + str(rescue.data["IRCNick"]) + '\'s case from the Marked for Deletion List™.')
@@ -2015,7 +2017,7 @@ def cmd_pwn(bot, trigger):
             addNamesFromV2Response(result['included'])
         except:
             pass
-        result['data'] = convertV2DataToV1(result['data'])
+        result['data'] = convertV2DataToV1(convertv3DataTov2(result['data']))
         data = result['data']
         if len(data) > 0:
             bot.say("Incomplete Paperwork Cases:")

@@ -111,7 +111,7 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
 
     data = json.loads(data or '{}')
     # print('statuses: '+str(statuses))
-    # print('will send '+str(data))
+    print('here\'s the data we will send: '+str(data))
     if log:
         logprint = functools.partial(print, file=log, flush=True)
     else:
@@ -129,10 +129,16 @@ def call(method, uri, data=None, statuses=None, log=None, headers=None, **kwargs
     response = None
     try:
         if method in request_methods:
-            response = request_methods[method](uri, json=data, headers=headers)
+            if method == 'GET':
+                response = request_methods[method](uri, headers=headers)
+            else:
+                response = request_methods[method](uri, json=data, headers=headers)
             # print('response full: '+str(response.text))
         else:
-            response = requests.request(method.upper(), uri, json=data, headers=headers)
+            if method == 'GET':
+                response = requests.request(method.upper(), uri, headers=headers)
+            else:
+                response = requests.request(method.upper(), uri, json=data, headers=headers)
             # print('response full: ' + str(response.text))
         if not statuses:
             if response.status_code != 400:

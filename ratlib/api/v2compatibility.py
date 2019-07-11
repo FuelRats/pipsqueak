@@ -46,7 +46,7 @@ def convertV2DataToV1(v2Data, single=False):
 
 def convertV1RescueToV2(v1Rescue):
     v2obj = {}
-    # print(str(v1Rescue))
+    print("Converting v1 Object: " + str(v1Rescue))
     if 'id' in v1Rescue.keys():
         v2obj['id'] = v1Rescue['id']
     if 'title' in v1Rescue.keys():
@@ -86,5 +86,5 @@ def convertV1RescueToV2(v1Rescue):
         else:
             v2obj['status'] = "open"
 
-
+    print("Resulting v2 object: " + str(v2obj))
     return v2obj
