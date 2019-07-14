@@ -1,7 +1,7 @@
 """
 System name autocorrection
 
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -15,15 +15,16 @@ import functools
 
 class CorrectionResult:
     # Table of lookalikes
-    lookalikes = {'L': dict(zip("01258", "oizsb"))}
-    lookalikes['D'] = dict((v, k) for k, v in lookalikes['L'].items())
+    digits = "001258"
+    letters = "odizsb"
+    lookalikes = {'L': dict(zip(digits, letters)), 'D': dict(zip(letters, digits))}
 
     # Allowed characters for each pattern.  Matches regex syntax within a [group]
     allowed = {'L': 'a-z', 'D': '0-9'}
 
     # Create the regular expression we use to match systems
     pattern = (r'\w+\s+(?P<l>LL-L\s+L)(?P<d>D+(?:-D+)?'
-               r')\b')  #  L and D will be replaced from lookalikes and alowed.
+               r')\b')  # L and D will be replaced from lookalikes and allowed.
     for search, characters in allowed.items():
         pattern = pattern.replace(search, "[" + characters + "".join(lookalikes[search].keys()) + "]")
     regex = re.compile("(?i)" + pattern)
@@ -35,7 +36,6 @@ class CorrectionResult:
             if old != new:
                 self.corrections[old] = new
             return new
-
 
         self.input = input
         self.corrections = collections.OrderedDict()
