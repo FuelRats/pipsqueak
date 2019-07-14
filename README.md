@@ -1,5 +1,7 @@
-# pipsqueak
-ED Fuel rats [sopel](http://sopel.chat) module package
+# pipsqueak 2
+ED Fuel rats [sopel](http://sopel.chat) module package.
+
+# Looking to contribute to the next version of mecha?! Go to [FuelRats/pipsqueak3](https://github.com/FuelRats/pipsqueak3) #
 
 # The below information is outdated, but will be updated soon™
 
