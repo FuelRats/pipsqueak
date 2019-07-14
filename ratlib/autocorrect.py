@@ -16,7 +16,7 @@ import functools
 class CorrectionResult:
     # Table of lookalikes
     digits = "001258"
-    letters = "odizsb"
+    letters = "doizsb"
     lookalikes = {'L': dict(zip(digits, letters)), 'D': dict(zip(letters, digits))}
 
     # Allowed characters for each pattern.  Matches regex syntax within a [group]
