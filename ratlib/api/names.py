@@ -118,7 +118,7 @@ def getRatId(bot, ratname, platform=None):
             savedratids.update({ratname: ret})
             savedratnames.update({id: {'name': ratnam, 'platform': ret['platform'], 'id':ret['id']}})
         # print("returning " + str(ret))
-        return ret
+        return returnlist[0] if returnlist else ret
     except Exception as ex:
             # raise ex  # burn baby burn
             # print('Calling fallback on ratID search as no rat with registered nickname '+strippedname+' or '+ratname+' was found.')
