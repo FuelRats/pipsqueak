@@ -422,10 +422,10 @@ def cmd_landmark(bot, trigger, db=None):
             if "error" in temp:
                 bot.reply(f"Can't fetch data for {system_name}.")
                 return None
+            starsystem.name = temp['name']
             if "coords" not in temp:
                 bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
                 return None
-            starsystem.name = temp['name']
             starsystem.x = temp['coords']['x']
             starsystem.y = temp['coords']['y']
             starsystem.z = temp['coords']['z']
