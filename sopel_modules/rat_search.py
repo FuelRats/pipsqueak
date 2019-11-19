@@ -109,7 +109,7 @@ def search(bot, trigger, db=None):
         system_name += " (autocorrected)"
 
     result = sysapi_query(system, "search")
-    if "error" in result.keys:
+    if "error" in result:
         return bot.say(f"An error occured while accessing systems API: {result['error']}")
     if result:
         return bot.say("Nearest matches for {system_name} are: {matches}".format(
@@ -419,9 +419,10 @@ def cmd_landmark(bot, trigger, db=None):
         starsystem = lookup_system(system_name)
         if not starsystem:
             temp = sysapi_query("system_name", "eq")
-            if "error" in temp.keys:
+            if "error" in temp:
                 bot.reply(f"Can't fetch data for {system_name}.")
                 return None
+            temp = temp[0]
             if "coords" not in temp.keys:
                 bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
                 return None
