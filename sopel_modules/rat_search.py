@@ -58,6 +58,28 @@ def setup(bot):
         interval(frequency)(task_sysrefresh)
 
 
+def sysapi_query(system, querytype):
+    system = system.title()
+    if querytype == "search":
+        try:
+            response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
+            if response.status_code != 200:
+                return {"error": "System API did not respond with valid data."}
+            result = response.json()['data']
+        except Timeout:
+            return {"error": "The request to Systems API timed out!"}
+        return result
+    else:
+        try:
+            response = requests.get(f'https://system.api.fuelrats.com/api/systems?filter[name:eq]={system}')
+            if response.status_code != 200:
+                return {"error": "System API did not respond with valid data."}
+            result = response.json()['data']
+        except Timeout:
+            return {"error": "The request to Systems API timed out!"}
+        return result
+
+
 @commands('search')
 @example('!search lave', '')
 @with_session
@@ -86,15 +108,9 @@ def search(bot, trigger, db=None):
     if result.fixed:
         system_name += " (autocorrected)"
 
-    try:
-        system = system.lower()
-        response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
-        if response.status_code != 200:
-            return bot.say("The systems API did not respond with valid data.")
-        result = response.json()['data']
-    except Timeout:
-        return bot.say("The request to Systems API timed out!")
-
+    result = sysapi_query(system, "search")
+    if "error" in result.keys:
+        return bot.say(f"An error occured while accessing systems API: {result['error']}")
     if result:
         return bot.say("Nearest matches for {system_name} are: {matches}".format(
             system_name=system_name,
@@ -402,11 +418,18 @@ def cmd_landmark(bot, trigger, db=None):
             return None
         starsystem = lookup_system(system_name)
         if not starsystem:
-            bot.reply("Starsystem '{}' is not in the database".format(system_name))
-            return None
-        if not starsystem.has_coordinates:
-            bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
-            return None
+            temp = sysapi_query("system_name", "eq")
+            if "error" in temp.keys:
+                bot.reply(f"Can't fetch data for {system_name}.")
+                return None
+            if "coords" not in temp.keys:
+                bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
+                return None
+            starsystem.name = temp['name']
+            starsystem.x = temp['coords']['x']
+            starsystem.y = temp['coords']['y']
+            starsystem.z = temp['coords']['z']
+            starsystem.has_coordinates = True
         return starsystem
 
     def subcommand_list(*unused_args, **unused_kwargs):
