@@ -88,7 +88,7 @@ def search(bot, trigger, db=None):
 
     try:
         system = system.lower()
-        response = requests.get('https://system.api.fuelrats.com/search/{}'.format(system))
+        response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
         if response.status_code != 200:
             return bot.say("The systems API did not respond with valid data.")
         result = response.json()['data']
