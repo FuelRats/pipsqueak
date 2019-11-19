@@ -418,7 +418,7 @@ def cmd_landmark(bot, trigger, db=None):
             return None
         starsystem = lookup_system(system_name)
         if not starsystem:
-            temp = sysapi_query("system_name", "eq")
+            temp = sysapi_query(system_name, "eq")
             if "error" in temp:
                 bot.reply(f"Can't fetch data for {system_name}.")
                 return None
