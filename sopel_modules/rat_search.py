@@ -422,8 +422,7 @@ def cmd_landmark(bot, trigger, db=None):
             if "error" in temp:
                 bot.reply(f"Can't fetch data for {system_name}.")
                 return None
-            temp = temp[0]
-            if "coords" not in temp.keys:
+            if "coords" not in temp:
                 bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
                 return None
             starsystem.name = temp['name']
