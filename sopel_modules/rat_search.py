@@ -21,6 +21,8 @@ import os
 import datetime
 import threading
 import functools
+import requests
+from requests.exceptions import Timeout
 
 #Sopel imports
 from sopel.module import commands, interval, example, NOLIMIT, HALFOP, OP, rate
@@ -39,6 +41,7 @@ import re
 from ratlib.api.names import require_permission, Permissions
 from ratlib.hastebin import post_to_hastebin
 from ratlib.util import timed
+
 
 def configure(config):
     ratlib.sopel.configure(config)
@@ -60,7 +63,7 @@ def setup(bot):
 @with_session
 def search(bot, trigger, db=None):
     """
-    Searches for system name matches.
+    Searches for system name matches. Recoded to pull from Systems API.
     """
 
     system = trigger.group(2)
@@ -83,25 +86,19 @@ def search(bot, trigger, db=None):
     if result.fixed:
         system_name += " (autocorrected)"
 
-    system = system.lower()
-
-    # Levenshtein expression
-    max_distance = 10
-    max_results = 4
-    expr = sql.func.levenshtein_less_equal(Starsystem.name_lower, system, max_distance)
-
-    # Query
-    result = (
-        db.query(Starsystem, expr.label("distance"))
-        .filter(expr <= max_distance)
-        .order_by(expr.asc())
-    )[:max_results]
-
+    try:
+        system = system.lower()
+        response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
+        if response.status_code != 200:
+            return bot.say("The systems API did not respond with valid data.")
+        result = response.json()['data']
+    except Timeout:
+        return bot.say("The request to Systems API timed out!")
 
     if result:
         return bot.say("Nearest matches for {system_name} are: {matches}".format(
             system_name=system_name,
-            matches=", ".join('"{0.Starsystem.name}" [{0.distance}]'.format(row) for row in result)
+            matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result)
         ))
     return bot.say("No similar results for {system_name}".format(system_name=system_name))
 
