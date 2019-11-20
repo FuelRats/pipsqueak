@@ -439,6 +439,9 @@ def cmd_landmark(bot, trigger, db=None):
                                     first_word=name.split(" ", 1)[0],
                                     xz=xz, y=temp['attributes']['coords']['y'],
                                     word_ct=wordct, eddb_id=temp['id'])
+            tsp = StarsystemPrefix(name.split(" ", 1)[0], wordct)
+            tsp = db.merge(tsp)
+            db.commit()
             starsystem = db.merge(starsystem)
             db.commit()
         return starsystem
