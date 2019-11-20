@@ -423,7 +423,7 @@ def cmd_landmark(bot, trigger, db=None):
                 bot.reply(f"Can't fetch data for {system_name}.")
                 return None
             print(f"Temp: {temp}")
-            temp = temp[0] if temp else None
+            temp = temp[0]['attributes'] if temp else None
             if not temp:
                 bot.reply(f"Empty result set from systems API.")
             starsystem.name = temp['name']
