@@ -422,9 +422,7 @@ def cmd_landmark(bot, trigger, db=None):
             if "error" in temp:
                 bot.reply(f"Can't fetch data for {system_name}.")
                 return None
-            print(f"Temp: {temp}")
             temp = temp[0] if temp else None
-            print(f"Temp after: {temp} Attr: {temp['attributes']}")
             if not temp:
                 bot.reply(f"Empty result set from systems API.")
             if "coords" not in temp['attributes']:
@@ -435,6 +433,8 @@ def cmd_landmark(bot, trigger, db=None):
                                     name_lower=temp['attributes']['name'].lower(),
                                     first_word=temp['attributes']['name'].split(" ", 1),
                                     xz=xz, y=temp['attributes']['coords']['y'])
+            starsystem = db.merge(starsystem)
+            db.commit()
         return starsystem
 
     def subcommand_list(*unused_args, **unused_kwargs):
