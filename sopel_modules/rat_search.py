@@ -76,7 +76,7 @@ def sysapi_query(system, querytype):
             response = requests.get('https://system.api.fuelrats.com/landmark?name={}'.format(system))
             if response.status_code != 200:
                 return {"error": "System API did not respond with valid data."}
-            result = response.json()
+            result = response.json()[0]
         except Timeout:
             return {"error": "The request to Systems API timed out!"}
         return result
