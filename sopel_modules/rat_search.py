@@ -431,11 +431,12 @@ def cmd_landmark(bot, trigger, db=None):
                 bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
                 return None
             xz = "({x},{z})".format(**temp['attributes']['coords'])
-            words = temp['attributes']['name'].split()
-            wordct = Counter(words)
+            name = temp['attributes']['name']
+            wordct = re.subn(r'\s+', ' ', name.strip())[1]
+            wordct += 1
             starsystem = Starsystem(name=temp['attributes']['name'],
                                     name_lower=temp['attributes']['name'].lower(),
-                                    first_word=temp['attributes']['name'].split(" ", 1),
+                                    first_word=name.split(" ", 1)[0],
                                     xz=xz, y=temp['attributes']['coords']['y'],
                                     word_ct=wordct, eddb_id=temp['id'])
             starsystem = db.merge(starsystem)
