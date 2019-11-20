@@ -427,10 +427,13 @@ def cmd_landmark(bot, trigger, db=None):
         result = sysapi_query(f'{system_name}', 'landmark')
         if not result:
             return
-        bot.reply(
-            f"{result['meta']['name']} is {result['landmarks'][0]['distance']:.2f} LY from "
-            f"{result['landmarks'][0]['name']}"
-        )
+        if "error" in result['meta']:
+            bot.reply("System not found!")
+        else:
+            bot.reply(
+                f"{result['meta']['name']} is {result['landmarks'][0]['distance']:.2f} LY from "
+                f"{result['landmarks'][0]['name']}"
+            )
 
     # @require_overseer(None)
     @require_permission(Permissions.overseer)
