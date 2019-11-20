@@ -420,54 +420,8 @@ def cmd_landmark(bot, trigger, db=None):
     subcommand = parts.pop(0).lower() if parts else None
     system_name = parts.pop(0) if parts else None
 
-    def lookup_system(name, model=Starsystem):
-        return db.query(model).filter(model.name_lower == name.lower()).first()
-
-    def get_system_or_none(name):
-        if not system_name:
-            bot.reply("A starsystem name must be specified")
-            return None
-        starsystem = lookup_system(system_name)
-        if not starsystem:
-            temp = sysapi_query(system_name, "eq")
-            if "error" in temp:
-                bot.reply(f"Can't fetch data for {system_name}.")
-                return None
-            temp = temp[0] if temp else None
-            if not temp:
-                bot.reply(f"Empty result set from systems API.")
-            if "coords" not in temp['attributes']:
-                bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
-                return None
-            xz = "({x},{z})".format(**temp['attributes']['coords'])
-            name = temp['attributes']['name']
-            wordct = re.subn(r'\s+', ' ', name.strip())[1]
-            wordct += 1
-            starsystem = Starsystem(name=temp['attributes']['name'],
-                                    name_lower=temp['attributes']['name'].lower(),
-                                    first_word=name.split(" ", 1)[0],
-                                    xz=xz, y=temp['attributes']['coords']['y'],
-                                    word_ct=wordct, eddb_id=temp['id'])
-            tsp = StarsystemPrefix(name.split(" ", 1)[0], wordct)
-            tsp = db.merge(tsp)
-            db.commit()
-            starsystem = db.merge(starsystem)
-            db.commit()
-        return starsystem
-
     def subcommand_list(*unused_args, **unused_kwargs):
-        if not trigger.is_privmsg:
-            bot.reply("Messaging you the list of landmark systems.")
-
-        ix = 0
-        for ix, landmark in enumerate(db.query(Landmark).order_by(Landmark.name_lower), start=1):
-            if landmark.xz is None or landmark.y is None:
-                loc = "UNKNOWN LOCATION"
-            else:
-                loc = "({landmark.x:.2f}, {landmark.y:.2f}, {landmark.z:.2f})".format(landmark=landmark)
-
-            pm("Landmark #{ix} - {landmark.name} @ {loc}".format(ix=ix, landmark=landmark, loc=loc))
-        pm("{} landmark system(s) defined.".format(ix))
+        bot.reply("Landmark systems are no longer managed through Mecha.")
 
     def subcommand_near(*unused_args, **unused_kwargs):
         result = sysapi_query(f'{system_name}', 'landmark')
@@ -481,43 +435,17 @@ def cmd_landmark(bot, trigger, db=None):
     # @require_overseer(None)
     @require_permission(Permissions.overseer)
     def subcommand_add(*unused_args, **unused_kwargs):
-        starsystem = get_system_or_none(system_name)
-        if not starsystem:
-            return
-        landmark = Landmark(name=starsystem.name, name_lower=starsystem.name_lower, xz=starsystem.xz, y=starsystem.y)
-        landmark = db.merge(landmark)
-        persistent = object_state(landmark).persistent
-        db.commit()
-
-        if persistent:
-            bot.reply("System '{}' was already a landmark.  Updated to current coordinates.".format(starsystem.name))
-        else:
-            bot.reply("Added system '{}' as a landmark.".format(starsystem.name))
+        bot.reply("Landmarks are no longer managed through mecha. Contact Absolver.")
 
     # @require_overseer(None)
     @require_permission(Permissions.overseer, message=None)
     def subcommand_del(*unused_args, **unused_kwargs):
-        landmark = lookup_system(system_name, Landmark)
-        if landmark is None:
-            bot.reply("No such landmark '{}'".format(system_name))
-            return
-        db.delete(landmark)
-        db.commit()
-        bot.reply("Removed system '{}' from the list of landmarks.".format(landmark.name))
+        bot.reply("Landmarks are no longer managed through mecha. Contact Absolver.")
         pass
 
     @require_permission(Permissions.overseer, message=None)
     def subcommand_refresh(*unused_args, **unused_kwargs):
-        ct = (
-            db.query(Landmark)
-            .filter(Landmark.name_lower == Starsystem.name_lower)
-            .update({
-                Landmark.name: Starsystem.name,
-                Landmark.xz: Starsystem.xz,
-                Landmark.y: Starsystem.y
-            }, synchronize_session=False)
-        )
-        bot.reply("Synchronized {} landmark system(s).".format(ct))
+        bot.reply("Landmarks are no longer managed through mecha. Contact Absolver.")
 
     subcommands = {
         'list': subcommand_list,
