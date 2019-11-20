@@ -21,6 +21,8 @@ import os
 import datetime
 import threading
 import functools
+from collections import Counter
+
 import requests
 from requests.exceptions import Timeout
 
@@ -429,12 +431,13 @@ def cmd_landmark(bot, trigger, db=None):
                 bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
                 return None
             xz = "({x},{z})".format(**temp['attributes']['coords'])
-            words = re.subn(r'\s+', ' ', temp['attributes']['name'].strip())
+            words = temp['attributes']['name'].split()
+            wordct = Counter(words)
             starsystem = Starsystem(name=temp['attributes']['name'],
                                     name_lower=temp['attributes']['name'].lower(),
                                     first_word=temp['attributes']['name'].split(" ", 1),
                                     xz=xz, y=temp['attributes']['coords']['y'],
-                                    word_ct=words)
+                                    word_ct=wordct, eddb_id=temp['id'])
             starsystem = db.merge(starsystem)
             db.commit()
         return starsystem
