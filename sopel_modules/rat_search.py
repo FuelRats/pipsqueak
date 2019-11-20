@@ -71,6 +71,15 @@ def sysapi_query(system, querytype):
         except Timeout:
             return {"error": "The request to Systems API timed out!"}
         return result
+    if querytype == "landmark":
+        try:
+            response = requests.get('https://system.api.fuelrats.com/landmark?name={}'.format(system))
+            if response.status_code != 200:
+                return {"error": "System API did not respond with valid data."}
+            result = response.json()
+        except Timeout:
+            return {"error": "The request to Systems API timed out!"}
+        return result
     else:
         try:
             response = requests.get(f'https://system.api.fuelrats.com/api/systems?filter[name:eq]={system}')
@@ -461,19 +470,12 @@ def cmd_landmark(bot, trigger, db=None):
         pm("{} landmark system(s) defined.".format(ix))
 
     def subcommand_near(*unused_args, **unused_kwargs):
-        starsystem = get_system_or_none(system_name)
-        if not starsystem:
-            return
-        landmark, distance = starsystem.nearest_landmark(db, True)
-        if not landmark:
-            bot.reply("Could not find a nearby landmark.  (Perhaps none are defined?)")
-            return
-        if not distance and starsystem.name_lower == landmark.name_lower:
-            bot.reply("{} is a landmark!".format(starsystem.name))
+        result = sysapi_query(f'{system_name}', 'landmark')
+        if not result:
             return
         bot.reply(
-            "{starsystem.name} is {distance:.2f} LY from {landmark.name}"
-            .format(starsystem=starsystem, landmark=landmark, distance=distance)
+            f"{result['meta']['name']} is {result['landmarks']['distance']:.2f} LY from "
+            f"{result['landmark']['name']}"
         )
 
     # @require_overseer(None)
