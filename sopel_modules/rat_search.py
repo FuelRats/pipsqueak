@@ -427,14 +427,13 @@ def cmd_landmark(bot, trigger, db=None):
             print(f"Temp after: {temp} Attr: {temp['attributes']}")
             if not temp:
                 bot.reply(f"Empty result set from systems API.")
-            starsystem = Starsystem(name=temp['attributes']['name'])
             if "coords" not in temp['attributes']:
                 bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
                 return None
-            starsystem.x = temp['attributes']['coords']['x']
-            starsystem.y = temp['attributes']['coords']['y']
-            starsystem.z = temp['attributes']['coords']['z']
-            starsystem.has_coordinates = True
+            xz = "({x},{z})".format(**temp['attributes']['coords'])
+            starsystem = Starsystem(name=temp['attributes']['name'],
+                                    xz=xz, y=temp['attributes']['coords']['y'])
+
         return starsystem
 
     def subcommand_list(*unused_args, **unused_kwargs):
