@@ -76,7 +76,7 @@ def sysapi_query(system, querytype):
             response = requests.get('https://system.api.fuelrats.com/landmark?name={}'.format(system))
             if response.status_code != 200:
                 return {"error": "System API did not respond with valid data."}
-            result = response.json()[0]
+            result = response.json()
         except Timeout:
             return {"error": "The request to Systems API timed out!"}
         return result
@@ -474,8 +474,8 @@ def cmd_landmark(bot, trigger, db=None):
         if not result:
             return
         bot.reply(
-            f"{result['meta']['name']} is {result['landmarks']['distance']:.2f} LY from "
-            f"{result['landmark']['name']}"
+            f"{result['meta']['name']} is {result['landmarks'][0]['distance']:.2f} LY from "
+            f"{result['landmarks'][0]['name']}"
         )
 
     # @require_overseer(None)
