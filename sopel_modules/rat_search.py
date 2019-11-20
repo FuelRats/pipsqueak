@@ -432,8 +432,9 @@ def cmd_landmark(bot, trigger, db=None):
                 return None
             xz = "({x},{z})".format(**temp['attributes']['coords'])
             starsystem = Starsystem(name=temp['attributes']['name'],
+                                    name_lower=temp['attributes']['name'].lower(),
+                                    first_word=temp['attributes']['name'].split(" ", 1),
                                     xz=xz, y=temp['attributes']['coords']['y'])
-
         return starsystem
 
     def subcommand_list(*unused_args, **unused_kwargs):
