@@ -32,9 +32,6 @@ import operator
 import concurrent.futures
 import dateutil.parser
 
-import requests
-from requests.exceptions import Timeout
-
 # Sopel imports
 from sopel.formatting import bold, color, colors
 from sopel.module import commands, NOLIMIT, priority, require_chanmsg, rule
@@ -46,7 +43,7 @@ import ratlib.sopel
 from ratlib import timeutil
 from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
-from ratlib.starsystem import scan_for_systems
+from ratlib.starsystem import scan_for_systems, sysapi_query
 from ratlib.api.props import *
 from ratlib.api.names import *
 from ratlib.sopel import UsageError
@@ -138,36 +135,6 @@ def setup(bot):
 
 
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
-
-def sysapi_query(system, querytype):
-    system = system.title()
-    if querytype == "search":
-        try:
-            response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
-            if response.status_code != 200:
-                return {"error": "System API did not respond with valid data."}
-            result = response.json()
-        except Timeout:
-            return {"error": "The request to Systems API timed out!"}
-        return result
-    if querytype == "landmark":
-        try:
-            response = requests.get('https://system.api.fuelrats.com/landmark?name={}'.format(system))
-            if response.status_code != 200:
-                return {"error": "System API did not respond with valid data."}
-            result = response.json()
-        except Timeout:
-            return {"error": "The request to Systems API timed out!"}
-        return result
-    else:
-        try:
-            response = requests.get(f'https://system.api.fuelrats.com/api/systems?filter[name:eq]={system}')
-            if response.status_code != 200:
-                return {"error": "System API did not respond with valid data."}
-            result = response.json()['data']
-        except Timeout:
-            return {"error": "The request to Systems API timed out!"}
-        return result
 
 class RescueBoard:
     """

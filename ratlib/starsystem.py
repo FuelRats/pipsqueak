@@ -3,7 +3,7 @@ Utilities for handling starsystem names and the like.
 
 This is specifically named 'starsystem' rather than 'system' for reasons that should be obvious.
 
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -23,6 +23,8 @@ except ImportError:
     import collections as collections_abc
 
 import requests
+from requests.exceptions import Timeout
+
 import sqlalchemy as sa
 from sqlalchemy import sql, orm, schema
 
@@ -394,6 +396,35 @@ def refresh_bloom(bot, db):
     bot.memory['ratbot']['stats']['starsystem_bloom'] = {'entries': count, 'time': t.seconds}
     return bloom
 
+def sysapi_query(system, querytype):
+    system = system.title()
+    if querytype == "search":
+        try:
+            response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
+            if response.status_code != 200:
+                return {"error": "System API did not respond with valid data."}
+            result = response.json()
+        except Timeout:
+            return {"error": "The request to Systems API timed out!"}
+        return result
+    if querytype == "landmark":
+        try:
+            response = requests.get('https://system.api.fuelrats.com/landmark?name={}'.format(system))
+            if response.status_code != 200:
+                return {"error": "System API did not respond with valid data."}
+            result = response.json()
+        except Timeout:
+            return {"error": "The request to Systems API timed out!"}
+        return result
+    else:
+        try:
+            response = requests.get(f'https://system.api.fuelrats.com/api/systems?filter[name:eq]={system}')
+            if response.status_code != 200:
+                return {"error": "System API did not respond with valid data."}
+            result = response.json()['data']
+        except Timeout:
+            return {"error": "The request to Systems API timed out!"}
+        return result
 
 def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
     """
