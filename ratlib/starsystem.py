@@ -490,10 +490,9 @@ def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
                     break
                 # Try to find the actual system.
                 check = " ".join(words[ix:endix])
-                system = db.query(Starsystem).filter(Starsystem.name_lower == check).first()
-                if not system or (prefix.first_word in results and len(results[prefix.first_word]) > len(system.name)):
-                    continue
-                results[prefix.first_word] = system.name
+                systemRes = sysapi_query(check, 'search')
+                if systemRes and systemRes['meta']['type'] == 'Perfect match':
+                    results[prefix.first_word] = systemRes['meta']['name']
         return set(results.values())
     finally:
         db.rollback()
