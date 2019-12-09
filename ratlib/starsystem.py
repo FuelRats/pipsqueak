@@ -493,6 +493,7 @@ def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
                 systemRes = sysapi_query(check, 'search')
                 if systemRes and systemRes['meta']['type'] == 'Perfect match':
                     results[prefix.first_word] = systemRes['meta']['name']
+                    break
         return set(results.values())
     finally:
         db.rollback()
