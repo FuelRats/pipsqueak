@@ -1575,7 +1575,7 @@ def ratmama_parse(bot, trigger):
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
-            landmarks = sysapi_query(fields["system"], "landmark")
+            systemSearch = sysapi_query(fields["system"], "search")
 
             if case.codeRed:
                 fields["o2"] = bold(color(fields["o2"], colors.RED))
@@ -1592,10 +1592,12 @@ def ratmama_parse(bot, trigger):
             fields["system"] = bold(fields["system"])
             fields["cmdr"] = bold(fields["cmdr"])
 
-            if landmarks and not "error" in landmarks['meta']:
-                nearest = landmarks['landmarks'][0]
-                if nearest and nearest['name'].lower() != landmarks['meta']['name'].lower():
-                    fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
+            if systemSearch and not "error" in systemSearch and systemSearch['meta']['type'] == "Perfect match":
+                landmarks = sysapi_query(systemSearch['meta']['name'], "landmark")
+                if landmarks and not "error" in landmarks and not "error" in landmarks['meta']:
+                    nearest = landmarks['landmarks'][0]
+                    if nearest and nearest['name'].lower() != landmarks['meta']['name'].lower():
+                        fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
             else:
                 fields["system"] += " (not in Fuelrats System Database)"
 
