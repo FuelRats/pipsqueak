@@ -2,7 +2,7 @@
 """
 rat_board.py - Fuel Rats Cases module.
 
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -32,6 +32,9 @@ import operator
 import concurrent.futures
 import dateutil.parser
 
+import requests
+from requests.exceptions import Timeout
+
 # Sopel imports
 from sopel.formatting import bold, color, colors
 from sopel.module import commands, NOLIMIT, priority, require_chanmsg, rule
@@ -49,7 +52,7 @@ from ratlib.api.names import *
 from ratlib.sopel import UsageError
 import ratlib.api.http
 import ratlib.db
-from ratlib.db import with_session, Starsystem
+from ratlib.db import with_session
 from ratlib.api.v2compatibility import convertV2DataToV1, convertV1RescueToV2
 from ratlib.languages import Language
 
@@ -136,6 +139,35 @@ def setup(bot):
 
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
 
+def sysapi_query(system, querytype):
+    system = system.title()
+    if querytype == "search":
+        try:
+            response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
+            if response.status_code != 200:
+                return {"error": "System API did not respond with valid data."}
+            result = response.json()
+        except Timeout:
+            return {"error": "The request to Systems API timed out!"}
+        return result
+    if querytype == "landmark":
+        try:
+            response = requests.get('https://system.api.fuelrats.com/landmark?name={}'.format(system))
+            if response.status_code != 200:
+                return {"error": "System API did not respond with valid data."}
+            result = response.json()
+        except Timeout:
+            return {"error": "The request to Systems API timed out!"}
+        return result
+    else:
+        try:
+            response = requests.get(f'https://system.api.fuelrats.com/api/systems?filter[name:eq]={system}')
+            if response.status_code != 200:
+                return {"error": "System API did not respond with valid data."}
+            result = response.json()['data']
+        except Timeout:
+            return {"error": "The request to Systems API timed out!"}
+        return result
 
 class RescueBoard:
     """
@@ -944,11 +976,11 @@ def cmd_list(bot, trigger, *remainder):
             offset += 1
     tmpStr = ''.join(tmp)
     plats = tmpStr.split(' ')
-    
+
     for x in plats:
         if x not in ['pc', 'ps', 'xb', '',  '-']:
             raise UsageError()
-    
+
     showpc = 'pc' in plats
     showps = 'ps' in plats
     showxb = 'xb' in plats
@@ -1421,9 +1453,8 @@ def cmd_plaform_ps(bot, trigger):
 @commands('sys', 'system', 'loc', 'location')
 @ratlib.sopel.filter_output
 @parameterize('rT', usage='<client or case number> <system name>')
-@ratlib.db.with_session
 @require_permission(Permissions.rat)
-def cmd_system(bot, trigger, rescue, system, db=None):
+def cmd_system(bot, trigger, rescue, system):
     """
     Sets a case's system.
     required parameters: Client name or case number, system location
@@ -1435,9 +1466,10 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     # Try to find the system in EDDB.
     fmt = "Location of {name} set to {rescue.system}"
 
-    result = db.query(Starsystem).filter(Starsystem.name_lower == system.lower()).first()
-    if result:
-        system = result.name
+    result = sysapi_query(system, "search")
+
+    if result and "meta" in result and result['meta']['type'] == "Perfect match":
+        system = result['name']
     else:
         fmt += "  (not in Fuelrats System Database)"
     rescue.system = system
@@ -1517,8 +1549,7 @@ _ratmama_regex = re.compile(r"""
 
 @rule('Incoming Client:.* - O2:.*')
 @require_chanmsg
-@with_session
-def ratmama_parse(bot, trigger, db):
+def ratmama_parse(bot, trigger):
     """
     Parse Incoming KiwiIRC clients that are announced by RatMama
 
@@ -1577,7 +1608,7 @@ def ratmama_parse(bot, trigger, db):
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
-            system = db.query(Starsystem).filter(Starsystem.name_lower == fields["system"].lower()).first()
+            landmarks = sysapi_query(fields["system"], "landmark")
 
             if case.codeRed:
                 fields["o2"] = bold(color(fields["o2"], colors.RED))
@@ -1594,10 +1625,10 @@ def ratmama_parse(bot, trigger, db):
             fields["system"] = bold(fields["system"])
             fields["cmdr"] = bold(fields["cmdr"])
 
-            if system:
-                nearest, distance = system.nearest_landmark(db, with_distance=True)
-                if nearest and nearest.name_lower != system.name_lower:
-                    fields["system"] += " ({:.2f} LY from {})".format(distance, nearest.name)
+            if landmarks and not "error" in landmarks['meta']:
+                nearest = landmarks['landmarks'][0]
+                if nearest and nearest['name'].lower() != landmarks['meta']['name'].lower():
+                    fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
             else:
                 fields["system"] += " (not in Fuelrats System Database)"
 
