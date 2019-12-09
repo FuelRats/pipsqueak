@@ -2,7 +2,7 @@
 """
 rat_board.py - Fuel Rats Cases module.
 
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -43,13 +43,13 @@ import ratlib.sopel
 from ratlib import timeutil
 from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
-from ratlib.starsystem import scan_for_systems
+from ratlib.starsystem import scan_for_systems, sysapi_query
 from ratlib.api.props import *
 from ratlib.api.names import *
 from ratlib.sopel import UsageError
 import ratlib.api.http
 import ratlib.db
-from ratlib.db import with_session, Starsystem
+from ratlib.db import with_session
 from ratlib.api.v2compatibility import convertV2DataToV1, convertV1RescueToV2
 from ratlib.languages import Language
 
@@ -135,7 +135,6 @@ def setup(bot):
 
 
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
-
 
 class RescueBoard:
     """
@@ -944,11 +943,11 @@ def cmd_list(bot, trigger, *remainder):
             offset += 1
     tmpStr = ''.join(tmp)
     plats = tmpStr.split(' ')
-    
+
     for x in plats:
         if x not in ['pc', 'ps', 'xb', '',  '-']:
             raise UsageError()
-    
+
     showpc = 'pc' in plats
     showps = 'ps' in plats
     showxb = 'xb' in plats
@@ -1421,9 +1420,8 @@ def cmd_plaform_ps(bot, trigger):
 @commands('sys', 'system', 'loc', 'location')
 @ratlib.sopel.filter_output
 @parameterize('rT', usage='<client or case number> <system name>')
-@ratlib.db.with_session
 @require_permission(Permissions.rat)
-def cmd_system(bot, trigger, rescue, system, db=None):
+def cmd_system(bot, trigger, rescue, system):
     """
     Sets a case's system.
     required parameters: Client name or case number, system location
@@ -1435,9 +1433,10 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     # Try to find the system in EDDB.
     fmt = "Location of {name} set to {rescue.system}"
 
-    result = db.query(Starsystem).filter(Starsystem.name_lower == system.lower()).first()
-    if result:
-        system = result.name
+    result = sysapi_query(system, "search")
+
+    if result and "meta" in result and result['meta']['type'] == "Perfect match":
+        system = result['name']
     else:
         fmt += "  (not in Fuelrats System Database)"
     rescue.system = system
@@ -1517,8 +1516,7 @@ _ratmama_regex = re.compile(r"""
 
 @rule('Incoming Client:.* - O2:.*')
 @require_chanmsg
-@with_session
-def ratmama_parse(bot, trigger, db):
+def ratmama_parse(bot, trigger):
     """
     Parse Incoming KiwiIRC clients that are announced by RatMama
 
@@ -1577,7 +1575,7 @@ def ratmama_parse(bot, trigger, db):
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
-            system = db.query(Starsystem).filter(Starsystem.name_lower == fields["system"].lower()).first()
+            landmarks = sysapi_query(fields["system"], "landmark")
 
             if case.codeRed:
                 fields["o2"] = bold(color(fields["o2"], colors.RED))
@@ -1594,10 +1592,10 @@ def ratmama_parse(bot, trigger, db):
             fields["system"] = bold(fields["system"])
             fields["cmdr"] = bold(fields["cmdr"])
 
-            if system:
-                nearest, distance = system.nearest_landmark(db, with_distance=True)
-                if nearest and nearest.name_lower != system.name_lower:
-                    fields["system"] += " ({:.2f} LY from {})".format(distance, nearest.name)
+            if landmarks and not "error" in landmarks['meta']:
+                nearest = landmarks['landmarks'][0]
+                if nearest and nearest['name'].lower() != landmarks['meta']['name'].lower():
+                    fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
             else:
                 fields["system"] += " (not in Fuelrats System Database)"
 

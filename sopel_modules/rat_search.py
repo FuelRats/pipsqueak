@@ -1,7 +1,7 @@
 #coding: utf8
 """
 rat_search.py - Elite Dangerous System Search module.
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -23,9 +23,6 @@ import threading
 import functools
 from collections import Counter
 
-import requests
-from requests.exceptions import Timeout
-
 #Sopel imports
 from sopel.module import commands, interval, example, NOLIMIT, HALFOP, OP, rate
 from sopel.tools import SopelMemory
@@ -37,7 +34,7 @@ from ratlib import timeutil
 import ratlib
 import ratlib.sopel
 from ratlib.db import with_session, Starsystem, StarsystemPrefix, Landmark, get_status
-from ratlib.starsystem import refresh_database, scan_for_systems, ConcurrentOperationError
+from ratlib.starsystem import refresh_database, scan_for_systems, sysapi_query, ConcurrentOperationError
 from ratlib.autocorrect import correct
 import re
 from ratlib.api.names import require_permission, Permissions
@@ -58,38 +55,6 @@ def setup(bot):
     frequency = int(bot.config.ratbot.edsm_autorefresh or 0)
     if frequency > 0:
         interval(frequency)(task_sysrefresh)
-
-
-def sysapi_query(system, querytype):
-    system = system.title()
-    if querytype == "search":
-        try:
-            response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
-            if response.status_code != 200:
-                return {"error": "System API did not respond with valid data."}
-            result = response.json()['data']
-        except Timeout:
-            return {"error": "The request to Systems API timed out!"}
-        return result
-    if querytype == "landmark":
-        try:
-            response = requests.get('https://system.api.fuelrats.com/landmark?name={}'.format(system))
-            if response.status_code != 200:
-                return {"error": "System API did not respond with valid data."}
-            result = response.json()
-        except Timeout:
-            return {"error": "The request to Systems API timed out!"}
-        return result
-    else:
-        try:
-            response = requests.get(f'https://system.api.fuelrats.com/api/systems?filter[name:eq]={system}')
-            if response.status_code != 200:
-                return {"error": "System API did not respond with valid data."}
-            result = response.json()['data']
-        except Timeout:
-            return {"error": "The request to Systems API timed out!"}
-        return result
-
 
 @commands('search')
 @example('!search lave', '')
@@ -125,7 +90,7 @@ def search(bot, trigger, db=None):
     if result:
         return bot.say("Nearest matches for {system_name} are: {matches}".format(
             system_name=system_name,
-            matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result)
+            matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result['data'])
         ))
     return bot.say("No similar results for {system_name}".format(system_name=system_name))
 
@@ -276,6 +241,9 @@ def cmd_plot(bot, trigger, db=None):
             so some waypoints MAY be unreachable, but it should be suitable for most of the Milky way, except when
             crossing outer limbs.
     """
+    bot.say("This function has been superseded by improvements in the in-game route plotter, and Spansh's neutron plotter https://spansh.co.uk/plotter")
+    return NOLIMIT
+
     maxdistance = 990
 
     # if not trigger._is_privmsg:
