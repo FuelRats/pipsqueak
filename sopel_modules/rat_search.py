@@ -1,7 +1,7 @@
 #coding: utf8
 """
 rat_search.py - Elite Dangerous System Search module.
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -276,6 +276,9 @@ def cmd_plot(bot, trigger, db=None):
             so some waypoints MAY be unreachable, but it should be suitable for most of the Milky way, except when
             crossing outer limbs.
     """
+    bot.say("This function has been superceeded by improvements in the in-game route plotter, and Spansh's neutron plotter https://spansh.co.uk/plotter")
+    return NOLIMIT
+
     maxdistance = 990
 
     # if not trigger._is_privmsg:
