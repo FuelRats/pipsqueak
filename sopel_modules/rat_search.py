@@ -276,7 +276,7 @@ def cmd_plot(bot, trigger, db=None):
             so some waypoints MAY be unreachable, but it should be suitable for most of the Milky way, except when
             crossing outer limbs.
     """
-    bot.say("This function has been superceeded by improvements in the in-game route plotter, and Spansh's neutron plotter https://spansh.co.uk/plotter")
+    bot.say("This function has been superseded by improvements in the in-game route plotter, and Spansh's neutron plotter https://spansh.co.uk/plotter")
     return NOLIMIT
 
     maxdistance = 990
