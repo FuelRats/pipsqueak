@@ -21,6 +21,8 @@ import os
 import datetime
 import threading
 import functools
+from collections import Counter
+
 import requests
 from requests.exceptions import Timeout
 
@@ -58,6 +60,24 @@ def setup(bot):
         interval(frequency)(task_sysrefresh)
 
 
+def sysapi_query(system, querytype, strat="lev"):
+    system = system.title()
+    if querytype == "search":
+        querystring = f'https://system.api.fuelrats.com/search?name={system}&type={strat}'
+    if querytype == "landmark":
+        querystring = f'https://system.api.fuelrats.com/landmark?name={system}'
+    else:
+        querystring = f'https://system.api.fuelrats.com/api/systems?filter[name:eq]={system}'
+    try:
+        response = requests.get(querystring)
+        if response.status_code != 200:
+            return {"error": "System API did not respond with valid data."}
+        result = response.json()
+    except Timeout:
+        return {"error": "The request to Systems API timed out!"}
+    return result
+
+
 @commands('search')
 @example('!search lave', '')
 @with_session
@@ -86,17 +106,22 @@ def search(bot, trigger, db=None):
     if result.fixed:
         system_name += " (autocorrected)"
 
-    try:
-        system = system.lower()
-        response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
-        if response.status_code != 200:
-            return bot.say("The systems API did not respond with valid data.")
-        result = response.json()['data']
-    except Timeout:
-        return bot.say("The request to Systems API timed out!")
-
+    result = sysapi_query(system, "search")
+    if "error" in result:
+        return bot.say(f"An error occurred while accessing systems API: {result['error']}")
     if result:
+        result = result['data']
         return bot.say("Nearest matches for {system_name} are: {matches}".format(
+            system_name=system_name,
+            matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result)
+        ))
+    # No hits, attempt a dimetaphone search instead.
+    result = sysapi_query(system, "search", "dmeta")
+    if "error" in result:
+        return bot.say(f"An error occurred while accessing systems API: {result['error']}")
+    if result:
+        result = result['data']
+        return bot.say("No hits, attempted dimetaphone search for {system_name}: {matches}".format(
             system_name=system_name,
             matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result)
         ))
@@ -393,92 +418,36 @@ def cmd_landmark(bot, trigger, db=None):
     subcommand = parts.pop(0).lower() if parts else None
     system_name = parts.pop(0) if parts else None
 
-    def lookup_system(name, model=Starsystem):
-        return db.query(model).filter(model.name_lower == name.lower()).first()
-
-    def get_system_or_none(name):
-        if not system_name:
-            bot.reply("A starsystem name must be specified")
-            return None
-        starsystem = lookup_system(system_name)
-        if not starsystem:
-            bot.reply("Starsystem '{}' is not in the database".format(system_name))
-            return None
-        if not starsystem.has_coordinates:
-            bot.reply("Starsystem '{}' has unknown coordinates.".format(starsystem.name))
-            return None
-        return starsystem
-
     def subcommand_list(*unused_args, **unused_kwargs):
-        if not trigger.is_privmsg:
-            bot.reply("Messaging you the list of landmark systems.")
-
-        ix = 0
-        for ix, landmark in enumerate(db.query(Landmark).order_by(Landmark.name_lower), start=1):
-            if landmark.xz is None or landmark.y is None:
-                loc = "UNKNOWN LOCATION"
-            else:
-                loc = "({landmark.x:.2f}, {landmark.y:.2f}, {landmark.z:.2f})".format(landmark=landmark)
-
-            pm("Landmark #{ix} - {landmark.name} @ {loc}".format(ix=ix, landmark=landmark, loc=loc))
-        pm("{} landmark system(s) defined.".format(ix))
+        bot.reply("Landmark systems are no longer managed through Mecha.")
 
     def subcommand_near(*unused_args, **unused_kwargs):
-        starsystem = get_system_or_none(system_name)
-        if not starsystem:
+        result = sysapi_query(f'{system_name}', 'landmark')
+        if not result:
             return
-        landmark, distance = starsystem.nearest_landmark(db, True)
-        if not landmark:
-            bot.reply("Could not find a nearby landmark.  (Perhaps none are defined?)")
-            return
-        if not distance and starsystem.name_lower == landmark.name_lower:
-            bot.reply("{} is a landmark!".format(starsystem.name))
-            return
-        bot.reply(
-            "{starsystem.name} is {distance:.2f} LY from {landmark.name}"
-            .format(starsystem=starsystem, landmark=landmark, distance=distance)
-        )
+        if "error" in result['meta']:
+            bot.reply("System not found!")
+        else:
+            result = result['data']
+            bot.reply(
+                f"{result['meta']['name']} is {result['landmarks'][0]['distance']:.2f} LY from "
+                f"{result['landmarks'][0]['name']}"
+            )
 
     # @require_overseer(None)
     @require_permission(Permissions.overseer)
     def subcommand_add(*unused_args, **unused_kwargs):
-        starsystem = get_system_or_none(system_name)
-        if not starsystem:
-            return
-        landmark = Landmark(name=starsystem.name, name_lower=starsystem.name_lower, xz=starsystem.xz, y=starsystem.y)
-        landmark = db.merge(landmark)
-        persistent = object_state(landmark).persistent
-        db.commit()
-
-        if persistent:
-            bot.reply("System '{}' was already a landmark.  Updated to current coordinates.".format(starsystem.name))
-        else:
-            bot.reply("Added system '{}' as a landmark.".format(starsystem.name))
+        bot.reply("Landmarks are no longer managed through mecha. Contact Absolver.")
 
     # @require_overseer(None)
     @require_permission(Permissions.overseer, message=None)
     def subcommand_del(*unused_args, **unused_kwargs):
-        landmark = lookup_system(system_name, Landmark)
-        if landmark is None:
-            bot.reply("No such landmark '{}'".format(system_name))
-            return
-        db.delete(landmark)
-        db.commit()
-        bot.reply("Removed system '{}' from the list of landmarks.".format(landmark.name))
+        bot.reply("Landmarks are no longer managed through mecha. Contact Absolver.")
         pass
 
     @require_permission(Permissions.overseer, message=None)
     def subcommand_refresh(*unused_args, **unused_kwargs):
-        ct = (
-            db.query(Landmark)
-            .filter(Landmark.name_lower == Starsystem.name_lower)
-            .update({
-                Landmark.name: Starsystem.name,
-                Landmark.xz: Starsystem.xz,
-                Landmark.y: Starsystem.y
-            }, synchronize_session=False)
-        )
-        bot.reply("Synchronized {} landmark system(s).".format(ct))
+        bot.reply("Landmarks are no longer managed through mecha. Contact Absolver.")
 
     subcommands = {
         'list': subcommand_list,
