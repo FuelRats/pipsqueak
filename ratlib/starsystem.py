@@ -400,18 +400,15 @@ def sysapi_query(system, querytype=None):
     """
     Queries systems api for name matches or landmarks.
     """
-
-    queryurl = 'https://system.api.fuelrats.com/'
-
     if querytype == "landmark":
-        queryurl += 'landmark?name={}'
+        endpoint = f"landmark?name={system}"
     elif querytype == "smart":
-        queryurl += 'mecha?name={}'
+        endpoint = f"mecha?name={system}"
     else:
-        queryurl += 'search?name={}'
+        endpoint = f"search?name={system}"
 
     try:
-        response = requests.get(queryurl.format(system))
+        response = requests.get(f"https://system.api.fuelrats.com/{endpoint}")
         if response.status_code != 200:
             return { "meta": { "error": "System API did not respond with valid data." } }
         result = response.json()
