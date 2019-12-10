@@ -84,7 +84,7 @@ def search(bot, trigger, db=None):
     if result.fixed:
         system_name += " (autocorrected)"
 
-    result = rl_starsystem.sysapi_query(system, "search")
+    result = rl_starsystem.sysapi_query(system, "smart")
     if result:
         if "error" in result['meta']:
             return bot.say(f"An error occured while accessing systems API: {result['meta']['error']}")
