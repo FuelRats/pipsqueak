@@ -1,7 +1,7 @@
 #coding: utf8
 """
 rat_search.py - Elite Dangerous System Search module.
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -23,9 +23,6 @@ import threading
 import functools
 from collections import Counter
 
-import requests
-from requests.exceptions import Timeout
-
 #Sopel imports
 from sopel.module import commands, interval, example, NOLIMIT, HALFOP, OP, rate
 from sopel.tools import SopelMemory
@@ -36,8 +33,8 @@ from sqlalchemy.orm.util import object_state
 from ratlib import timeutil
 import ratlib
 import ratlib.sopel
+import ratlib.starsystem as rl_starsystem
 from ratlib.db import with_session, Starsystem, StarsystemPrefix, Landmark, get_status
-from ratlib.starsystem import refresh_database, scan_for_systems, ConcurrentOperationError
 from ratlib.autocorrect import correct
 import re
 from ratlib.api.names import require_permission, Permissions
@@ -58,25 +55,6 @@ def setup(bot):
     frequency = int(bot.config.ratbot.edsm_autorefresh or 0)
     if frequency > 0:
         interval(frequency)(task_sysrefresh)
-
-
-def sysapi_query(system, querytype, strat="lev"):
-    system = system.title()
-    if querytype == "search":
-        querystring = f'https://system.api.fuelrats.com/search?name={system}&type={strat}'
-    if querytype == "landmark":
-        querystring = f'https://system.api.fuelrats.com/landmark?name={system}'
-    else:
-        querystring = f'https://system.api.fuelrats.com/api/systems?filter[name:eq]={system}'
-    try:
-        response = requests.get(querystring)
-        if response.status_code != 200:
-            return {"error": "System API did not respond with valid data."}
-        result = response.json()
-    except Timeout:
-        return {"error": "The request to Systems API timed out!"}
-    return result
-
 
 @commands('search')
 @example('!search lave', '')
@@ -106,24 +84,14 @@ def search(bot, trigger, db=None):
     if result.fixed:
         system_name += " (autocorrected)"
 
-    result = sysapi_query(system, "search")
-    if "error" in result:
-        return bot.say(f"An error occurred while accessing systems API: {result['error']}")
+    result = rl_starsystem.sysapi_query(system, "search")
     if result:
-        result = result['data']
+        if "error" in result['meta']:
+            return bot.say(f"An error occured while accessing systems API: {result['meta']['error']}")
+
         return bot.say("Nearest matches for {system_name} are: {matches}".format(
             system_name=system_name,
-            matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result)
-        ))
-    # No hits, attempt a dimetaphone search instead.
-    result = sysapi_query(system, "search", "dmeta")
-    if "error" in result:
-        return bot.say(f"An error occurred while accessing systems API: {result['error']}")
-    if result:
-        result = result['data']
-        return bot.say("No hits, attempted dimetaphone search for {system_name}: {matches}".format(
-            system_name=system_name,
-            matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result)
+            matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result['data'])
         ))
     return bot.say("No similar results for {system_name}".format(system_name=system_name))
 
@@ -200,8 +168,8 @@ def cmd_sysstats(bot, trigger, db=None):
 
 def task_sysrefresh(bot):
     try:
-        refresh_database(bot, background=True, callback=lambda: print("Starting background EDSM refresh."))
-    except ConcurrentOperationError:
+        rl_starsystem.refresh_database(bot, background=True, callback=lambda: print("Starting background EDSM refresh."))
+    except rl_starsystem.ConcurrentOperationError:
         pass
 
 
@@ -224,7 +192,7 @@ def cmd_sysrefresh(bot, trigger, db=None):
 
 
         try:
-            refreshed = refresh_database(
+            refreshed = rl_starsystem.refresh_database(
                 bot,
                 force=force,
                 prune=prune,
@@ -234,7 +202,7 @@ def cmd_sysrefresh(bot, trigger, db=None):
                 bot.say(refresh_time_stats(bot))
                 return
             msg = "Not yet.  "
-        except ConcurrentOperationError:
+        except rl_starsystem.ConcurrentOperationError:
             bot.say("A starsystem refresh operation is already in progress.")
             return
 
@@ -258,7 +226,7 @@ def cmd_scan(bot, trigger):
         bot.reply("Usage: {} <line of text>".format(trigger.group(1)))
 
     line = trigger.group(2).strip()
-    results = scan_for_systems(bot, line)
+    results = rl_starsystem.scan_for_systems(bot, line)
     bot.say("Scan results: {}".format(", ".join(results) if results else "no match found"))
 
 
@@ -274,6 +242,9 @@ def cmd_plot(bot, trigger, db=None):
             so some waypoints MAY be unreachable, but it should be suitable for most of the Milky way, except when
             crossing outer limbs.
     """
+    bot.say("This function has been superseded by improvements in the in-game route plotter, and Spansh's neutron plotter https://spansh.co.uk/plotter")
+    return NOLIMIT
+
     maxdistance = 990
 
     # if not trigger._is_privmsg:
@@ -407,11 +378,7 @@ def cmd_landmark(bot, trigger, db=None):
     """
     Lists or modifies landmark starsystems.
 
-    !landmark list - Lists all known landmarks in a PM.
     !landmark near <system> - Find the landmark closest to <system>
-    !landmark add <system> - Adds the listed starsystem as a landmark system.  (Overseer Only)
-    !landmark del <system> - Removes the listed starsystem from the landmark system lists.  (Overseer Only)
-    !landmark refresh - Updates all landmarks to match their current listed EDDB coordinates.  (Overseer Only)
     """
     pm = functools.partial(bot.say, destination=trigger.nick)
     parts = re.split(r'\s+', trigger.group(2), maxsplit=1) if trigger.group(2) else None
@@ -422,17 +389,25 @@ def cmd_landmark(bot, trigger, db=None):
         bot.reply("Landmark systems are no longer managed through Mecha.")
 
     def subcommand_near(*unused_args, **unused_kwargs):
-        result = sysapi_query(f'{system_name}', 'landmark')
-        if not result:
-            return
-        if "error" in result['meta']:
-            bot.reply("System not found!")
+        validatedSystem = rl_starsystem.validate(f'{system_name}')
+
+        if validatedSystem:
+            landmarkRes = rl_starsystem.sysapi_query(validatedSystem, 'landmark')
+            if(landmarkRes):
+                if "error" in landmarkRes['meta']:
+                    bot.reply(f"An error occured while accessing systems API: {landmarkRes['meta']['error']}")
+
+                if landmarkRes.get('landmarks'):
+                    bot.reply(
+                        f"{validatedSystem} is {landmarkRes['landmarks'][0]['distance']:.2f} LY from "
+                        f"{landmarkRes['landmarks'][0]['name']}."
+                    )
+                else:
+                    bot.reply(f"No landmarks were found for {validatedSystem}.")
+            else:
+                bot.reply(f"An unknown error occured while accessing systems API.")
         else:
-            result = result['data']
-            bot.reply(
-                f"{result['meta']['name']} is {result['landmarks'][0]['distance']:.2f} LY from "
-                f"{result['landmarks'][0]['name']}"
-            )
+            bot.reply(f"{system_name} was not found in The Fuel Rats System Database.")
 
     # @require_overseer(None)
     @require_permission(Permissions.overseer)

@@ -46,9 +46,11 @@ class SQLPoint(types.UserDefinedType):
         def process(value):
             if value is None:
                 return value
-            if None in value:
-                raise ValueError('Value cannot contain None values')
-            return ",".join(str(x) for x in value)
+            # I have no idea why this is here, but it needs to shut the fuck up. -Abs
+            # if None in value:
+            #    raise ValueError('Value cannot contain None values')
+            #return ",".join(str(x) for x in value)
+            return value
         return process
 
     def result_processor(self, dialect, coltype):
