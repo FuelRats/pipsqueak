@@ -244,7 +244,7 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
                         flush()
             except ValueError:
                 pass
-            except Exception as ex:
+            except Exception:
                 log("Failed to retrieve data")
                 import traceback
                 traceback.print_exc()
@@ -258,10 +258,10 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
         exec("DELETE FROM {ts} WHERE eddb_id NOT IN(SELECT MAX(id) AS id FROM {ts} GROUP BY eddb_id)")
 
         # No need for the temporary 'id' column at this point.
-        exec("ALTER TABLE {ts} DROP id CASCADE");
+        exec("ALTER TABLE {ts} DROP id CASCADE")
         # Making this a primary key (or even just a unique key) apparently affects query planner performance vs the
         # non-existing unique key.
-        exec("ALTER TABLE {ts} ADD PRIMARY KEY(eddb_id)");
+        exec("ALTER TABLE {ts} ADD PRIMARY KEY(eddb_id)")
 
         if prune:
             log("Removing non-updates to existing systems")
@@ -354,7 +354,7 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
         status.starsystem_refreshed = sql.func.clock_timestamp()
         db.add(status)
         db.commit()
-    except Exception as ex:
+    except Exception:
         import traceback
         traceback.print_exc()
         raise
@@ -374,7 +374,7 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
 
 
 @with_session
-def refresh_bloom(bot, db):
+def refresh_bloom(bot, db=None):
     """
     Refreshes the bloom filter.
 
