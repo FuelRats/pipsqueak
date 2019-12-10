@@ -427,7 +427,7 @@ def sysapi_query(system, querytype):
 
 def validate(system):
     searchRes = sysapi_query(system, 'search')
-    if searchRes and "data" in searchRes:
+    if searchRes and searchRes.get('data'):
         bestMatch = searchRes['data'][0]
         if bestMatch and (bestMatch['similarity'] == "Perfect match" or bestMatch['similarity'] == 1.0):
             return bestMatch['name']
@@ -435,7 +435,7 @@ def validate(system):
 
 def get_nearest_landmark(system):
     landmarkRes = sysapi_query(system, 'landmark')
-    if landmarkRes and "landmarks" in landmarkRes:
+    if landmarkRes and landmarkRes.get('landmarks'):
         return landmarkRes['landmarks'][0]
     return None
 
