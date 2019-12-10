@@ -40,10 +40,8 @@ from sopel.config.types import StaticSection, ValidatedAttribute
 from sopel.module import require_privmsg, rate
 
 import ratlib.sopel
-from ratlib import timeutil
-from ratlib.api.props import SystemNameProperty
+from ratlib import timeutil, starsystem
 from ratlib.autocorrect import correct
-from ratlib.starsystem import scan_for_systems, validate_system, get_nearest_landmark
 from ratlib.api.props import *
 from ratlib.api.names import *
 from ratlib.sopel import UsageError
@@ -649,7 +647,7 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
     else:
         rv.added_lines = lines
     if rv.added_lines and detect_system and not rv.rescue.system:
-        systems = scan_for_systems(bot, rv.added_lines[0])
+        systems = starsystem.scan_for_systems(bot, rv.added_lines[0])
         if len(systems) == 1:
             rv.detected_system = systems.pop()
             rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
@@ -1433,7 +1431,7 @@ def cmd_system(bot, trigger, rescue, system):
     # Try to find the system in EDDB.
     fmt = "Location of {name} set to {rescue.system}"
 
-    validatedSystem = validate_system(system)
+    validatedSystem = starsystem.validate(system)
 
     if validatedSystem:
         system = validatedSystem
@@ -1575,7 +1573,7 @@ def ratmama_parse(bot, trigger):
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
-            validatedSystem = validate_system(fields["system"])
+            validatedSystem = starsystem.validate(fields["system"])
 
             if case.codeRed:
                 fields["o2"] = bold(color(fields["o2"], colors.RED))
@@ -1593,7 +1591,7 @@ def ratmama_parse(bot, trigger):
             fields["cmdr"] = bold(fields["cmdr"])
 
             if validatedSystem:
-                nearest = get_nearest_landmark(validatedSystem)
+                nearest = starsystem.get_nearest_landmark(validatedSystem)
                 if nearest and nearest['name'].casefold() != validatedSystem.casefold():
                         fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
             else:
