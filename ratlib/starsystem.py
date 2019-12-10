@@ -425,7 +425,7 @@ def sysapi_query(system, querytype):
             return { "meta": { "error": "The request to Systems API timed out!"} }
         return result
 
-def validate_system(system):
+def validate(system):
     searchRes = sysapi_query(system, 'search')
     if searchRes and "data" in searchRes:
         bestMatch = searchRes['data'][0]
