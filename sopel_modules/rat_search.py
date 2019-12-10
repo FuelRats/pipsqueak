@@ -393,17 +393,21 @@ def cmd_landmark(bot, trigger, db=None):
 
         if validatedSystem:
             landmarkRes = rl_starsystem.sysapi_query(validatedSystem, 'landmark')
-            if "error" in landmarkRes['meta']:
-                return bot.reply(f"An error occured while accessing systems API: {landmarkRes['meta']['error']}")
+            if(landmarkRes):
+                if "error" in landmarkRes['meta']:
+                    bot.reply(f"An error occured while accessing systems API: {landmarkRes['meta']['error']}")
 
-            if landmarkRes.get('landmarks'):
-                return bot.reply(
-                    f"{validatedSystem} is {landmarkRes['landmarks'][0]['distance']:.2f} LY from "
-                    f"{landmarkRes['landmarks'][0]['name']}"
-                )
+                if landmarkRes.get('landmarks'):
+                    bot.reply(
+                        f"{validatedSystem} is {landmarkRes['landmarks'][0]['distance']:.2f} LY from "
+                        f"{landmarkRes['landmarks'][0]['name']}."
+                    )
+                else:
+                    bot.reply(f"No landmarks were found for {validatedSystem}.")
             else:
-                bot.reply("No landmarks were found for the given system.")
-        bot.reply("An unknown error occured while accessing systems API")
+                bot.reply(f"An unknown error occured while accessing systems API.")
+        else:
+            bot.reply(f"{system_name} was not found in The Fuel Rats System Database.")
 
     # @require_overseer(None)
     @require_permission(Permissions.overseer)
