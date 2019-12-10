@@ -43,7 +43,7 @@ import ratlib.sopel
 from ratlib import timeutil
 from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
-from ratlib.starsystem import scan_for_systems, sysapi_query, validate_system, get_nearest_landmark
+from ratlib.starsystem import scan_for_systems, validate_system, get_nearest_landmark
 from ratlib.api.props import *
 from ratlib.api.names import *
 from ratlib.sopel import UsageError
