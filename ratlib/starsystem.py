@@ -417,13 +417,27 @@ def sysapi_query(system, querytype):
         return result
     else:
         try:
-            response = requests.get(f'https://system.api.fuelrats.com/api/systems?filter[name:eq]={system}')
+            response = requests.get('https://system.api.fuelrats.com/api/systems?filter[name:eq]={}'.format(system))
             if response.status_code != 200:
                 return { "meta": { "error": "System API did not respond with valid data."} }
             result = response.json()['data']
         except Timeout:
             return { "meta": { "error": "The request to Systems API timed out!"} }
         return result
+
+def validate_system(system):
+    searchRes = sysapi_query(system, 'search')
+    if searchRes and "data" in searchRes:
+        bestMatch = searchRes['data'][0]
+        if bestMatch and (bestMatch['similarity'] == "Perfect match" or bestMatch['similarity'] == 1.0):
+            return bestMatch['name']
+    return None
+
+def get_nearest_landmark(system):
+    landmarkRes = sysapi_query(system, 'landmark')
+    if landmarkRes and "landmarks" in landmarkRes:
+        return landmarkRes['landmarks'][0]
+    return None
 
 def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
     """
