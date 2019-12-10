@@ -33,8 +33,8 @@ from sqlalchemy.orm.util import object_state
 from ratlib import timeutil
 import ratlib
 import ratlib.sopel
+import ratlib.starsystem as rl_starsystem
 from ratlib.db import with_session, Starsystem, StarsystemPrefix, Landmark, get_status
-from ratlib.starsystem import refresh_database, scan_for_systems, sysapi_query, ConcurrentOperationError
 from ratlib.autocorrect import correct
 import re
 from ratlib.api.names import require_permission, Permissions
@@ -84,7 +84,7 @@ def search(bot, trigger, db=None):
     if result.fixed:
         system_name += " (autocorrected)"
 
-    result = sysapi_query(system, "search")
+    result = rl_starsystem.sysapi_query(system, "search")
     if result:
         if "error" in result['meta']:
             return bot.say(f"An error occured while accessing systems API: {result['meta']['error']}")
@@ -168,8 +168,8 @@ def cmd_sysstats(bot, trigger, db=None):
 
 def task_sysrefresh(bot):
     try:
-        refresh_database(bot, background=True, callback=lambda: print("Starting background EDSM refresh."))
-    except ConcurrentOperationError:
+        rl_starsystem.refresh_database(bot, background=True, callback=lambda: print("Starting background EDSM refresh."))
+    except rl_starsystem.ConcurrentOperationError:
         pass
 
 
@@ -192,7 +192,7 @@ def cmd_sysrefresh(bot, trigger, db=None):
 
 
         try:
-            refreshed = refresh_database(
+            refreshed = rl_starsystem.refresh_database(
                 bot,
                 force=force,
                 prune=prune,
@@ -202,7 +202,7 @@ def cmd_sysrefresh(bot, trigger, db=None):
                 bot.say(refresh_time_stats(bot))
                 return
             msg = "Not yet.  "
-        except ConcurrentOperationError:
+        except rl_starsystem.ConcurrentOperationError:
             bot.say("A starsystem refresh operation is already in progress.")
             return
 
@@ -226,7 +226,7 @@ def cmd_scan(bot, trigger):
         bot.reply("Usage: {} <line of text>".format(trigger.group(1)))
 
     line = trigger.group(2).strip()
-    results = scan_for_systems(bot, line)
+    results = rl_starsystem.scan_for_systems(bot, line)
     bot.say("Scan results: {}".format(", ".join(results) if results else "no match found"))
 
 
@@ -378,11 +378,7 @@ def cmd_landmark(bot, trigger, db=None):
     """
     Lists or modifies landmark starsystems.
 
-    !landmark list - Lists all known landmarks in a PM.
     !landmark near <system> - Find the landmark closest to <system>
-    !landmark add <system> - Adds the listed starsystem as a landmark system.  (Overseer Only)
-    !landmark del <system> - Removes the listed starsystem from the landmark system lists.  (Overseer Only)
-    !landmark refresh - Updates all landmarks to match their current listed EDDB coordinates.  (Overseer Only)
     """
     pm = functools.partial(bot.say, destination=trigger.nick)
     parts = re.split(r'\s+', trigger.group(2), maxsplit=1) if trigger.group(2) else None
@@ -393,17 +389,21 @@ def cmd_landmark(bot, trigger, db=None):
         bot.reply("Landmark systems are no longer managed through Mecha.")
 
     def subcommand_near(*unused_args, **unused_kwargs):
-        result = sysapi_query(f'{system_name}', 'landmark')
-        if result:
-            if "error" in result['meta']:
-                return bot.reply(f"An error occured while accessing systems API: {result['meta']['error']}")
-            else:
-                bot.reply(
-                    f"{result['meta']['name']} is {result['landmarks'][0]['distance']:.2f} LY from "
-                    f"{result['landmarks'][0]['name']}"
+        validatedSystem = rl_starsystem.validate(f'{system_name}')
+
+        if validatedSystem:
+            landmarkRes = rl_starsystem.sysapi_query(validatedSystem, 'landmark')
+            if "error" in landmarkRes['meta']:
+                return bot.reply(f"An error occured while accessing systems API: {landmarkRes['meta']['error']}")
+
+            if landmarkRes.get('landmarks'):
+                return bot.reply(
+                    f"{validatedSystem} is {landmarkRes['landmarks'][0]['distance']:.2f} LY from "
+                    f"{landmarkRes['landmarks'][0]['name']}"
                 )
-        else:
-            bot.reply("An unknown error occured while accessing systems API")
+            else:
+                bot.reply("No landmarks were found for the given system.")
+        bot.reply("An unknown error occured while accessing systems API")
 
     # @require_overseer(None)
     @require_permission(Permissions.overseer)
