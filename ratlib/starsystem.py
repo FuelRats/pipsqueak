@@ -244,7 +244,7 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
                         flush()
             except ValueError:
                 pass
-            except Exception as ex:
+            except Exception:
                 log("Failed to retrieve data")
                 import traceback
                 traceback.print_exc()
@@ -258,10 +258,10 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
         exec("DELETE FROM {ts} WHERE eddb_id NOT IN(SELECT MAX(id) AS id FROM {ts} GROUP BY eddb_id)")
 
         # No need for the temporary 'id' column at this point.
-        exec("ALTER TABLE {ts} DROP id CASCADE");
+        exec("ALTER TABLE {ts} DROP id CASCADE")
         # Making this a primary key (or even just a unique key) apparently affects query planner performance vs the
         # non-existing unique key.
-        exec("ALTER TABLE {ts} ADD PRIMARY KEY(eddb_id)");
+        exec("ALTER TABLE {ts} ADD PRIMARY KEY(eddb_id)")
 
         if prune:
             log("Removing non-updates to existing systems")
@@ -354,7 +354,7 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
         status.starsystem_refreshed = sql.func.clock_timestamp()
         db.add(status)
         db.commit()
-    except Exception as ex:
+    except Exception:
         import traceback
         traceback.print_exc()
         raise
@@ -374,7 +374,7 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
 
 
 @with_session
-def refresh_bloom(bot, db):
+def refresh_bloom(bot, db=None):
     """
     Refreshes the bloom filter.
 
@@ -397,34 +397,47 @@ def refresh_bloom(bot, db):
     return bloom
 
 def sysapi_query(system, querytype):
-    system = system.title()
     if querytype == "search":
         try:
             response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
             if response.status_code != 200:
-                return {"error": "System API did not respond with valid data."}
+                return { "meta": { "error": "System API did not respond with valid data." } }
             result = response.json()
         except Timeout:
-            return {"error": "The request to Systems API timed out!"}
+            return { "meta": { "error": "The request to Systems API timed out!"} }
         return result
     if querytype == "landmark":
         try:
             response = requests.get('https://system.api.fuelrats.com/landmark?name={}'.format(system))
             if response.status_code != 200:
-                return {"error": "System API did not respond with valid data."}
+                return { "meta": { "error": "System API did not respond with valid data."} }
             result = response.json()
         except Timeout:
-            return {"error": "The request to Systems API timed out!"}
+            return { "meta": { "error": "The request to Systems API timed out!"} }
         return result
     else:
         try:
-            response = requests.get(f'https://system.api.fuelrats.com/api/systems?filter[name:eq]={system}')
+            response = requests.get('https://system.api.fuelrats.com/api/systems?filter[name:eq]={}'.format(system))
             if response.status_code != 200:
-                return {"error": "System API did not respond with valid data."}
+                return { "meta": { "error": "System API did not respond with valid data."} }
             result = response.json()['data']
         except Timeout:
-            return {"error": "The request to Systems API timed out!"}
+            return { "meta": { "error": "The request to Systems API timed out!"} }
         return result
+
+def validate(system):
+    searchRes = sysapi_query(system, 'search')
+    if searchRes and "data" in searchRes:
+        bestMatch = searchRes['data'][0]
+        if bestMatch and (bestMatch['similarity'] == "Perfect match" or bestMatch['similarity'] == 1.0):
+            return bestMatch['name']
+    return None
+
+def get_nearest_landmark(system):
+    landmarkRes = sysapi_query(system, 'landmark')
+    if landmarkRes and "landmarks" in landmarkRes:
+        return landmarkRes['landmarks'][0]
+    return None
 
 def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
     """

@@ -85,9 +85,10 @@ def search(bot, trigger, db=None):
         system_name += " (autocorrected)"
 
     result = sysapi_query(system, "search")
-    if "error" in result:
-        return bot.say(f"An error occured while accessing systems API: {result['error']}")
     if result:
+        if "error" in result['meta']:
+            return bot.say(f"An error occured while accessing systems API: {result['meta']['error']}")
+
         return bot.say("Nearest matches for {system_name} are: {matches}".format(
             system_name=system_name,
             matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result['data'])
@@ -393,15 +394,16 @@ def cmd_landmark(bot, trigger, db=None):
 
     def subcommand_near(*unused_args, **unused_kwargs):
         result = sysapi_query(f'{system_name}', 'landmark')
-        if not result:
-            return
-        if "error" in result['meta']:
-            bot.reply("System not found!")
+        if result:
+            if "error" in result['meta']:
+                return bot.reply(f"An error occured while accessing systems API: {result['meta']['error']}")
+            else:
+                bot.reply(
+                    f"{result['meta']['name']} is {result['landmarks'][0]['distance']:.2f} LY from "
+                    f"{result['landmarks'][0]['name']}"
+                )
         else:
-            bot.reply(
-                f"{result['meta']['name']} is {result['landmarks'][0]['distance']:.2f} LY from "
-                f"{result['landmarks'][0]['name']}"
-            )
+            bot.reply("An unknown error occured while accessing systems API")
 
     # @require_overseer(None)
     @require_permission(Permissions.overseer)
