@@ -128,7 +128,7 @@ def setup(bot):
     try:
         refresh_cases(bot)
         updateBoardIndexes(bot)
-    except ratlib.api.http.BadResponseError as ex:
+    except ratlib.api.http.BadResponseError:
         warnings.warn("Failed to perform initial sync against the API")
         import traceback
         traceback.print_exc()
@@ -1135,7 +1135,7 @@ def cmd_inject(bot, trigger, case, line):
 
 @ratlib.sopel.filter_output
 @parameterize('FT', usage='<client or case number> <text to add>')
-def func_inject(bot, trigger, find_result, line):
+def func_inject(bot, trigger, find_result=None, line=None):
     """
     Inject a custom line of text into the client's case.
     required parameters: Client name or case number, quote to add.
@@ -1377,7 +1377,7 @@ def cmd_codered(bot, trigger, rescue):
 
 @requires_case
 @require_permission(Permissions.rat)
-def cmd_platform(bot, trigger, rescue, platform=None):
+def cmd_platform(bot, trigger, rescue=None, platform=None):
     """
     Sets a case platform to PC or xbox.
     """
