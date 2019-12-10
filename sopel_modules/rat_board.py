@@ -41,6 +41,7 @@ from sopel.module import require_privmsg, rate
 
 import ratlib.sopel
 from ratlib import timeutil, starsystem
+from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
 from ratlib.api.props import *
 from ratlib.api.names import *
