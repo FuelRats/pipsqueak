@@ -43,7 +43,7 @@ import ratlib.sopel
 from ratlib import timeutil
 from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
-from ratlib.starsystem import scan_for_systems, sysapi_query
+from ratlib.starsystem import scan_for_systems, sysapi_query, validate_system, get_nearest_landmark
 from ratlib.api.props import *
 from ratlib.api.names import *
 from ratlib.sopel import UsageError
@@ -1433,10 +1433,10 @@ def cmd_system(bot, trigger, rescue, system):
     # Try to find the system in EDDB.
     fmt = "Location of {name} set to {rescue.system}"
 
-    result = sysapi_query(system, "search")
+    validatedSystem = validate_system(system)
 
-    if result and "meta" in result and result['meta']['type'] == "Perfect match":
-        system = result['name']
+    if validatedSystem:
+        system = validatedSystem
     else:
         fmt += "  (not in Fuelrats System Database)"
     rescue.system = system
@@ -1575,7 +1575,7 @@ def ratmama_parse(bot, trigger):
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
-            systemSearch = sysapi_query(fields["system"], "search")
+            validatedSystem = validate_system(fields["system"])
 
             if case.codeRed:
                 fields["o2"] = bold(color(fields["o2"], colors.RED))
@@ -1592,11 +1592,9 @@ def ratmama_parse(bot, trigger):
             fields["system"] = bold(fields["system"])
             fields["cmdr"] = bold(fields["cmdr"])
 
-            if systemSearch and not "error" in systemSearch and systemSearch['meta']['type'] == "Perfect match":
-                landmarks = sysapi_query(systemSearch['meta']['name'], "landmark")
-                if landmarks and not "error" in landmarks and not "error" in landmarks['meta']:
-                    nearest = landmarks['landmarks'][0]
-                    if nearest and nearest['name'].lower() != landmarks['meta']['name'].lower():
+            if validatedSystem:
+                nearest = get_nearest_landmark(validatedSystem)
+                if nearest and nearest['name'].lower() != validatedSystem.lower():
                         fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
             else:
                 fields["system"] += " (not in Fuelrats System Database)"
