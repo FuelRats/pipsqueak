@@ -1594,7 +1594,7 @@ def ratmama_parse(bot, trigger):
 
             if validatedSystem:
                 nearest = get_nearest_landmark(validatedSystem)
-                if nearest and nearest['name'].lower() != validatedSystem.lower():
+                if nearest and nearest['name'].casefold() != validatedSystem.casefold():
                         fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
             else:
                 fields["system"] += " (not in Fuelrats System Database)"
