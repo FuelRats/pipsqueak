@@ -91,7 +91,7 @@ def search(bot, trigger, db=None):
 
         return bot.say("Nearest matches for {system_name} are: {matches}".format(
             system_name=system_name,
-            matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result['data'])
+            matches=", ".join('"{0[name]}" [{0[similarity]:.2%}]'.format(row) for row in result['data'])
         ))
     return bot.say("No similar results for {system_name}".format(system_name=system_name))
 
