@@ -396,37 +396,31 @@ def refresh_bloom(bot, db=None):
     bot.memory['ratbot']['stats']['starsystem_bloom'] = {'entries': count, 'time': t.seconds}
     return bloom
 
-def sysapi_query(system, querytype):
-    if querytype == "search":
-        try:
-            response = requests.get('https://system.api.fuelrats.com/search?name={}'.format(system))
-            if response.status_code != 200:
-                return { "meta": { "error": "System API did not respond with valid data." } }
-            result = response.json()
-        except Timeout:
-            return { "meta": { "error": "The request to Systems API timed out!"} }
-        return result
+def sysapi_query(system, querytype=None):
+    """
+    Queries systems api for name matches or landmarks.
+    """
     if querytype == "landmark":
-        try:
-            response = requests.get('https://system.api.fuelrats.com/landmark?name={}'.format(system))
-            if response.status_code != 200:
-                return { "meta": { "error": "System API did not respond with valid data."} }
-            result = response.json()
-        except Timeout:
-            return { "meta": { "error": "The request to Systems API timed out!"} }
-        return result
+        endpoint = f"landmark?name={system}"
+    elif querytype == "smart":
+        endpoint = f"mecha?name={system}"
     else:
-        try:
-            response = requests.get('https://system.api.fuelrats.com/api/systems?filter[name:eq]={}'.format(system))
-            if response.status_code != 200:
-                return { "meta": { "error": "System API did not respond with valid data."} }
-            result = response.json()['data']
-        except Timeout:
-            return { "meta": { "error": "The request to Systems API timed out!"} }
-        return result
+        endpoint = f"search?name={system}"
+
+    try:
+        response = requests.get(f"https://system.api.fuelrats.com/{endpoint}")
+        if response.status_code != 200:
+            return { "meta": { "error": "System API did not respond with valid data." } }
+        result = response.json()
+    except Timeout:
+        return { "meta": { "error": "The request to Systems API timed out!"} }
+    return result
 
 def validate(system):
-    searchRes = sysapi_query(system, 'search')
+    """
+    Validates if the given system name exists in the systems API.
+    """
+    searchRes = sysapi_query(system)
     if searchRes and searchRes.get('data'):
         bestMatch = searchRes['data'][0]
         if bestMatch and (bestMatch['similarity'] == "Perfect match" or bestMatch['similarity'] == 1.0):
@@ -434,6 +428,9 @@ def validate(system):
     return None
 
 def get_nearest_landmark(system):
+    """
+    Gets the nearest landmark to the given system. Assumes given system is correct.
+    """
     landmarkRes = sysapi_query(system, 'landmark')
     if landmarkRes and landmarkRes.get('landmarks'):
         return landmarkRes['landmarks'][0]
@@ -503,7 +500,7 @@ def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
                     break
                 # Try to find the actual system.
                 check = " ".join(words[ix:endix])
-                systemRes = sysapi_query(check, 'search')
+                systemRes = sysapi_query(check)
                 if systemRes and not "error" in systemRes and systemRes['meta']['type'] == 'Perfect match':
                     results[prefix.first_word] = systemRes['meta']['name']
                     break
