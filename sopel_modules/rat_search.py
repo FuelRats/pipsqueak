@@ -222,12 +222,15 @@ def cmd_scan(bot, trigger):
     """
     Used for system name detection testing.
     """
-    if not trigger.group(2):
-        bot.reply("Usage: {} <line of text>".format(trigger.group(1)))
+    bot.say("System Autodetection is no longer a function of mecha 2. See you in mecha 3!")
+    return NOLIMIT
 
-    line = trigger.group(2).strip()
-    results = rl_starsystem.scan_for_systems(bot, line)
-    bot.say("Scan results: {}".format(", ".join(results) if results else "no match found"))
+    # if not trigger.group(2):
+    #     bot.reply("Usage: {} <line of text>".format(trigger.group(1)))
+
+    # line = trigger.group(2).strip()
+    # results = rl_starsystem.scan_for_systems(bot, line)
+    # bot.say("Scan results: {}".format(", ".join(results) if results else "no match found"))
 
 
 @commands('plot')
