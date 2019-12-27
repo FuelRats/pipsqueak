@@ -647,12 +647,17 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
                     rv.added_lines.append("[Autocorrected system name, original was {}]".format(originals))
     else:
         rv.added_lines = lines
-    if rv.added_lines and detect_system and not rv.rescue.system:
-        systems = starsystem.scan_for_systems(bot, rv.added_lines[0])
-        if len(systems) == 1:
-            rv.detected_system = systems.pop()
-            rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
-            rv.rescue.system = rv.detected_system
+
+    # System autodetection has been removed due to starsystem backend replacement and the effort required to continue supporting this feature.
+    # It shall be re-implemented in Mecha 3
+    #
+    # if rv.added_lines and detect_system and not rv.rescue.system:
+    #     systems = starsystem.scan_for_systems(bot, rv.added_lines[0])
+    #     if len(systems) == 1:
+    #         rv.detected_system = systems.pop()
+    #         rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
+    #         rv.rescue.system = rv.detected_system
+
     if detect_platform and rv.rescue.platform == None:
         platforms = set()
         for line in rv.added_lines:
