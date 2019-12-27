@@ -222,7 +222,7 @@ def cmd_scan(bot, trigger):
     """
     Used for system name detection testing.
     """
-    bot.say("System Autodetection is no longer a function of Mecha 2, and shall be re-implemented in Mecha 3.")
+    bot.reply("System Autodetection is no longer a function of Mecha 2 and shall be re-implemented in Mecha 3.")
     return NOLIMIT
 
     # if not trigger.group(2):
