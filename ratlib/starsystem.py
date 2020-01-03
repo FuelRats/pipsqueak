@@ -3,7 +3,7 @@ Utilities for handling starsystem names and the like.
 
 This is specifically named 'starsystem' rather than 'system' for reasons that should be obvious.
 
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -23,6 +23,8 @@ except ImportError:
     import collections as collections_abc
 
 import requests
+from requests.exceptions import Timeout
+
 import sqlalchemy as sa
 from sqlalchemy import sql, orm, schema
 
@@ -242,7 +244,7 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
                         flush()
             except ValueError:
                 pass
-            except Exception as ex:
+            except Exception:
                 log("Failed to retrieve data")
                 import traceback
                 traceback.print_exc()
@@ -256,10 +258,10 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
         exec("DELETE FROM {ts} WHERE eddb_id NOT IN(SELECT MAX(id) AS id FROM {ts} GROUP BY eddb_id)")
 
         # No need for the temporary 'id' column at this point.
-        exec("ALTER TABLE {ts} DROP id CASCADE");
+        exec("ALTER TABLE {ts} DROP id CASCADE")
         # Making this a primary key (or even just a unique key) apparently affects query planner performance vs the
         # non-existing unique key.
-        exec("ALTER TABLE {ts} ADD PRIMARY KEY(eddb_id)");
+        exec("ALTER TABLE {ts} ADD PRIMARY KEY(eddb_id)")
 
         if prune:
             log("Removing non-updates to existing systems")
@@ -352,7 +354,7 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
         status.starsystem_refreshed = sql.func.clock_timestamp()
         db.add(status)
         db.commit()
-    except Exception as ex:
+    except Exception:
         import traceback
         traceback.print_exc()
         raise
@@ -372,7 +374,7 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
 
 
 @with_session
-def refresh_bloom(bot, db):
+def refresh_bloom(bot, db=None):
     """
     Refreshes the bloom filter.
 
@@ -394,6 +396,45 @@ def refresh_bloom(bot, db):
     bot.memory['ratbot']['stats']['starsystem_bloom'] = {'entries': count, 'time': t.seconds}
     return bloom
 
+def sysapi_query(system, querytype=None):
+    """
+    Queries systems api for name matches or landmarks.
+    """
+    if querytype == "landmark":
+        endpoint = f"landmark?name={system}"
+    elif querytype == "smart":
+        endpoint = f"mecha?name={system}"
+    else:
+        endpoint = f"search?name={system}"
+
+    try:
+        response = requests.get(f"https://system.api.fuelrats.com/{endpoint}")
+        if response.status_code != 200:
+            return { "meta": { "error": "System API did not respond with valid data." } }
+        result = response.json()
+    except Timeout:
+        return { "meta": { "error": "The request to Systems API timed out!"} }
+    return result
+
+def validate(system):
+    """
+    Validates if the given system name exists in the systems API.
+    """
+    searchRes = sysapi_query(system)
+    if searchRes and searchRes.get('data'):
+        bestMatch = searchRes['data'][0]
+        if bestMatch and (bestMatch['similarity'] == "Perfect match" or bestMatch['similarity'] == 1.0):
+            return bestMatch['name']
+    return None
+
+def get_nearest_landmark(system):
+    """
+    Gets the nearest landmark to the given system. Assumes given system is correct.
+    """
+    landmarkRes = sysapi_query(system, 'landmark')
+    if landmarkRes and landmarkRes.get('landmarks'):
+        return landmarkRes['landmarks'][0]
+    return None
 
 def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
     """
@@ -459,10 +500,10 @@ def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
                     break
                 # Try to find the actual system.
                 check = " ".join(words[ix:endix])
-                system = db.query(Starsystem).filter(Starsystem.name_lower == check).first()
-                if not system or (prefix.first_word in results and len(results[prefix.first_word]) > len(system.name)):
-                    continue
-                results[prefix.first_word] = system.name
+                systemRes = sysapi_query(check)
+                if systemRes and not "error" in systemRes and systemRes['meta']['type'] == 'Perfect match':
+                    results[prefix.first_word] = systemRes['meta']['name']
+                    break
         return set(results.values())
     finally:
         db.rollback()

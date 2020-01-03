@@ -2,7 +2,7 @@
 """
 rat_board.py - Fuel Rats Cases module.
 
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -40,16 +40,15 @@ from sopel.config.types import StaticSection, ValidatedAttribute
 from sopel.module import require_privmsg, rate
 
 import ratlib.sopel
-from ratlib import timeutil
+from ratlib import timeutil, starsystem
 from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
-from ratlib.starsystem import scan_for_systems
 from ratlib.api.props import *
 from ratlib.api.names import *
 from ratlib.sopel import UsageError
 import ratlib.api.http
 import ratlib.db
-from ratlib.db import with_session, Starsystem
+from ratlib.db import with_session
 from ratlib.api.v2compatibility import convertV2DataToV1, convertV1RescueToV2
 from ratlib.languages import Language
 
@@ -128,14 +127,13 @@ def setup(bot):
     try:
         refresh_cases(bot)
         updateBoardIndexes(bot)
-    except ratlib.api.http.BadResponseError as ex:
+    except ratlib.api.http.BadResponseError:
         warnings.warn("Failed to perform initial sync against the API")
         import traceback
         traceback.print_exc()
 
 
 FindRescueResult = collections.namedtuple('FindRescueResult', ['rescue', 'created'])
-
 
 class RescueBoard:
     """
@@ -649,12 +647,17 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
                     rv.added_lines.append("[Autocorrected system name, original was {}]".format(originals))
     else:
         rv.added_lines = lines
-    if rv.added_lines and detect_system and not rv.rescue.system:
-        systems = scan_for_systems(bot, rv.added_lines[0])
-        if len(systems) == 1:
-            rv.detected_system = systems.pop()
-            rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
-            rv.rescue.system = rv.detected_system
+
+    # System autodetection has been removed due to starsystem backend replacement and the effort required to continue supporting this feature.
+    # It shall be re-implemented in Mecha 3
+    #
+    # if rv.added_lines and detect_system and not rv.rescue.system:
+    #     systems = starsystem.scan_for_systems(bot, rv.added_lines[0])
+    #     if len(systems) == 1:
+    #         rv.detected_system = systems.pop()
+    #         rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
+    #         rv.rescue.system = rv.detected_system
+
     if detect_platform and rv.rescue.platform == None:
         platforms = set()
         for line in rv.added_lines:
@@ -944,11 +947,11 @@ def cmd_list(bot, trigger, *remainder):
             offset += 1
     tmpStr = ''.join(tmp)
     plats = tmpStr.split(' ')
-    
+
     for x in plats:
         if x not in ['pc', 'ps', 'xb', '',  '-']:
             raise UsageError()
-    
+
     showpc = 'pc' in plats
     showps = 'ps' in plats
     showxb = 'xb' in plats
@@ -1136,7 +1139,7 @@ def cmd_inject(bot, trigger, case, line):
 
 @ratlib.sopel.filter_output
 @parameterize('FT', usage='<client or case number> <text to add>')
-def func_inject(bot, trigger, find_result, line):
+def func_inject(bot, trigger, find_result=None, line=None):
     """
     Inject a custom line of text into the client's case.
     required parameters: Client name or case number, quote to add.
@@ -1378,7 +1381,7 @@ def cmd_codered(bot, trigger, rescue):
 
 @requires_case
 @require_permission(Permissions.rat)
-def cmd_platform(bot, trigger, rescue, platform=None):
+def cmd_platform(bot, trigger, rescue=None, platform=None):
     """
     Sets a case platform to PC or xbox.
     """
@@ -1421,9 +1424,8 @@ def cmd_plaform_ps(bot, trigger):
 @commands('sys', 'system', 'loc', 'location')
 @ratlib.sopel.filter_output
 @parameterize('rT', usage='<client or case number> <system name>')
-@ratlib.db.with_session
 @require_permission(Permissions.rat)
-def cmd_system(bot, trigger, rescue, system, db=None):
+def cmd_system(bot, trigger, rescue, system):
     """
     Sets a case's system.
     required parameters: Client name or case number, system location
@@ -1435,9 +1437,10 @@ def cmd_system(bot, trigger, rescue, system, db=None):
     # Try to find the system in EDDB.
     fmt = "Location of {name} set to {rescue.system}"
 
-    result = db.query(Starsystem).filter(Starsystem.name_lower == system.lower()).first()
-    if result:
-        system = result.name
+    validatedSystem = starsystem.validate(system)
+
+    if validatedSystem:
+        system = validatedSystem
     else:
         fmt += "  (not in Fuelrats System Database)"
     rescue.system = system
@@ -1517,8 +1520,7 @@ _ratmama_regex = re.compile(r"""
 
 @rule('Incoming Client:.* - O2:.*')
 @require_chanmsg
-@with_session
-def ratmama_parse(bot, trigger, db):
+def ratmama_parse(bot, trigger):
     """
     Parse Incoming KiwiIRC clients that are announced by RatMama
 
@@ -1577,7 +1579,7 @@ def ratmama_parse(bot, trigger, db):
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
-            system = db.query(Starsystem).filter(Starsystem.name_lower == fields["system"].lower()).first()
+            validatedSystem = starsystem.validate(fields["system"])
 
             if case.codeRed:
                 fields["o2"] = bold(color(fields["o2"], colors.RED))
@@ -1594,10 +1596,10 @@ def ratmama_parse(bot, trigger, db):
             fields["system"] = bold(fields["system"])
             fields["cmdr"] = bold(fields["cmdr"])
 
-            if system:
-                nearest, distance = system.nearest_landmark(db, with_distance=True)
-                if nearest and nearest.name_lower != system.name_lower:
-                    fields["system"] += " ({:.2f} LY from {})".format(distance, nearest.name)
+            if validatedSystem:
+                nearest = starsystem.get_nearest_landmark(validatedSystem)
+                if nearest and nearest['name'].casefold() != validatedSystem.casefold():
+                        fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
             else:
                 fields["system"] += " (not in Fuelrats System Database)"
 
