@@ -2,7 +2,7 @@
 """
 rat_twitter.py - Fuel Rats Twitter module
 
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -23,8 +23,8 @@ from sopel.module import commands
 from twitter import TwitterError
 
 import ratlib.sopel
+from ratlib import starsystem
 from ratlib.api.names import Permissions, require_permission
-from ratlib.db import with_session, Starsystem
 from ratlib.sopel import parameterize
 
 
@@ -101,7 +101,7 @@ def requires_case(fn):
 def cmd_tweetdebug(bot, trigger):
     """
     Toggles debug mode on and off. Does not save when the bot is reloaded.
-    In debug mode, tweets are not sent. Debug mode defaults to False.    
+    In debug mode, tweets are not sent. Debug mode defaults to False.
     """
     api = bot.memory['ratbot']['twitterapi']
 
@@ -119,8 +119,8 @@ def cmd_tweetdebug(bot, trigger):
 @parameterize("t", usage="<text to tweet>")
 @require_permission(Permissions.rat)
 def cmd_tweet(bot, trigger, line):
-    """ 
-    Tweet your heart out! (Serious messages though!) 
+    """
+    Tweet your heart out! (Serious messages though!)
     Will filter out if you try to give away details about our clients in the message.
     Required parameter: The message you want to send, max 140 characters.
     """
@@ -172,54 +172,43 @@ def cmd_tweet(bot, trigger, line):
     pass
 
 
-def get_tweet_for_case(rescue, db):
-
-    def lookup_system(name, model=Starsystem):
-        if name is not None:
-            return db.query(model).filter(model.name_lower == name.lower()).first()
-        return None
-
+def get_tweet_for_case(rescue):
     platform = rescue.platform.upper()
     cr = "CR " if rescue.codeRed else ""
+    nearSystem = ""
 
-    # this is the base message
-    message = "[{platform}] Rats needed for {cr}rescue!".format(platform=platform, cr=cr)
 
-    if db is None:
-        return message
+    validatedSystem = starsystem.validate(rescue.system)
+    if validatedSystem:
+        nearestLandmark = starsystem.get_nearest_landmark(validatedSystem)
 
-    starsystem = lookup_system(rescue.system)
-    if starsystem:
-        landmark, distance = starsystem.nearest_landmark(db, True)
+        if nearestLandmark:
+            name, distance = nearestLandmark
+            if (name.casefold() == validatedSystem.casefold()) or distance < 50:
+                nearSystem = " near {system}".format(platform=platform, cr=cr, system=name)
 
-        # we couldn't calculate a distance (system not in eddb, probably)
-        if distance is None:
-            return message
+            if distance < 500:
+                nearSystem = ' ~{dist}LY from {system}'.format(dist=math.ceil(distance / 10) * 10, system=name)
+            elif distance < 2000:
+                nearSystem = ' ~{dist}LY from {system}'.format(dist=math.ceil(distance / 100) * 100, system=name)
+            else:
+                nearSystem = ' ~{dist}kLY from {system}'.format(dist=math.ceil(distance / 1000), system=name)
 
-        if (starsystem.name_lower == landmark.name_lower) or distance < 50:
-            return "[{platform}] Rats needed for {cr}rescue near {system}!".format(platform=platform, cr=cr, system=landmark.name)
+    return "[{platform}] Rats needed for a {cr}rescue{nearSystem}!".format(
+        platform=platform,
+        cr=cr,
+        nearSystem=nearSystem
+    )
 
-        # let's work on distances
-        if distance < 500:
-            dist = '{dist}LY'.format(dist=math.ceil(distance / 10) * 10)
-        elif distance < 2000:
-            dist = '{dist}LY'.format(dist=math.ceil(distance / 100) * 100)
-        else:
-            dist = '{dist}kLY'.format(dist=math.ceil(distance / 1000))
-
-        return "[{platform}] Rats needed for {cr}rescue {distance} from {system}!".format(platform=platform, cr=cr, distance=dist, system=landmark.name)
-
-    return message
 
 @commands('tweetcase','tweetc')
 @parameterize('r', usage='<client or case number>')
-@with_session
 @require_permission(Permissions.rat)
-def cmd_tweetc(bot, trigger, rescue, db = None):
+def cmd_tweetc(bot, trigger, rescue):
     """
     Send a tweet based on a case, using generic terms (in bubble, near landmark).
     Required parameter: Client name or board index.
-    
+
     Aliases: tweetcase, tweetc
     """
     api = bot.memory['ratbot']['twitterapi']
@@ -239,7 +228,7 @@ def cmd_tweetc(bot, trigger, rescue, db = None):
         bot.say('The case has no assigned system. Please do this before sending a tweet.')
         return
 
-    message = get_tweet_for_case(rescue, db)
+    message = get_tweet_for_case(rescue)
 
     if not message:
         bot.say('An unknown error occurred. Speak with your local Tech Rats')
