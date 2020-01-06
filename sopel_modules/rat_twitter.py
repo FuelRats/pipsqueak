@@ -29,6 +29,7 @@ from ratlib.sopel import parameterize
 
 
 class TwitterSection(StaticSection):
+    debug = ValidatedAttribute('debug', bool, default=False)
     consumer_key = ValidatedAttribute('consumer_key', str, default='undefined')
     consumer_secret = ValidatedAttribute('consumer_secret', str, default='undefined')
     access_token_key = ValidatedAttribute('access_token_key', str, default='undefined')
@@ -37,6 +38,12 @@ class TwitterSection(StaticSection):
 def configure(config):
     ratlib.sopel.configure(config)
     config.define_section('twitter', TwitterSection)
+    config.twitter.configure_setting(
+        'debug',
+        (
+            "Sets if debug mode is active by default."
+        )
+    )
     config.twitter.configure_setting(
         'consumer_key',
         (
@@ -68,6 +75,8 @@ def setup(bot):
         warnings.warn("Twitter module configuration failed.")
         return
 
+    bot.memory['ratbot']['twitterdebug'] = bot.config.twitter.debug
+
     api = twitter.Api(
         consumer_key=bot.config.twitter.consumer_key,
         consumer_secret=bot.config.twitter.consumer_secret,
@@ -82,7 +91,6 @@ def setup(bot):
         return
 
     bot.memory['ratbot']['twitterapi'] = api
-    bot.memory['ratbot']['twitterdebug'] = False
 
 # Convenience function
 def requires_case(fn):
@@ -95,6 +103,12 @@ def cmd_tweetdebug(bot, trigger):
     Toggles debug mode on and off. Does not save when the bot is reloaded.
     In debug mode, tweets are not sent. Debug mode defaults to False.    
     """
+    api = bot.memory['ratbot']['twitterapi']
+
+    if not api:
+        bot.reply('Cannot disable debug mode when Twitter API is not configured.')
+        return
+
     debug = bot.memory['ratbot']['twitterdebug']
     debug = not debug
     bot.memory['ratbot']['twitterdebug'] = debug
@@ -113,7 +127,7 @@ def cmd_tweet(bot, trigger, line):
     api = bot.memory['ratbot']['twitterapi']
     debug = bot.memory['ratbot']['twitterdebug']
 
-    if not api:
+    if not api or not debug:
         bot.reply("The Twitter interface is not correctly configured. Unable to continue.")
         return
 
@@ -211,7 +225,7 @@ def cmd_tweetc(bot, trigger, rescue, db = None):
     api = bot.memory['ratbot']['twitterapi']
     debug = bot.memory['ratbot']['twitterdebug']
 
-    if not api:
+    if not api or not debug:
         bot.reply("The Twitter interface is not correctly configured. Unable to continue.")
         return
 
