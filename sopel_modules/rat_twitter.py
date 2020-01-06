@@ -105,12 +105,12 @@ def cmd_tweetdebug(bot, trigger):
     In debug mode, tweets are not sent. Debug mode defaults to False.
     """
     api = bot.memory['ratbot']['twitterapi']
+    debug = bot.memory['ratbot']['twitterdebug']
 
-    if api is None:
+    if api is None and debug:
         bot.reply('Cannot disable debug mode when Twitter API is not configured.')
         return
 
-    debug = bot.memory['ratbot']['twitterdebug']
     debug = not debug
     bot.memory['ratbot']['twitterdebug'] = debug
     bot.reply('Done. Twitter module is now {}in debug mode.'.format('not ' if not debug else ''))
