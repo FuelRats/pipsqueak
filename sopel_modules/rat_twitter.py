@@ -184,16 +184,18 @@ def get_tweet_for_case(rescue):
         nearestLandmark = starsystem.get_nearest_landmark(validatedSystem)
 
         if nearestLandmark:
-            name, distance = nearestLandmark
-            if (name.casefold() == validatedSystem.casefold()) or distance < 50:
-                nearSystem = " near {system}".format(platform=platform, cr=cr, system=name)
+            landmarkName = nearestLandmark['name']
+            landmarkDistance = nearestLandmark['distance']
 
-            if distance < 500:
-                nearSystem = ' ~{dist}LY from {system}'.format(dist=math.ceil(distance / 10) * 10, system=name)
-            elif distance < 2000:
-                nearSystem = ' ~{dist}LY from {system}'.format(dist=math.ceil(distance / 100) * 100, system=name)
+            if (landmarkName.casefold() == validatedSystem.casefold()) or landmarkDistance < 50:
+                nearSystem = " near {system}".format(platform=platform, cr=cr, system=landmarkName)
+
+            if landmarkDistance < 500:
+                nearSystem = ' ~{dist}LY from {system}'.format(dist=math.ceil(landmarkDistance / 10) * 10, system=landmarkName)
+            elif landmarkDistance < 2000:
+                nearSystem = ' ~{dist}LY from {system}'.format(dist=math.ceil(landmarkDistance / 100) * 100, system=landmarkName)
             else:
-                nearSystem = ' ~{dist}kLY from {system}'.format(dist=math.ceil(distance / 1000), system=name)
+                nearSystem = ' ~{dist}kLY from {system}'.format(dist=math.ceil(landmarkDistance / 1000), system=landmarkName)
 
     return "[{platform}] Rats needed for a {cr}rescue{nearSystem}!".format(
         platform=platform,
