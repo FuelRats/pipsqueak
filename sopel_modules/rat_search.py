@@ -58,8 +58,7 @@ def setup(bot):
 
 @commands('search')
 @example('!search lave', '')
-@with_session
-def search(bot, trigger, db=None):
+def search(bot, trigger):
     """
     Searches for system name matches. Recoded to pull from Systems API.
     """
@@ -86,14 +85,16 @@ def search(bot, trigger, db=None):
 
     result = rl_starsystem.sysapi_query(system, "smart")
     if result:
+        if "data" in result:
+            return bot.say("Nearest matches for {system} are: {matches}".format(
+                system=system_name,
+                matches=", ".join('"{0[name]}" [{0[similarity]:.1%}]'.format(row) for row in result['data'])
+            ))
         if "error" in result['meta']:
-            return bot.say(f"An error occured while accessing systems API: {result['meta']['error']}")
-
-        return bot.say("Nearest matches for {system_name} are: {matches}".format(
-            system_name=system_name,
-            matches=", ".join('"{0[name]}" [{0[similarity]:.1%}]'.format(row) for row in result['data'])
-        ))
-    return bot.say("No similar results for {system_name}".format(system_name=system_name))
+            if result['meta']['error'] == "No hits.":
+                return bot.say("No similar results for {system}".format(system=system_name))
+            return bot.say("An error occured while accessing systems API: {error}".format(error=result['meta']['error']))
+    return bot.say("An unkown error occured while accessing systems API.")
 
 
 def refresh_time_stats(bot):
