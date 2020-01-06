@@ -128,7 +128,7 @@ def cmd_tweet(bot, trigger, line):
     api = bot.memory['ratbot']['twitterapi']
     debug = bot.memory['ratbot']['twitterdebug']
 
-    if api is None or not debug:
+    if api is None and not debug:
         bot.reply("The Twitter interface is not correctly configured. Unable to continue.")
         return
 
@@ -215,7 +215,7 @@ def cmd_tweetc(bot, trigger, rescue):
     api = bot.memory['ratbot']['twitterapi']
     debug = bot.memory['ratbot']['twitterdebug']
 
-    if api is None or not debug:
+    if api is None and not debug:
         bot.reply("The Twitter interface is not correctly configured. Unable to continue.")
         return
 
