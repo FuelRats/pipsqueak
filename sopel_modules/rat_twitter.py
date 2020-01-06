@@ -75,6 +75,7 @@ def setup(bot):
         warnings.warn("Twitter module configuration failed.")
         return
 
+    bot.memory['ratbot']['twitterapi'] = None
     bot.memory['ratbot']['twitterdebug'] = bot.config.twitter.debug
 
     api = twitter.Api(
@@ -105,7 +106,7 @@ def cmd_tweetdebug(bot, trigger):
     """
     api = bot.memory['ratbot']['twitterapi']
 
-    if not api:
+    if api is None:
         bot.reply('Cannot disable debug mode when Twitter API is not configured.')
         return
 
@@ -127,7 +128,7 @@ def cmd_tweet(bot, trigger, line):
     api = bot.memory['ratbot']['twitterapi']
     debug = bot.memory['ratbot']['twitterdebug']
 
-    if not api or not debug:
+    if api is None or not debug:
         bot.reply("The Twitter interface is not correctly configured. Unable to continue.")
         return
 
@@ -214,7 +215,7 @@ def cmd_tweetc(bot, trigger, rescue):
     api = bot.memory['ratbot']['twitterapi']
     debug = bot.memory['ratbot']['twitterdebug']
 
-    if not api or not debug:
+    if api is None or not debug:
         bot.reply("The Twitter interface is not correctly configured. Unable to continue.")
         return
 
