@@ -866,18 +866,21 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     if len(firstlimpet) == 1:
         rat = getRatId(bot, firstlimpet[0], rescue.platform)['id']
         if rat != "0":
+            if rat not in rescue.rats:
+                try:
+                    callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':[rat]}, triggernick=str(trigger.nick))
+                    # debug. disable for release
+                    bot.reply('Rat was not assigned to case. Now it is! You\'re welcome!')
+                except ratlib.api.http.APIError:
+                    bot.reply('Failed to automatically assign first limpet to case. Please assign rat first and try again.')
+                    return
+                rescue.rats.update([rat])
+
             rescue.firstLimpet = rat
-            dt = datetime.date(2017, 4, 1)
-            if datetime.date.today() == dt:
-                bot.say(
-                    'Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: http://t.fuelr.at/a41',
-                    firstlimpet[0])
-            else:
+
                 bot.say(
                 'Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: ' + url,
                 firstlimpet[0])
-            if rat not in rescue.rats:
-                rescue.rats.update([rat])
         else:
             bot.reply('Couldn\'t find a Rat on ' + str(rescue.platform) + ' for ' + str(
                 firstlimpet[0]) + ', sorry! Case not closed, try again!')
