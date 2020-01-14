@@ -43,8 +43,8 @@ import ratlib.sopel
 from ratlib import timeutil, starsystem
 from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
-from ratlib.api.props import *
-from ratlib.api.names import *
+from ratlib.api.props import TrackedBase, TrackedProperty, DateTimeProperty, SetProperty, ListProperty, TypeCoercedProperty, InstrumentedProperty
+from ratlib.api.names import callapi, require_permission, Permissions, getRatName, getRatId, removeTags, flushNames
 from ratlib.sopel import UsageError
 import ratlib.api.http
 import ratlib.db
