@@ -872,7 +872,7 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
                     # debug. disable for release
                     bot.reply('Rat was not assigned to case. Now it is! You\'re welcome!')
                 except ratlib.api.http.APIError:
-                    bot.reply('Failed to automatically assign first limpet to case. Please assign rat first and try again.')
+                    bot.reply('Couldn\'t automatically assign first limpet to rescue. Please assign rat first and try again.')
                     return
                 rescue.rats.update([rat])
 
