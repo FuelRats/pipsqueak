@@ -1229,12 +1229,12 @@ def cmd_epic(bot, trigger, rescue):
     """
     bot.say("Sorry, this command is currently disabled as the epic status is ignored by the API.")
     return
-    rescue.epic = not rescue.epic
-    bot.say(
-        "{rescue.client_name}'s case is now {epic}"
-            .format(rescue=rescue, epic=bold('epic') if rescue.epic else 'not as epic')
-    )
-    save_case_later(bot, rescue)
+    # rescue.epic = not rescue.epic
+    # bot.say(
+    #     "{rescue.client_name}'s case is now {epic}"
+    #         .format(rescue=rescue, epic=bold('epic') if rescue.epic else 'not as epic')
+    # )
+    # save_case_later(bot, rescue)
 
 
 @commands('assign', 'add', 'go', 'gocr')
