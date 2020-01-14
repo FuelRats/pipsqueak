@@ -856,8 +856,8 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     if not markingForDeletion and (not rescue.platform or rescue.platform == 'unknown'):
         bot.say('The case platform is unknown. Please set it with the corresponding command and try again.')
         return
-    url = "https://fuelrats.com/paperwork/{rescue.id}/edit".format(
-        rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
+
+    url = "https://fuelrats.com/paperwork/{rescue.id}/edit".format(rescue=rescue)
     try:
         url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
     except:
