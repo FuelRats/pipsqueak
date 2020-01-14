@@ -869,8 +869,6 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
             if rat not in rescue.rats:
                 try:
                     callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':[rat]}, triggernick=str(trigger.nick))
-                    # debug. disable for release
-                    bot.reply('Rat was not assigned to case. Now it is! You\'re welcome!')
                 except ratlib.api.http.APIError:
                     bot.reply('Couldn\'t automatically assign first limpet to rescue. Please assign rat first and try again.')
                     return
