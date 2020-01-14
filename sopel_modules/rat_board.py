@@ -878,9 +878,9 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
 
             rescue.firstLimpet = rat
 
-                bot.say(
-                'Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: ' + url,
-                firstlimpet[0])
+            bot.say(
+            'Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: ' + url,
+            firstlimpet[0])
         else:
             bot.reply('Couldn\'t find a Rat on ' + str(rescue.platform) + ' for ' + str(
                 firstlimpet[0]) + ', sorry! Case not closed, try again!')
@@ -1284,7 +1284,10 @@ def cmd_assign(bot, trigger, rescue, *rats):
                 .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.data["IRCNick"])
         )
     if len(ratids) > 0:
-        callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
+        try:
+            callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
+        except ratlib.api.http.APIError:
+            bot.reply('id ' + str(id) + ' does not exist or other API Error.')
     save_case_later(bot, rescue)
 
 
@@ -1346,8 +1349,10 @@ def cmd_unassign(bot, trigger, rescue, *rats):
             rat=[rat for rat in rats]))
         # break out, the API write is pointless.
         return
-
-    callapi(bot, 'PUT', '/rescues/unassign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
+    try:
+        callapi(bot, 'PUT', '/rescues/unassign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
+    except ratlib.api.http.APIError:
+        bot.reply('id ' + str(id) + ' does not exist or other API Error.')
 
     bot.say(
         "Removed from {name}'s case: {rats}"
@@ -1676,7 +1681,7 @@ def cmd_reopen(bot, trigger, id):
     Reopens a case by its full database ID
     """
     try:
-        result = callapi(bot, 'PUT', data={'status': 'open'}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
+        callapi(bot, 'PUT', data={'status': 'open'}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
         refresh_cases(bot, force=True)
         updateBoardIndexes(bot)
         bot.say('Reopened case. Cases refreshed, care for your case numbers!')
@@ -1708,8 +1713,11 @@ def func_delete(bot, trigger, id):
             return
         bot.say('Deleted case with id ' + str(id) + ' - THIS IS NOT REVERTIBLE!')
     else:
-        result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}',
-                         triggernick=str(trigger.nick))
+        try:
+            result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}', triggernick=str(trigger.nick))
+        except ratlib.api.http.APIError:
+            bot.reply('Couldn\'t find cases marked for deletion due to API error.')
+
         caselist = []
         try:
             addNamesFromV2Response(result['included'])
