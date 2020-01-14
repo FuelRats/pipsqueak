@@ -915,7 +915,6 @@ def cmd_list(bot, trigger, *remainder):
         -@: Show full case IDs.  (LONG)
 
     """
-    count = 0
     plats = []
     params = ['']
     tmp = ''
@@ -1550,7 +1549,6 @@ def ratmama_parse(bot, trigger):
             fmt += " - IRC Nickname: {nick}"
 
         # Create plaintext versions of newline
-        newline = fmt.format(**fields)
         result = append_quotes(bot, fields["cmdr"], fmt.format(**fields), create=True, author="Mecha")
         case = result.rescue  # Reduce typing later.
 
