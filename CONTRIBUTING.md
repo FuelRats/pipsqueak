@@ -5,6 +5,7 @@ Please refrain from using GitHub to report Issues, as we have since moved our ma
 # Contributing
 
 * You are free to commit to the develop branch directly if you are a Tech Rat Team member.
+* If you are not a Tech Rat Team Member, It is **strongly** advised you consult with one prior to beginning work on a feature / change. 
 
 1. Fork the main repo on github
 2. Create a feature branch
