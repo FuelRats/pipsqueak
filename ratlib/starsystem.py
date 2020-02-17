@@ -400,6 +400,9 @@ def sysapi_query(system, querytype=None):
     """
     Queries systems api for name matches or landmarks.
     """
+
+    sapi_url = bot.config.ratbot.sapi_url or "https://system.api.fuelrats.com/"
+
     if querytype == "landmark":
         endpoint = f"landmark?name={system}"
     elif querytype == "smart":
@@ -408,7 +411,7 @@ def sysapi_query(system, querytype=None):
         endpoint = f"search?name={system}"
 
     try:
-        response = requests.get(f"https://system.api.fuelrats.com/{endpoint}")
+        response = requests.get(urljoin(sapi_url, endpoint))
         if response.status_code != 200:
             return { "meta": { "error": "System API did not respond with valid data." } }
         result = response.json()
