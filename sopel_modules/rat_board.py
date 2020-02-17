@@ -1442,7 +1442,7 @@ def cmd_system(bot, trigger, rescue, system):
     # Try to find the system in EDDB.
     fmt = "Location of {name} set to {rescue.system}"
 
-    validatedSystem = starsystem.validate(system)
+    validatedSystem = starsystem.validate(bot, system)
 
     if validatedSystem:
         system = validatedSystem
@@ -1583,7 +1583,7 @@ def ratmama_parse(bot, trigger):
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
-            validatedSystem = starsystem.validate(fields["system"])
+            validatedSystem = starsystem.validate(bot, fields["system"])
 
             if case.codeRed:
                 fields["o2"] = bold(color(fields["o2"], colors.RED))
@@ -1601,7 +1601,7 @@ def ratmama_parse(bot, trigger):
             fields["cmdr"] = bold(fields["cmdr"])
 
             if validatedSystem:
-                nearest = starsystem.get_nearest_landmark(validatedSystem)
+                nearest = starsystem.get_nearest_landmark(bot, validatedSystem)
                 if nearest and nearest['name'].casefold() != validatedSystem.casefold():
                         fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
             else:

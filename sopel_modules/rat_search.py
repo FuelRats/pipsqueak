@@ -83,7 +83,7 @@ def search(bot, trigger):
     if result.fixed:
         system_name += " (autocorrected)"
 
-    result = rl_starsystem.sysapi_query(system, "smart")
+    result = rl_starsystem.sysapi_query(bot, system, "smart")
     if result:
         if "data" in result:
             return bot.say("Nearest matches for {system} are: {matches}".format(
@@ -393,10 +393,10 @@ def cmd_landmark(bot, trigger, db=None):
         bot.reply("Landmark systems are no longer managed through Mecha.")
 
     def subcommand_near(*unused_args, **unused_kwargs):
-        validatedSystem = rl_starsystem.validate(f'{system_name}')
+        validatedSystem = rl_starsystem.validate(bot, f'{system_name}')
 
         if validatedSystem:
-            landmarkRes = rl_starsystem.sysapi_query(validatedSystem, 'landmark')
+            landmarkRes = rl_starsystem.sysapi_query(bot, validatedSystem, 'landmark')
             if(landmarkRes):
                 if "error" in landmarkRes['meta']:
                     bot.reply(f"An error occured while accessing systems API: {landmarkRes['meta']['error']}")
