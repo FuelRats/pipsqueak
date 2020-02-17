@@ -4,6 +4,9 @@ Please refrain from using GitHub to report Issues, as we have since moved our ma
 
 # Contributing
 
+## IT IS STRONGLY ADVISED TO CONTACT A TECH RAT ON IRC BEFORE WORKING ON THIS PROJECT.
+## THIS BOT IS END-OF-LIFE AND WE PERFORM MAINTENANCE TASKS ONLY.
+
 * You are free to commit to the develop branch directly if you are a Tech Rat Team member.
 
 1. Fork the main repo on github
