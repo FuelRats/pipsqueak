@@ -73,7 +73,7 @@ apiurl = https://dev.api.fuelrats.com
 # apidebug = logs/api.log
 
 # API URL to use to retrieve starsystem data.
-sapi_url=https://systems.api.fuelrats.com/
+sapi_url=https://system.api.fuelrats.com/
 
 # DEPRECATED
 # URL to use to retrieve starsystem data.

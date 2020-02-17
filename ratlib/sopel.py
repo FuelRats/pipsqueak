@@ -60,7 +60,7 @@ class RatbotConfigurationSection(StaticSection):
     workdir = types.FilenameAttribute('workdir', directory=True, default='run')
     alembic = types.FilenameAttribute('alembic', directory=False, default='alembic.ini')
     debug_sql = BooleanAttribute('debug_sql', default=False)
-    sapi_url = types.ValidatedAttribute('sapi_url', str, default="https://systems.api.fuelrats.com/")
+    sapi_url = types.ValidatedAttribute('sapi_url', str, default="https://system.api.fuelrats.com/")
     edsm_url = types.ValidatedAttribute('edsm_url', str, default="http://edsm.net/api-v1/systems?coords=1")
     edsm_maxage = types.ValidatedAttribute('edsm_maxage', int, default=12*60*60)
     edsm_autorefresh = types.ValidatedAttribute('edsm_autorefresh', int, default=4*60*60)
