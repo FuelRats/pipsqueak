@@ -173,15 +173,15 @@ def cmd_tweet(bot, trigger, line):
     pass
 
 
-def get_tweet_for_case(rescue):
+def get_tweet_for_case(bot, rescue):
     platform = rescue.platform.upper()
     cr = "CR " if rescue.codeRed else ""
     nearSystem = ""
 
 
-    validatedSystem = starsystem.validate(rescue.system)
+    validatedSystem = starsystem.validate(bot, rescue.system)
     if validatedSystem:
-        nearestLandmark = starsystem.get_nearest_landmark(validatedSystem)
+        nearestLandmark = starsystem.get_nearest_landmark(bot, validatedSystem)
 
         if nearestLandmark:
             landmarkName = nearestLandmark['name']
@@ -231,7 +231,7 @@ def cmd_tweetc(bot, trigger, rescue):
         bot.say('The case has no assigned system. Please do this before sending a tweet.')
         return
 
-    message = get_tweet_for_case(rescue)
+    message = get_tweet_for_case(bot, rescue)
 
     if not message:
         bot.say('An unknown error occurred. Speak with your local Tech Rats')

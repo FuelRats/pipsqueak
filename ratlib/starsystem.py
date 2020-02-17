@@ -220,7 +220,7 @@ def _refresh_database(bot, force=False, prune=True, callback=None, background=Fa
                     # Parse and reformat system info from CSV
                     name, word_ct = re.subn(r'\s+', ' ', row['name'].strip())
                     name_lower = name.lower()
-                    first_word, *unused = name_lower.split(" ", 1)
+                    first_word, *_ = name_lower.split(" ", 1)
                     word_ct += 1
                     if all((row['x'], row['y'], row['z'])):
                         xz = "({x},{z})".format(**row)
@@ -396,7 +396,7 @@ def refresh_bloom(bot, db=None):
     bot.memory['ratbot']['stats']['starsystem_bloom'] = {'entries': count, 'time': t.seconds}
     return bloom
 
-def sysapi_query(system, querytype=None):
+def sysapi_query(bot, system, querytype=None):
     """
     Queries systems api for name matches or landmarks.
     """
@@ -419,22 +419,22 @@ def sysapi_query(system, querytype=None):
         return { "meta": { "error": "The request to Systems API timed out!"} }
     return result
 
-def validate(system):
+def validate(bot, system):
     """
     Validates if the given system name exists in the systems API.
     """
-    searchRes = sysapi_query(system)
+    searchRes = sysapi_query(bot, system)
     if searchRes and searchRes.get('data'):
         bestMatch = searchRes['data'][0]
         if bestMatch and (bestMatch['similarity'] == "Perfect match" or bestMatch['similarity'] == 1.0):
             return bestMatch['name']
     return None
 
-def get_nearest_landmark(system):
+def get_nearest_landmark(bot, system):
     """
     Gets the nearest landmark to the given system. Assumes given system is correct.
     """
-    landmarkRes = sysapi_query(system, 'landmark')
+    landmarkRes = sysapi_query(bot, system, 'landmark')
     if landmarkRes and landmarkRes.get('landmarks'):
         return landmarkRes['landmarks'][0]
     return None
@@ -503,7 +503,7 @@ def scan_for_systems(bot, line, min_ratio=0.05, min_length=6):
                     break
                 # Try to find the actual system.
                 check = " ".join(words[ix:endix])
-                systemRes = sysapi_query(check)
+                systemRes = sysapi_query(bot, check)
                 if systemRes and not "error" in systemRes and systemRes['meta']['type'] == 'Perfect match':
                     results[prefix.first_word] = systemRes['meta']['name']
                     break
