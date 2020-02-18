@@ -86,10 +86,17 @@ def search(bot, trigger):
     result = rl_starsystem.sysapi_query(bot, system, "smart")
     if result:
         if "data" in result:
-            return bot.say("Nearest matches for {system} are: {matches}".format(
-                system=system_name,
-                matches=", ".join('"{0[name]}" [{0[similarity]:.1%}]'.format(row) for row in result['data'])
-            ))
+            row = result['data'][0]
+            if 'distance' in row:
+                return bot.say("Nearest matches for {system} are: {matches}".format(
+                    system=system_name,
+                    matches=", ".join('"{0[name]}" [{0[distance]:.1%}]'.format(row) for row in result['data'])
+                ))
+            else:
+                return bot.say("Nearest matches for {system} are: {matches}".format(
+                    system=system_name,
+                    matches=", ".join('"{0[name]}" [{0[similarity]:.1%}]'.format(row) for row in result['data'])
+                ))
         if "error" in result['meta']:
             if result['meta']['error'] == "No hits.":
                 return bot.say("No similar results for {system}".format(system=system_name))
