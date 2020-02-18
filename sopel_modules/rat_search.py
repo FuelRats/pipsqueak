@@ -90,7 +90,7 @@ def search(bot, trigger):
             if 'distance' in row:
                 return bot.say("Nearest matches for {system} are: {matches}".format(
                     system=system_name,
-                    matches=", ".join('"{0[name]}" [{0[distance]:.1%}]'.format(row) for row in result['data'])
+                    matches=", ".join('"{0[name]}" [{0[distance]}]'.format(row) for row in result['data'])
                 ))
             else:
                 return bot.say("Nearest matches for {system} are: {matches}".format(
