@@ -43,8 +43,8 @@ import ratlib.sopel
 from ratlib import timeutil, starsystem
 from ratlib.api.props import SystemNameProperty
 from ratlib.autocorrect import correct
-from ratlib.api.props import *
-from ratlib.api.names import *
+from ratlib.api.props import TrackedBase, TrackedProperty, DateTimeProperty, SetProperty, ListProperty, TypeCoercedProperty, InstrumentedProperty
+from ratlib.api.names import callapi, require_permission, Permissions, getRatName, getRatId, removeTags, flushNames
 from ratlib.sopel import UsageError
 import ratlib.api.http
 import ratlib.db
@@ -647,12 +647,17 @@ def append_quotes(bot, search, lines, autocorrect=True, create=True, detect_plat
                     rv.added_lines.append("[Autocorrected system name, original was {}]".format(originals))
     else:
         rv.added_lines = lines
-    if rv.added_lines and detect_system and not rv.rescue.system:
-        systems = starsystem.scan_for_systems(bot, rv.added_lines[0])
-        if len(systems) == 1:
-            rv.detected_system = systems.pop()
-            rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
-            rv.rescue.system = rv.detected_system
+
+    # System autodetection has been removed due to starsystem backend replacement and the effort required to continue supporting this feature.
+    # It shall be re-implemented in Mecha 3
+    #
+    # if rv.added_lines and detect_system and not rv.rescue.system:
+    #     systems = starsystem.scan_for_systems(bot, rv.added_lines[0])
+    #     if len(systems) == 1:
+    #         rv.detected_system = systems.pop()
+    #         rv.added_lines.append("[Autodetected system: {}]".format(rv.detected_system))
+    #         rv.rescue.system = rv.detected_system
+
     if detect_platform and rv.rescue.platform == None:
         platforms = set()
         for line in rv.added_lines:
@@ -851,8 +856,8 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     if not markingForDeletion and (not rescue.platform or rescue.platform == 'unknown'):
         bot.say('The case platform is unknown. Please set it with the corresponding command and try again.')
         return
-    url = "https://fuelrats.com/paperwork/{rescue.id}/edit".format(
-        rescue=rescue, apiurl=str(bot.config.ratbot.apiurl).strip('/'))
+
+    url = "https://fuelrats.com/paperwork/{rescue.id}/edit".format(rescue=rescue)
     try:
         url = bot.memory['ratbot']['shortener'].shorten(url)['shorturl']
     except:
@@ -861,18 +866,19 @@ def func_clear(bot, trigger, rescue, markingForDeletion=False, *firstlimpet):
     if len(firstlimpet) == 1:
         rat = getRatId(bot, firstlimpet[0], rescue.platform)['id']
         if rat != "0":
-            rescue.firstLimpet = rat
-            dt = datetime.date(2017, 4, 1)
-            if datetime.date.today() == dt:
-                bot.say(
-                    'Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: http://t.fuelr.at/a41',
-                    firstlimpet[0])
-            else:
-                bot.say(
-                'Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: ' + url,
-                firstlimpet[0])
             if rat not in rescue.rats:
+                try:
+                    callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':[rat]}, triggernick=str(trigger.nick))
+                except ratlib.api.http.APIError:
+                    bot.reply('Couldn\'t automatically assign first limpet to rescue. Please assign rat first and try again.')
+                    return
                 rescue.rats.update([rat])
+
+            rescue.firstLimpet = rat
+
+            bot.say(
+            'Your case got closed and you fired the First Limpet! Check if the paperwork is correct here: ' + url,
+            firstlimpet[0])
         else:
             bot.reply('Couldn\'t find a Rat on ' + str(rescue.platform) + ' for ' + str(
                 firstlimpet[0]) + ', sorry! Case not closed, try again!')
@@ -910,7 +916,6 @@ def cmd_list(bot, trigger, *remainder):
         -@: Show full case IDs.  (LONG)
 
     """
-    count = 0
     plats = []
     params = ['']
     tmp = ''
@@ -1224,12 +1229,12 @@ def cmd_epic(bot, trigger, rescue):
     """
     bot.say("Sorry, this command is currently disabled as the epic status is ignored by the API.")
     return
-    rescue.epic = not rescue.epic
-    bot.say(
-        "{rescue.client_name}'s case is now {epic}"
-            .format(rescue=rescue, epic=bold('epic') if rescue.epic else 'not as epic')
-    )
-    save_case_later(bot, rescue)
+    # rescue.epic = not rescue.epic
+    # bot.say(
+    #     "{rescue.client_name}'s case is now {epic}"
+    #         .format(rescue=rescue, epic=bold('epic') if rescue.epic else 'not as epic')
+    # )
+    # save_case_later(bot, rescue)
 
 
 @commands('assign', 'add', 'go', 'gocr')
@@ -1277,7 +1282,10 @@ def cmd_assign(bot, trigger, rescue, *rats):
                 .format(rescue=rescue, rats=", ".join(ratlist), client_name=rescue.data["IRCNick"])
         )
     if len(ratids) > 0:
-        callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
+        try:
+            callapi(bot, 'PUT', '/rescues/assign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
+        except ratlib.api.http.APIError:
+            bot.reply('id ' + str(id) + ' does not exist or other API Error.')
     save_case_later(bot, rescue)
 
 
@@ -1339,8 +1347,10 @@ def cmd_unassign(bot, trigger, rescue, *rats):
             rat=[rat for rat in rats]))
         # break out, the API write is pointless.
         return
-
-    callapi(bot, 'PUT', '/rescues/unassign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
+    try:
+        callapi(bot, 'PUT', '/rescues/unassign/' + str(rescue.id), data={'data':ratids}, triggernick=str(trigger.nick))
+    except ratlib.api.http.APIError:
+        bot.reply('id ' + str(id) + ' does not exist or other API Error.')
 
     bot.say(
         "Removed from {name}'s case: {rats}"
@@ -1432,7 +1442,7 @@ def cmd_system(bot, trigger, rescue, system):
     # Try to find the system in EDDB.
     fmt = "Location of {name} set to {rescue.system}"
 
-    validatedSystem = starsystem.validate(system)
+    validatedSystem = starsystem.validate(bot, system)
 
     if validatedSystem:
         system = validatedSystem
@@ -1545,7 +1555,6 @@ def ratmama_parse(bot, trigger):
             fmt += " - IRC Nickname: {nick}"
 
         # Create plaintext versions of newline
-        newline = fmt.format(**fields)
         result = append_quotes(bot, fields["cmdr"], fmt.format(**fields), create=True, author="Mecha")
         case = result.rescue  # Reduce typing later.
 
@@ -1574,7 +1583,7 @@ def ratmama_parse(bot, trigger):
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
-            validatedSystem = starsystem.validate(fields["system"])
+            validatedSystem = starsystem.validate(bot, fields["system"])
 
             if case.codeRed:
                 fields["o2"] = bold(color(fields["o2"], colors.RED))
@@ -1592,7 +1601,7 @@ def ratmama_parse(bot, trigger):
             fields["cmdr"] = bold(fields["cmdr"])
 
             if validatedSystem:
-                nearest = starsystem.get_nearest_landmark(validatedSystem)
+                nearest = starsystem.get_nearest_landmark(bot, validatedSystem)
                 if nearest and nearest['name'].casefold() != validatedSystem.casefold():
                         fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
             else:
@@ -1670,7 +1679,7 @@ def cmd_reopen(bot, trigger, id):
     Reopens a case by its full database ID
     """
     try:
-        result = callapi(bot, 'PUT', data={'status': 'open'}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
+        callapi(bot, 'PUT', data={'status': 'open'}, uri='/rescues/' + str(id), triggernick=str(trigger.nick))
         refresh_cases(bot, force=True)
         updateBoardIndexes(bot)
         bot.say('Reopened case. Cases refreshed, care for your case numbers!')
@@ -1702,8 +1711,11 @@ def func_delete(bot, trigger, id):
             return
         bot.say('Deleted case with id ' + str(id) + ' - THIS IS NOT REVERTIBLE!')
     else:
-        result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}',
-                         triggernick=str(trigger.nick))
+        try:
+            result = callapi(bot, 'GET', uri='/rescues?data={"markedForDeletion":{"marked":true}}', triggernick=str(trigger.nick))
+        except ratlib.api.http.APIError:
+            bot.reply('Couldn\'t find cases marked for deletion due to API error.')
+
         caselist = []
         try:
             addNamesFromV2Response(result['included'])

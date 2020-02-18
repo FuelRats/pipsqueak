@@ -58,8 +58,7 @@ def setup(bot):
 
 @commands('search')
 @example('!search lave', '')
-@with_session
-def search(bot, trigger, db=None):
+def search(bot, trigger):
     """
     Searches for system name matches. Recoded to pull from Systems API.
     """
@@ -84,16 +83,18 @@ def search(bot, trigger, db=None):
     if result.fixed:
         system_name += " (autocorrected)"
 
-    result = rl_starsystem.sysapi_query(system, "search")
+    result = rl_starsystem.sysapi_query(bot, system, "smart")
     if result:
+        if "data" in result:
+            return bot.say("Nearest matches for {system} are: {matches}".format(
+                system=system_name,
+                matches=", ".join('"{0[name]}" [{0[similarity]:.1%}]'.format(row) for row in result['data'])
+            ))
         if "error" in result['meta']:
-            return bot.say(f"An error occured while accessing systems API: {result['meta']['error']}")
-
-        return bot.say("Nearest matches for {system_name} are: {matches}".format(
-            system_name=system_name,
-            matches=", ".join('"{0[name]}" [{0[similarity]}]'.format(row) for row in result['data'])
-        ))
-    return bot.say("No similar results for {system_name}".format(system_name=system_name))
+            if result['meta']['error'] == "No hits.":
+                return bot.say("No similar results for {system}".format(system=system_name))
+            return bot.say("An error occured while accessing systems API: {error}".format(error=result['meta']['error']))
+    return bot.say("An unkown error occured while accessing systems API.")
 
 
 def refresh_time_stats(bot):
@@ -222,12 +223,15 @@ def cmd_scan(bot, trigger):
     """
     Used for system name detection testing.
     """
-    if not trigger.group(2):
-        bot.reply("Usage: {} <line of text>".format(trigger.group(1)))
+    bot.reply("System Autodetection is no longer a function of Mecha 2 and shall be re-implemented in Mecha 3.")
+    return NOLIMIT
 
-    line = trigger.group(2).strip()
-    results = rl_starsystem.scan_for_systems(bot, line)
-    bot.say("Scan results: {}".format(", ".join(results) if results else "no match found"))
+    # if not trigger.group(2):
+    #     bot.reply("Usage: {} <line of text>".format(trigger.group(1)))
+
+    # line = trigger.group(2).strip()
+    # results = rl_starsystem.scan_for_systems(bot, line)
+    # bot.say("Scan results: {}".format(", ".join(results) if results else "no match found"))
 
 
 @commands('plot')
@@ -389,10 +393,10 @@ def cmd_landmark(bot, trigger, db=None):
         bot.reply("Landmark systems are no longer managed through Mecha.")
 
     def subcommand_near(*unused_args, **unused_kwargs):
-        validatedSystem = rl_starsystem.validate(f'{system_name}')
+        validatedSystem = rl_starsystem.validate(bot, f'{system_name}')
 
         if validatedSystem:
-            landmarkRes = rl_starsystem.sysapi_query(validatedSystem, 'landmark')
+            landmarkRes = rl_starsystem.sysapi_query(bot, validatedSystem, 'landmark')
             if(landmarkRes):
                 if "error" in landmarkRes['meta']:
                     bot.reply(f"An error occured while accessing systems API: {landmarkRes['meta']['error']}")
