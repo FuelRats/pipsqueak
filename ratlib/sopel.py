@@ -1,6 +1,6 @@
 """
 Sopel-specific ratlib constructs.
-Copyright (c) 2017 The Fuel Rats Mischief, 
+Copyright (c) 2017 The Fuel Rats Mischief,
 All rights reserved.
 
 Licensed under the BSD 3-Clause License.
@@ -60,6 +60,7 @@ class RatbotConfigurationSection(StaticSection):
     workdir = types.FilenameAttribute('workdir', directory=True, default='run')
     alembic = types.FilenameAttribute('alembic', directory=False, default='alembic.ini')
     debug_sql = BooleanAttribute('debug_sql', default=False)
+    sapi_url = types.ValidatedAttribute('sapi_url', str, default="https://system.api.fuelrats.com/")
     edsm_url = types.ValidatedAttribute('edsm_url', str, default="http://edsm.net/api-v1/systems?coords=1")
     edsm_maxage = types.ValidatedAttribute('edsm_maxage', int, default=12*60*60)
     edsm_autorefresh = types.ValidatedAttribute('edsm_autorefresh', int, default=4*60*60)
@@ -201,10 +202,11 @@ def configure(config):
     config.ratbot.configure_setting('workdir', "Work directory for dynamically modified data.")
     config.ratbot.configure_setting('alembic', "Path to alembic.ini for database upgrades.")
     config.ratbot.configure_setting('debug_sql', "True if SQLAlchemy should echo query information.")
-    config.ratbot.configure_setting('edsm_url', "URL for EDSM system data")
-    config.ratbot.configure_setting('edsm_maxage', "Maximum age of EDSM system data in seconds")
-    config.ratbot.configure_setting('edsm_autorefresh', "EDSM autorefresh frequency in seconds (0=disable)")
-    config.ratbot.configure_setting('edsm_db', "EDSM Database path (relative to workdir)")
+    config.ratbot.configure_setting('sapi_url', "URL of the Systems API to use to gather starsystem data.")
+    config.ratbot.configure_setting('edsm_url', "DEPRECATED - URL for EDSM system data")
+    config.ratbot.configure_setting('edsm_maxage', "DEPRECATED - Maximum age of EDSM system data in seconds")
+    config.ratbot.configure_setting('edsm_autorefresh', "DEPRECATED - EDSM autorefresh frequency in seconds (0=disable)")
+    config.ratbot.configure_setting('edsm_db', "DEPRECATED - EDSM Database path (relative to workdir)")
     config.ratbot.configure_setting('websocketurl', "The url for the Websocket to listen on")
     config.ratbot.configure_setting('websocketport', "The port for the Websocket to listen on")
     config.ratbot.configure_setting('shortenerurl', "The url for the shortener to listen on")

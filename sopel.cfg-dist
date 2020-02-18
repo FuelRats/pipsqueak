@@ -72,18 +72,25 @@ apiurl = https://dev.api.fuelrats.com
 ## If this is 'stdout' or 'stderr', logs to stdout/stderr instead.
 # apidebug = logs/api.log
 
+# API URL to use to retrieve starsystem data.
+sapi_url=https://system.api.fuelrats.com/
+
+# DEPRECATED
 # URL to use to retrieve starsystem data.
 edsm_url=http://orthanc.localecho.net/json/systems.csv
 # edsm_url=http://orthanc.localecho.net/json/systems_recently.csv
 
+# DEPRECATED
 # Use chuncked data format for systems as seen on orthanc
 # If False, standard edsm format (systems themselves as json objects) will be used.
 # Values: True or False (care for capitalisation, it's Python!)
 chunked_systems = True
 
+# DEPRECATED
 # If starsystem data is older than this (in seconds), !sysrefresh can refresh it.
 edsm_maxage = 604800
 
+# DEPRECATED
 # Check to see if the starsystem data needs to be refreshed every N seconds.  This can be set to a smaller number than
 # edsm_maxage to do things like "check if refresh is needed every 4 hours, but only actually refresh every 12", e.g. to
 # allow retries in the event one attempt fails.  Set to 0 to disable
