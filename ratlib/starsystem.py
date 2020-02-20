@@ -396,6 +396,7 @@ def refresh_bloom(bot, db=None):
     bot.memory['ratbot']['stats']['starsystem_bloom'] = {'entries': count, 'time': t.seconds}
     return bloom
 
+
 def sysapi_query(bot, system, querytype=None):
     """
     Queries systems api for name matches or landmarks.
@@ -413,11 +414,14 @@ def sysapi_query(bot, system, querytype=None):
     try:
         response = requests.get(urljoin(sapi_url, endpoint))
         if response.status_code != 200:
-            return { "meta": { "error": "System API did not respond with valid data." } }
+            return {"meta": {"error": "System API did not respond with valid data."}}
         result = response.json()
     except Timeout:
-        return { "meta": { "error": "The request to Systems API timed out!"} }
+        return {"meta": {"error": "The request to Systems API timed out!"}}
+    except ConnectionError:
+        return {"meta": {"error": "The systems API is currently unavailable."}}
     return result
+
 
 def validate(bot, system):
     """
