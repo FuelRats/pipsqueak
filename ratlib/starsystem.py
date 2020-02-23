@@ -15,7 +15,7 @@ import datetime
 import re
 import operator
 import threading
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlencode
 import csv
 try:
     import collections.abc as collections_abc
@@ -403,13 +403,13 @@ def sysapi_query(bot, system, querytype=None):
     """
 
     sapi_url = bot.config.ratbot.sapi_url or "https://system.api.fuelrats.com/"
-
+    encoded = urlencode(system)
     if querytype == "landmark":
-        endpoint = f"landmark?name={system}"
+        endpoint = f"landmark?name={encoded}"
     elif querytype == "smart":
-        endpoint = f"mecha?name={system}"
+        endpoint = f"mecha?name={encoded}"
     else:
-        endpoint = f"search?name={system}"
+        endpoint = f"search?name={encoded}"
 
     try:
         response = requests.get(urljoin(sapi_url, endpoint))
