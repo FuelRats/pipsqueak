@@ -15,7 +15,7 @@ import datetime
 import re
 import operator
 import threading
-from urllib.parse import urljoin, urlencode
+from urllib.parse import urljoin, quote_plus
 import csv
 try:
     import collections.abc as collections_abc
@@ -403,7 +403,7 @@ def sysapi_query(bot, system, querytype=None):
     """
 
     sapi_url = bot.config.ratbot.sapi_url or "https://system.api.fuelrats.com/"
-    encoded = urlencode(system)
+    encoded = quote_plus(system)
     if querytype == "landmark":
         endpoint = f"landmark?name={encoded}"
     elif querytype == "smart":
