@@ -418,7 +418,7 @@ def sysapi_query(bot, system, querytype=None):
         result = response.json()
     except Timeout:
         return {"meta": {"error": "The request to Systems API timed out!"}}
-    except ConnectionError:
+    except requests.exceptions.ConnectionError:
         return {"meta": {"error": "The systems API is currently unavailable."}}
     return result
 
