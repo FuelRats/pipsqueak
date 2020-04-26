@@ -1442,13 +1442,18 @@ def cmd_system(bot, trigger, rescue, system):
     # Try to find the system in EDDB.
     fmt = "Location of {name} set to {rescue.system}"
 
-    validatedSystem = starsystem.validate(bot, system)
+    if len(system) > 2:
+        validatedSystem = starsystem.validate(bot, system)
 
-    if validatedSystem:
-        system = validatedSystem
+        if validatedSystem:
+            system = validatedSystem
+        else:
+            fmt += " (not in Fuelrats System Database)"
     else:
-        fmt += "  (not in Fuelrats System Database)"
+        fmt += " (too short to verify)"
+
     rescue.system = system
+
     bot.say(fmt.format(rescue=rescue, name=rescue.data["IRCNick"]))
     save_case_later(
         bot, rescue,
@@ -1583,7 +1588,8 @@ def ratmama_parse(bot, trigger):
         if result.created:
             # Add IRC formatting to fields, then substitute them into to output to the channel
             # (But only if this is a new case, because we aren't using it otherwise)
-            validatedSystem = starsystem.validate(bot, fields["system"])
+
+            system = fields["system"]
 
             if case.codeRed:
                 fields["o2"] = bold(color(fields["o2"], colors.RED))
@@ -1597,15 +1603,20 @@ def ratmama_parse(bot, trigger):
             elif case.platform == 'pc':
                 fields["platform_signal"] = "PC_SIGNAL"
             fields["platform"] = bold(fields["platform"])
-            fields["system"] = bold(fields["system"])
+            fields["system"] = bold(system)
             fields["cmdr"] = bold(fields["cmdr"])
 
-            if validatedSystem:
-                nearest = starsystem.get_nearest_landmark(bot, validatedSystem)
-                if nearest and nearest['name'].casefold() != validatedSystem.casefold():
-                        fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
+
+            if len(system) > 2:
+                validatedSystem = starsystem.validate(bot, system)
+                if validatedSystem:
+                    nearest = starsystem.get_nearest_landmark(bot, validatedSystem)
+                    if nearest and nearest['name'].casefold() != validatedSystem.casefold():
+                            fields["system"] += " ({:.2f} LY from {})".format(nearest['distance'], nearest['name'])
+                else:
+                    fields["system"] += " (not in Fuelrats System Database)"
             else:
-                fields["system"] += " (not in Fuelrats System Database)"
+                fields["system"] += " (too short to verify)"
 
             bot.say((fmt + " (Case #{boardindex}) ({platform_signal})").format(boardindex=case.boardindex, **fields))
             if case.codeRed:

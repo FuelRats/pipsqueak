@@ -179,23 +179,24 @@ def get_tweet_for_case(bot, rescue):
     nearSystem = ""
 
 
-    validatedSystem = starsystem.validate(bot, rescue.system)
-    if validatedSystem:
-        nearestLandmark = starsystem.get_nearest_landmark(bot, validatedSystem)
+    if len(rescue.system) > 2:
+        validatedSystem = starsystem.validate(bot, rescue.system)
+        if validatedSystem:
+            nearestLandmark = starsystem.get_nearest_landmark(bot, validatedSystem)
 
-        if nearestLandmark:
-            landmarkName = nearestLandmark['name']
-            landmarkDistance = nearestLandmark['distance']
+            if nearestLandmark:
+                landmarkName = nearestLandmark['name']
+                landmarkDistance = nearestLandmark['distance']
 
-            if (landmarkName.casefold() == validatedSystem.casefold()) or landmarkDistance < 50:
-                nearSystem = " near {system}".format(platform=platform, cr=cr, system=landmarkName)
+                if (landmarkName.casefold() == validatedSystem.casefold()) or landmarkDistance < 50:
+                    nearSystem = " near {system}".format(platform=platform, cr=cr, system=landmarkName)
 
-            if landmarkDistance < 500:
-                nearSystem = ' ~{dist}LY from {system}'.format(dist=math.ceil(landmarkDistance / 10) * 10, system=landmarkName)
-            elif landmarkDistance < 2000:
-                nearSystem = ' ~{dist}LY from {system}'.format(dist=math.ceil(landmarkDistance / 100) * 100, system=landmarkName)
-            else:
-                nearSystem = ' ~{dist}kLY from {system}'.format(dist=math.ceil(landmarkDistance / 1000), system=landmarkName)
+                if landmarkDistance < 500:
+                    nearSystem = ' ~{dist}LY from {system}'.format(dist=math.ceil(landmarkDistance / 10) * 10, system=landmarkName)
+                elif landmarkDistance < 2000:
+                    nearSystem = ' ~{dist}LY from {system}'.format(dist=math.ceil(landmarkDistance / 100) * 100, system=landmarkName)
+                else:
+                    nearSystem = ' ~{dist}kLY from {system}'.format(dist=math.ceil(landmarkDistance / 1000), system=landmarkName)
 
     return "[{platform}] Rats needed for a {cr}rescue{nearSystem}!".format(
         platform=platform,

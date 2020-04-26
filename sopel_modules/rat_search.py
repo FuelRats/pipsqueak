@@ -400,6 +400,11 @@ def cmd_landmark(bot, trigger, db=None):
         bot.reply("Landmark systems are no longer managed through Mecha.")
 
     def subcommand_near(*unused_args, **unused_kwargs):
+
+        if len(system_name) < 3:
+            bot.reply(f"{system_name} is too short to search. System name must be at least 3 characters.")
+            return
+
         validatedSystem = rl_starsystem.validate(bot, f'{system_name}')
 
         if validatedSystem:
